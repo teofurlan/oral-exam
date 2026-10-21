@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { useExamSocket } from '@/hooks/useExamSocket'
 import { useMicCapture } from '@/hooks/useMicCapture'
+import { useAudioInputs } from '@/hooks/useAudioInputs'
 import { OrbVisualizer } from '@/components/OrbVisualizer'
 import { QuestionPanel } from '@/components/QuestionPanel'
 import { SettingsMenu } from '@/components/SettingsMenu'
@@ -11,6 +12,8 @@ import {
   setStoredSilenceTimeout,
   getStoredOrbPalette,
   setStoredOrbPalette,
+  getStoredMicDeviceId,
+  setStoredMicDeviceId,
 } from '@/lib/storage'
 import { AlertTriangle } from 'lucide-react'
 
@@ -34,6 +37,8 @@ export const App: React.FC = () => {
 
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
+  const [micDeviceId, setMicDeviceId] = useState<string>(getStoredMicDeviceId)
+  const { microphones, refresh: refreshMicrophones } = useAudioInputs()
 
   const handleFinalize = useCallback(
     (base64: string) => {
@@ -42,13 +47,19 @@ export const App: React.FC = () => {
     [sendAudio],
   )
 
-  const { micError, getInputVolume, silenceCountdownMs, onTalkingChange } = useMicCapture({
+  const { micError, micFallback, getInputVolume, silenceCountdownMs, onTalkingChange } = useMicCapture({
     protocolState: state.protocolState,
     mode: state.mode,
     silenceTimeoutMs,
     listeningEpoch,
+    deviceId: micDeviceId,
     onFinalize: handleFinalize,
   })
+
+  const handleMicChange = (id: string) => {
+    setMicDeviceId(id)
+    setStoredMicDeviceId(id)
+  }
 
   const handleSilenceChange = (newMs: number) => {
     setSilenceTimeoutMs(newMs)
@@ -101,6 +112,11 @@ export const App: React.FC = () => {
           onSilenceChange={handleSilenceChange}
           paletteId={paletteId}
           onPaletteChange={handlePaletteChange}
+          microphones={microphones}
+          micDeviceId={micDeviceId}
+          onMicChange={handleMicChange}
+          micFallback={micFallback}
+          onOpen={refreshMicrophones}
         />
       </header>
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useId, useRef, useState } from 'react'
-import { Settings, Timer } from 'lucide-react'
+import { Mic, Settings, Timer } from 'lucide-react'
 import { ModeToggle } from '@/components/ModeToggle'
 import { ORB_PALETTES } from '@/components/orbPalettes'
+import type { Microphone } from '@/hooks/useAudioInputs'
 import { MIN_SILENCE_TIMEOUT_MS, MAX_SILENCE_TIMEOUT_MS } from '@/lib/storage'
 import type { TurnMode } from '@/types/exam'
 
@@ -12,6 +13,14 @@ export interface SettingsMenuProps {
   onSilenceChange: (ms: number) => void
   paletteId: string
   onPaletteChange: (id: string) => void
+  microphones: Microphone[]
+  /** '' = system default. */
+  micDeviceId: string
+  onMicChange: (deviceId: string) => void
+  /** Capture is using the system default because the selected microphone failed. */
+  micFallback: boolean
+  /** Called each time the popover opens, to refresh the device list. */
+  onOpen?: () => void
 }
 
 const swatch = (colors: [string, string]) =>
@@ -25,6 +34,11 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onSilenceChange,
   paletteId,
   onPaletteChange,
+  microphones,
+  micDeviceId,
+  onMicChange,
+  micFallback,
+  onOpen,
 }) => {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -55,6 +69,10 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
     ...ORB_PALETTES,
   ]
 
+  // An empty list means names are hidden until access is granted, not that the device is gone.
+  const micMissing =
+    micDeviceId !== '' && microphones.length > 0 && !microphones.some((m) => m.deviceId === micDeviceId)
+
   return (
     <div ref={rootRef} className="relative">
       <button
@@ -65,7 +83,10 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open) onOpen?.()
+          setOpen(!open)
+        }}
         className="press glass-chip grid h-10 w-10 place-items-center rounded-full text-white/80 hover:text-white"
       >
         <Settings
@@ -86,6 +107,36 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
           data-testid="settings-panel"
           className="materialize glass absolute right-0 top-12 z-30 flex w-[min(20rem,calc(100vw-2.5rem))] origin-top-right flex-col gap-5 rounded-3xl p-5"
         >
+          <section className="flex flex-col gap-2.5" data-testid="mic-control">
+            <label htmlFor={`${panelId}-mic`} className="t-title inline-flex items-center gap-2">
+              <Mic className="h-3.5 w-3.5" strokeWidth={2} />
+              Microphone
+            </label>
+            <select
+              id={`${panelId}-mic`}
+              value={micDeviceId}
+              onChange={(e) => onMicChange(e.target.value)}
+              className="glass-chip w-full truncate rounded-xl px-3 py-2 t-caption"
+              style={{ color: 'var(--label)', colorScheme: 'dark' }}
+            >
+              <option value="">System default</option>
+              {microphones.map((m) => (
+                <option key={m.deviceId} value={m.deviceId}>{m.label}</option>
+              ))}
+              {micMissing && <option value={micDeviceId} disabled>Disconnected microphone</option>}
+            </select>
+            {(micMissing || micFallback) && (
+              <p data-testid="mic-fallback-note" className="t-caption" style={{ color: 'var(--warn)' }}>
+                The selected microphone is not available. Using the system default.
+              </p>
+            )}
+            {microphones.length === 0 && (
+              <p className="t-caption" style={{ color: 'var(--label-2)' }}>
+                Allow microphone access to see device names.
+              </p>
+            )}
+          </section>
+
           <section className="flex flex-col gap-2.5">
             <h2 className="t-title">Turn mode</h2>
             <ModeToggle mode={mode} onChange={onModeChange} />

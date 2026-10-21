@@ -69,3 +69,23 @@ export function setStoredOrbPalette(id: string): void {
     console.warn('Failed to write orb palette to localStorage:', err)
   }
 }
+
+export const STORAGE_KEY_MIC_DEVICE = 'socra_mic_device_id'
+
+/** '' = the system default microphone; otherwise a MediaDeviceInfo.deviceId. */
+export function getStoredMicDeviceId(): string {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY_MIC_DEVICE) ?? ''
+  } catch (err) {
+    console.warn('Failed to read microphone from localStorage:', err)
+    return ''
+  }
+}
+
+export function setStoredMicDeviceId(id: string): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY_MIC_DEVICE, id)
+  } catch (err) {
+    console.warn('Failed to write microphone to localStorage:', err)
+  }
+}
