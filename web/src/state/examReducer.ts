@@ -11,6 +11,7 @@ export const initialExamState: ExamState = {
   connectionStatus: 'connecting',
   protocolState: 'idle',
   question: null,
+  finished: false,
   transcript: {
     text: '',
     final: false,
@@ -33,11 +34,22 @@ export function examReducer(state: ExamState, action: ExamAction): ExamState {
           index: action.index,
           total: action.total,
           text: action.text,
+          ...(action.code !== undefined ? { code: action.code } : {}),
         },
+        finished: false,
         transcript: {
           text: '',
           final: false,
         },
+      }
+
+    case 'finished':
+      return {
+        ...state,
+        protocolState: 'idle',
+        question: null,
+        transcript: { text: '', final: false },
+        finished: true,
       }
 
     case 'transcript':

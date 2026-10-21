@@ -14,9 +14,10 @@ Branch: feat/orb-front (first slice) · Delivery: ask-on-risk · Test runner: Vi
 ## WebSocket protocol (draft, server -> page unless noted)
 
 - `{"type":"state","state":"idle"|"speaking"|"listening"|"thinking"}`
-- `{"type":"question","index":n,"total":m,"text":"..."}`
+- `{"type":"question","index":n,"total":m,"text":"...","code":"..."}` (`code` optional, display-only; only `text` is spoken)
 - `{"type":"tts_audio","format":"wav","data":"<base64>"}` (page plays it; orb reacts to output volume)
 - `{"type":"transcript","text":"...","final":true|false}`
+- `{"type":"finished"}` (question-less end screen, sent after `state idle`; optional summary is spoken first)
 - page -> server: `{"type":"answer_audio","format":"wav","data":"<base64>"}`, `{"type":"reanswer"}`, `{"type":"mode","mode":"auto"|"push-to-talk"}`
 
 ## Tasks
@@ -24,7 +25,7 @@ Branch: feat/orb-front (first slice) · Delivery: ask-on-risk · Test runner: Vi
 - T1 [S2,S3,S4,S7] Web front with mocked WebSocket state: orb, mode toggle, question + transcript panel, re-answer button. Route: delegated (Gemini 3.8 Flash via Pi, user request to save Claude quota). Validated by GPT 6.1 Sol (4 defects fixed: remote Perlin texture, TTS playback, socket lifecycle, Space hold). 38 tests pass, build OK, mock driver visually checked. Status: done.
 - T2 [S4,S5,S6] Python MCP + WebSocket server wired to Kokoro and faster-whisper. Route: delegated (Sonnet 4.6 via Antigravity in Pi builds, GPT 6.1 Sol validates; needs more judgment than Flash: asyncio + MCP stdio + audio). Brief: odd/brief-T2.md. GPT added regressions for: glossary to recognizer, malformed messages, page replacement, in-flight audio after reanswer, answer during wait, MCP handshake not blocked by noisy model load, Whisper CUDA->CPU fallback, readiness awaited off-loop (its final report was cut off; fixes inferred from its tests). 49 tests pass; real Kokoro->Whisper roundtrip OK (load 17s once, synth 3.1s, STT 2.3s; "thread" heard as "triad": not in terms.json). Status: done.
 - T3 [S3,S4] Browser mic capture with VAD (auto) and push-to-talk. Route: delegated (Sonnet 4.6 via Pi builds, GPT 6.1 Sol validates). Briefs: odd/brief-T3.md, odd/validate-T3.md. Sonnet run exited 1 but left the implementation; GPT fixed capture during speaking, stale init, leaks, finalization latch, listening->listening re-answer, VAD asset paths, then a bounded fix so the silence counts from the last speech frame. 104 tests pass, build OK, VAD assets local, permission-denied banner checked in browser. Advisory: push-to-talk rejects silence by RMS, not speech (Whisper vad_filter covers it). Real mic untested. Status: done.
-- T4 [S1,S5,S7] Hook `project-exam` skill to the MCP tools. Route: server+web delegated (Sonnet 4.6 builds, GPT validates; briefs odd/brief-T4.md, odd/validate-T4.md); skill edit and MCP registration inline by Claude. Status: in progress.
+- T4 [S1,S5,S7] Hook `project-exam` skill to the MCP tools. Route: server+web delegated (Sonnet 4.6 builds, GPT validates; briefs odd/brief-T4.md, odd/validate-T4.md); skill edit and MCP registration inline by Claude. Sonnet and Gemini Pro hit Antigravity quota (no changes); GPT 6.1 Sol implemented it instead. Added HTTP page on 8767 (path-confined), open_page, ask code field, finish. 59 server + 107 web tests pass; real MCP stdio + WS + Kokoro + Whisper smoke (server/tests/smoke_e2e.py) passes, rerun by Claude. project-exam skill got an Oral Mode section; MCP registered at user scope as oral-exam. Not exercised: real browser launch and mic. Status: done.
 
 ## Log
 

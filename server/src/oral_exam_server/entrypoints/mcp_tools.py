@@ -1,22 +1,16 @@
-"""MCP tool entrypoint — exposes say, ask, get_answer via FastMCP over stdio.
-
-stdout is reserved for JSON-RPC; all logging goes to stderr.
-"""
+"""MCP exam tools over stdio; stdout is reserved for JSON-RPC."""
 from __future__ import annotations
 
 import logging
 import sys
-from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
-from mcp import types as mcp_types
 
-# All logging to stderr only — stdout belongs to the JSON-RPC transport
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, format="%(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# The global ExamApp instance is injected by __main__ before the server starts
-_app = None  # type: ignore[assignment]
+# The shared application is injected by __main__ before the server starts.
+_app = None
 
 
 def get_app():
@@ -33,22 +27,34 @@ def wire_app(app) -> None:
 
 
 def create_mcp() -> FastMCP:
-    """Build and return the FastMCP instance with all tools registered."""
+    """Build the MCP interface that an exam session uses to drive the page."""
     mcp = FastMCP(
         "oral-exam-server",
         instructions=(
-            "Local oral exam tools. "
-            "Call say() to speak text, ask() to pose a question and begin listening, "
-            "get_answer() to retrieve the user's spoken answer."
+            "Local oral exam tools. Start with open_page(). Use say() for spoken feedback, "
+            "ask() for questions with optional display-only code, and call get_answer() "
+            "repeatedly while it returns listening. Answers are verbatim transcripts, "
+            "not cleaned or rewritten. End with finish()."
         ),
     )
 
     @mcp.tool()
-    async def say(text: str) -> dict:
-        """Speak text aloud through the page's TTS audio channel.
+    async def open_page() -> dict:
+        """Use before starting an exam, or after any tool returns no_client.
 
-        Sends state:speaking + tts_audio to the page and returns immediately.
-        Returns {"status": "ok"} or {"status": "no_client", "url": ...}.
+        Reuse an already-connected page without launching a browser. Otherwise
+        open a visible Edge/Chrome app window (default browser as fallback) and
+        wait at most 15 seconds total for the page to connect. Returns status
+        connected, or no_client with the page URL and a build hint if needed.
+        """
+        return await get_app().open_page()
+
+    @mcp.tool()
+    async def say(text: str) -> dict:
+        """Use for instructions or feedback that should be spoken, not a question.
+
+        Sends state:speaking and synthesized WAV audio; does not start listening
+        or wait for browser playback. Returns status ok, or no_client with a URL.
         """
         return await get_app().say(text)
 
@@ -58,26 +64,39 @@ def create_mcp() -> FastMCP:
         index: int,
         total: int,
         glossary: list[str] | None = None,
+        code: str | None = None,
     ) -> dict:
-        """Pose a question to the user.
+        """Use to pose each numbered exam question and begin listening.
 
-        Sends the question card, speaks it aloud, then moves to listening state.
-        ``glossary`` is an optional list of domain-specific terms used as Whisper
-        initial_prompt hints for this question's expected answer.
-
-        Returns {"status": "asked"} or {"status": "no_client", "url": ...}.
+        question contains only spoken text. Put code-reading snippets in code:
+        they are displayed verbatim on the page and are NEVER synthesized.
+        glossary optionally supplies domain terms as Whisper initial_prompt hints.
+        Sends the question, speech audio, then listening state. Returns status
+        asked or no_client with a URL. Next, poll get_answer repeatedly while its
+        status is listening; answers are verbatim transcripts, never cleaned.
         """
-        return await get_app().ask(question, index, total, glossary)
+        return await get_app().ask(question, index, total, glossary, code)
 
     @mcp.tool()
     async def get_answer(wait_s: float = 20) -> dict:
-        """Wait up to ``wait_s`` seconds (clamped 1–25) for the user's spoken answer.
+        """Use after ask to retrieve the student's verbatim spoken transcript.
 
-        Returns:
-          {"status": "answered", "index": n, "text": "<verbatim transcript>"}
-          {"status": "listening"}   — timed out, no answer yet
-          {"status": "no_client", "url": ...}
+        Waits up to wait_s seconds (clamped to 1–25). Call repeatedly while the
+        result is {"status":"listening"}; that means no final answer yet, not an
+        error. On {"status":"answered","index":n,"text":...}, text is the
+        verbatim STT transcript, never cleaned, paraphrased or rewritten. Preserve
+        it as received. A no_client result includes the URL; reconnect the page.
         """
         return await get_app().get_answer(wait_s)
+
+    @mcp.tool()
+    async def finish(summary: str | None = None) -> dict:
+        """Use once the exam is complete, after grading the last answer.
+
+        Optionally speak summary, then send idle and the question-less finished
+        screen. Does not wait for browser audio playback. Returns status finished
+        or no_client with a URL. Do not keep polling get_answer after finishing.
+        """
+        return await get_app().finish(summary)
 
     return mcp

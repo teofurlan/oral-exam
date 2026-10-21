@@ -73,6 +73,11 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
         >
           {question?.text || 'Connecting to examiner server...'}
         </p>
+        {question?.code !== undefined && (
+          <pre className="mt-4 max-w-full overflow-x-auto rounded-xl bg-neutral-950 p-4 font-mono text-sm text-neutral-200 select-text">
+            <code>{question.code}</code>
+          </pre>
+        )}
       </div>
 
       {/* Transcript Card */}

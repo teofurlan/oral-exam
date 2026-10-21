@@ -1,8 +1,14 @@
 # oral-exam-server
 
-Local MCP + WebSocket server for the oral exam app.  One process, one asyncio
-loop: MCP tools over stdio (for Claude Code) and a WebSocket server on
-`ws://localhost:8766/ws` (for the web front).
+Local voice exam server. One process, one asyncio loop:
+
+- MCP tools over stdio for Claude Code.
+- WebSocket on `ws://localhost:8766/ws` (port 8766).
+- Built exam page on `http://localhost:8767/` (port 8767), with static assets and
+  an `index.html` fallback for page routes.
+
+Both network listeners bind only to `127.0.0.1`. The page uses the same WebSocket
+URL in development (Vite on 5180) and when served by the Python server on 8767.
 
 ---
 
@@ -17,10 +23,31 @@ loop: MCP tools over stdio (for Claude Code) and a WebSocket server on
 
 ---
 
+## Build and register with Claude Code
+
+From the repository root, build the page once (and again after web changes):
+
+```bash
+pnpm -C web build
+```
+
+Register the MCP server for your user, replacing `<abs path>` with the absolute
+path to this repository. Quote the path if it contains spaces:
+
+```bash
+claude mcp add --scope user oral-exam -- uv run --project "<abs path>/server" oral-exam-server
+```
+
+An exam session calls `open_page()` first. If no page is connected, it opens a
+visible Edge app window, then tries Chrome, then the default browser. It waits
+at most 15 seconds for a connection. All `no_client` responses point to
+`http://localhost:8767/`; if the page has not been built, they also include
+`"hint":"run pnpm -C web build"`.
+
 ## Run
 
 ```bash
-# From the repo root (oral-exam/)
+# From the repo root (oral-exam/); Claude Code normally starts this via MCP.
 uv run --project server oral-exam-server
 ```
 
@@ -55,11 +82,21 @@ uv run --project server pytest -q
 
 No real models are loaded during tests — all adapters use in-process fakes.
 
-### Manual real-model smoke
+### Manual real-model smokes
 
 ```bash
+# Strict MCP + WebSocket round trip; requires free ports 8766 and 8767.
+pnpm -C web build
+uv run --project server python server/tests/smoke_e2e.py
+
+# Adapter-only round trip.
 uv run --project server python server/tests/smoke_roundtrip.py
 ```
+
+The strict smoke starts its own server, reuses a headless WebSocket client
+without opening a browser or microphone, checks display-only question code,
+and polls a real Kokoro-generated answer through Whisper and MCP. It prints
+its transcript and timings and fails on protocol contamination or missing tools.
 
 This standalone script is excluded from default pytest collection. It loads the
 real adapters, synthesizes the Spanish process/thread sentence, transcribes the
@@ -120,12 +157,28 @@ oral_exam_server/
 │   ├── kokoro_tts.py       # Wraps pi_voice.speech.Synthesizer (lazy load)
 │   └── whisper_stt.py      # Wraps dictation.WhisperTranscriber (lazy load)
 ├── entrypoints/
-│   ├── mcp_tools.py        # FastMCP tools: say, ask, get_answer
-│   └── ws_server.py        # WebSocket server on :8766/ws
+│   ├── mcp_tools.py        # open_page, say, ask, get_answer, finish
+│   ├── http_server.py      # Built page on 127.0.0.1:8767
+│   └── ws_server.py        # WebSocket server on 127.0.0.1:8766/ws
 ├── app.py                  # ExamApp: ties session + ports + PageChannel
 ├── ports.py                # SpeechSynthesizer / SpeechRecognizer protocols
-└── __main__.py             # Entry point: asyncio loop running both servers
+└── __main__.py             # One asyncio loop for MCP, WebSocket and HTTP
 ```
+
+### MCP exam flow
+
+1. `open_page()` returns `connected` or `no_client` (with the URL/build hint).
+2. `say(text)` speaks instructions or feedback; it does not begin listening.
+3. `ask(question, index, total, glossary=None, code=None)` shows the numbered
+   question, speaks only `question`, and begins listening. Put code snippets in
+   `code`, not in the spoken text. `glossary` supplies optional STT term hints.
+4. Call `get_answer(wait_s=20)` **repeatedly while it returns `listening`**.
+   Each call waits 1–25 seconds. `answered` includes `index` and `text`: the
+   verbatim transcript, never cleaned or rewritten. Preserve it as received.
+5. `finish(summary=None)` optionally speaks a summary, then sends idle and
+   finished. The page replaces the question panel with **Exam finished**.
+
+Speech tools return after synthesis/delivery, not after browser audio playback.
 
 ### WebSocket protocol
 
@@ -134,9 +187,10 @@ oral_exam_server/
 | Message | Fields |
 |---|---|
 | `state` | `state`: `"idle"` \| `"speaking"` \| `"listening"` \| `"thinking"` |
-| `question` | `index`, `total`, `text` |
+| `question` | `index`, `total`, `text`, optional display-only `code` |
 | `tts_audio` | `format: "wav"`, `data: <base64>` |
 | `transcript` | `text`, `final: true` |
+| `finished` | No fields; sent after `state: idle` |
 
 **Page → server**
 

@@ -181,7 +181,7 @@ main()
         proc.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n')
         await proc.stdin.drain()
         tools = json.loads(await asyncio.wait_for(proc.stdout.readline(), 1))
-        assert {tool["name"] for tool in tools["result"]["tools"]} == {"say", "ask", "get_answer"}
+        assert {tool["name"] for tool in tools["result"]["tools"]} == {"say", "ask", "get_answer", "open_page", "finish"}
         # Release the fake loaders only after initialize and tools/list have
         # completed, proving neither request awaited model readiness.
         proc.stdin.write(b'{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"say","arguments":{"text":"hello"}}}\n')
@@ -189,7 +189,10 @@ main()
         called = json.loads(await asyncio.wait_for(proc.stdout.readline(), 2.5))
         assert called["id"] == 3
         payload = json.loads(called["result"]["content"][0]["text"])
-        assert payload == {"status": "no_client", "url": "http://localhost:5180/"}
+        expected = {"status": "no_client", "url": "http://localhost:8767/"}
+        if not (Path(__file__).resolve().parents[2] / "web/dist/index.html").is_file():
+            expected["hint"] = "run pnpm -C web build"
+        assert payload == expected
         proc.stdin.close()
         # Drain both pipes while waiting; Process.wait() alone can deadlock
         # when subprocess stderr fills its pipe buffer on Windows.

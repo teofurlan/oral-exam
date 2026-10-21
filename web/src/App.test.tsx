@@ -125,4 +125,24 @@ describe('App Integration', () => {
 
     expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'reanswer' }))
   })
+  it('shows the finished screen over WebSocket and accepts the next exam question', () => {
+    render(<App />)
+    const ws = MockWebSocket.instances[0]
+    act(() => {
+      ws.simulateMessage({ type: 'question', index: 1, total: 1, text: 'Read this code.', code: 'print(42)' })
+    })
+    expect(screen.getByText('print(42)')).toBeInTheDocument()
+    act(() => {
+      ws.simulateMessage({ type: 'state', state: 'idle' })
+      ws.simulateMessage({ type: 'finished' })
+    })
+    expect(screen.getByText('Exam finished')).toBeInTheDocument()
+    expect(screen.queryByTestId('question-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('reanswer-button')).not.toBeInTheDocument()
+    act(() => ws.simulateMessage({ type: 'question', index: 1, total: 2, text: 'New exam.' }))
+    expect(screen.queryByText('Exam finished')).not.toBeInTheDocument()
+    expect(screen.getByTestId('question-text')).toHaveTextContent('New exam.')
+    expect(screen.queryByText('print(42)')).not.toBeInTheDocument()
+  })
+
 })

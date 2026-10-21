@@ -48,19 +48,19 @@ def _connect(channel: PageChannel, fake_page: _FakePage) -> None:
 @pytest.mark.asyncio
 async def test_say_no_client(app):
     result = await app.say("hello")
-    assert result == {"status": "no_client", "url": "http://localhost:5180/"}
+    assert result == {"status": "no_client", "url": "http://localhost:8767/"}
 
 
 @pytest.mark.asyncio
 async def test_ask_no_client(app):
     result = await app.ask("What is X?", 1, 3)
-    assert result == {"status": "no_client", "url": "http://localhost:5180/"}
+    assert result == {"status": "no_client", "url": "http://localhost:8767/"}
 
 
 @pytest.mark.asyncio
 async def test_get_answer_no_client(app):
     result = await app.get_answer(wait_s=1)
-    assert result == {"status": "no_client", "url": "http://localhost:5180/"}
+    assert result == {"status": "no_client", "url": "http://localhost:8767/"}
 
 
 # ---------------------------------------------------------------------------

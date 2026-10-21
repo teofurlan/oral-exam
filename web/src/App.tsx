@@ -159,15 +159,21 @@ export const App: React.FC = () => {
         </div>
 
         {/* Question + Transcript panel */}
-        <QuestionPanel
-          question={state.question}
-          transcript={state.transcript}
-          protocolState={state.protocolState}
-          onReanswer={reanswer}
-        />
+        {state.finished ? (
+          <section role="status" className="w-full text-center py-8">
+            <h2 className="text-2xl font-semibold">Exam finished</h2>
+          </section>
+        ) : (
+          <QuestionPanel
+            question={state.question}
+            transcript={state.transcript}
+            protocolState={state.protocolState}
+            onReanswer={reanswer}
+          />
+        )}
 
         {/* Push-to-talk button if active */}
-        {state.mode === 'push-to-talk' && (
+        {!state.finished && state.mode === 'push-to-talk' && (
           <div className="w-full flex justify-center pt-2 animate-in fade-in zoom-in-95 duration-200">
             <PushToTalkControl onTalkingChange={onTalkingChange} />
           </div>

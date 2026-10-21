@@ -116,5 +116,6 @@ def channel():
 
 
 @pytest.fixture
-def app(channel, loader):
-    return ExamApp(channel=channel, loader=loader)
+def app(channel, loader, tmp_path):
+    (tmp_path / "index.html").write_text("<h1>Exam</h1>")
+    return ExamApp(channel=channel, loader=loader, web_dist=tmp_path)

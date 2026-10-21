@@ -10,16 +10,21 @@ import asyncio
 import base64
 import json
 import logging
+from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from oral_exam_server.domain.session import ExamSession
 from oral_exam_server.adapters.kokoro_tts import KokoroTTS
 from oral_exam_server.adapters.whisper_stt import WhisperSTT
+from oral_exam_server.adapters.browser import launch_page
+from oral_exam_server.entrypoints.http_server import PAGE_URL, WEB_DIST
 
 if TYPE_CHECKING:
     import websockets
 
 logger = logging.getLogger(__name__)
+OPEN_PAGE_TIMEOUT_S = 15.0
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +42,7 @@ class PageChannel:
     def __init__(self) -> None:
         self._ws: "websockets.ServerConnection | None" = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._connected = asyncio.Event()
 
     def set_connection(
         self,
@@ -45,10 +51,19 @@ class PageChannel:
     ) -> None:
         self._ws = ws
         self._loop = loop
+        if ws is None:
+            self._connected.clear()
+        else:
+            self._connected.set()
 
     @property
     def is_connected(self) -> bool:
         return self._ws is not None
+
+    async def wait_connected(self) -> None:
+        """Wait without polling until a page registers its WebSocket."""
+        while not self.is_connected:
+            await self._connected.wait()
 
     async def send(self, message: dict) -> None:
         """Send a JSON message to the page.  No-op if no page is connected."""
@@ -61,6 +76,7 @@ class PageChannel:
             logger.error("PageChannel.send failed: %s", exc)
             if self._ws is ws:
                 self._ws = None
+                self._connected.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +140,13 @@ class ExamApp:
         self,
         channel: PageChannel,
         loader: ModelLoader,
+        *,
+        web_dist: Path = WEB_DIST,
+        launcher: Callable[[], None] = launch_page,
     ) -> None:
+        self.web_dist = web_dist
+        self._launcher = launcher
+        self._finished = False
         self.channel = channel
         self.loader = loader
         self.session = ExamSession()
@@ -152,10 +174,31 @@ class ExamApp:
     # MCP tool implementations                                            #
     # ------------------------------------------------------------------ #
 
+    def _no_client(self) -> dict:
+        result = {"status": "no_client", "url": PAGE_URL}
+        if not (self.web_dist / "index.html").is_file():
+            result["hint"] = "run pnpm -C web build"
+        return result
+
+    async def open_page(self) -> dict:
+        """Open the visible page if needed and wait at most 15 seconds in total."""
+        if self.channel.is_connected:
+            return {"status": "connected"}
+        try:
+            async with asyncio.timeout(OPEN_PAGE_TIMEOUT_S):
+                try:
+                    await asyncio.to_thread(self._launcher)
+                except Exception:
+                    logger.exception("Unable to launch exam page; open %s manually", PAGE_URL)
+                await self.channel.wait_connected()
+        except TimeoutError:
+            return self._no_client()
+        return {"status": "connected"}
+
     async def say(self, text: str) -> dict:
         """Say text: send state speaking + tts_audio."""
         if not self.channel.is_connected:
-            return {"status": "no_client", "url": "http://localhost:5180/"}
+            return self._no_client()
         await self.loader.ready()
         await self._send_state("speaking")
         await self._send_tts(text)
@@ -167,29 +210,48 @@ class ExamApp:
         index: int,
         total: int,
         glossary: list[str] | None = None,
+        code: str | None = None,
     ) -> dict:
-        """Store question, send question + state speaking + tts_audio + state listening."""
+        """Show optional code but synthesize only the spoken question text."""
         if not self.channel.is_connected:
-            return {"status": "no_client", "url": "http://localhost:5180/"}
+            return self._no_client()
         await self.loader.ready()
 
+        self._finished = False
         self.session.set_question(index, total, question)
         self._answer_generation += 1
         self._glossary = list(glossary) if glossary else None
         self._answer_event.clear()
 
-        await self.channel.send(
-            {"type": "question", "index": index, "total": total, "text": question}
-        )
+        message = {"type": "question", "index": index, "total": total, "text": question}
+        if code is not None:
+            message["code"] = code
+        await self.channel.send(message)
         await self._send_state("speaking")
         await self._send_tts(question)
         await self._send_state("listening")
         return {"status": "asked"}
 
+    async def finish(self, summary: str | None = None) -> dict:
+        """Optionally speak a summary, then show the question-less end screen."""
+        if not self.channel.is_connected:
+            return self._no_client()
+        self._finished = True
+        self._answer_generation += 1
+        self.session.clear_answer()
+        self._answer_event.clear()
+        if summary:
+            await self.loader.ready()
+            await self._send_state("speaking")
+            await self._send_tts(summary)
+        await self._send_state("idle")
+        await self.channel.send({"type": "finished"})
+        return {"status": "finished"}
+
     async def get_answer(self, wait_s: float = 20) -> dict:
         """Wait up to wait_s seconds for a final answer."""
         if not self.channel.is_connected:
-            return {"status": "no_client", "url": "http://localhost:5180/"}
+            return self._no_client()
 
         # Clamp to [1, 25]
         wait_s = max(1.0, min(25.0, float(wait_s)))
@@ -220,6 +282,8 @@ class ExamApp:
 
     async def handle_answer_audio(self, b64_data: str, glossary: list[str] | None = None) -> None:
         """Transcribe incoming WAV, store as pending answer, push transcript to page."""
+        if self._finished:
+            return
         generation = self._answer_generation
         page = self.channel._ws
         glossary = self._glossary if glossary is None else glossary
@@ -239,6 +303,8 @@ class ExamApp:
 
     async def handle_reanswer(self) -> None:
         """Discard pending answer and move back to listening."""
+        if self._finished:
+            return
         self._answer_generation += 1
         self.session.clear_answer()
         self._answer_event.clear()

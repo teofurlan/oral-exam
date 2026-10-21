@@ -63,4 +63,26 @@ describe('QuestionPanel', () => {
     expect(screen.getByTestId('question-index')).toHaveTextContent('Waiting for exam question')
     expect(screen.getByTestId('question-text')).toHaveTextContent('Connecting to examiner server...')
   })
+
+  it.each([undefined, `const value = "<script>";
+  return value`])('renders display-only code when present: %s', (code) => {
+    const { container } = render(
+      <QuestionPanel
+        question={{ ...sampleQuestion, code }}
+        transcript={sampleTranscript}
+        protocolState="speaking"
+        onReanswer={vi.fn()}
+      />
+    )
+    const pre = container.querySelector('pre')
+    if (code === undefined) {
+      expect(pre).not.toBeInTheDocument()
+    } else {
+      expect(pre?.textContent).toBe(code)
+      expect(pre).toHaveClass('font-mono', 'overflow-x-auto')
+      expect(container.querySelector('script')).not.toBeInTheDocument()
+      expect(screen.getByTestId('question-text')).toHaveTextContent(sampleQuestion.text)
+    }
+  })
+
 })

@@ -8,6 +8,7 @@ export interface QuestionData {
   index: number
   total: number
   text: string
+  code?: string
 }
 
 export interface TranscriptData {
@@ -18,7 +19,8 @@ export interface TranscriptData {
 // Server -> Client messages
 export type ServerMessage =
   | { type: 'state'; state: ProtocolState }
-  | { type: 'question'; index: number; total: number; text: string }
+  | { type: 'question'; index: number; total: number; text: string; code?: string }
+  | { type: 'finished' }
   | { type: 'tts_audio'; format: string; data: string }
   | { type: 'transcript'; text: string; final: boolean }
 
@@ -32,6 +34,7 @@ export interface ExamState {
   connectionStatus: ConnectionStatus
   protocolState: ProtocolState
   question: QuestionData | null
+  finished: boolean
   transcript: TranscriptData
   mode: TurnMode
 }

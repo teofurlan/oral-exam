@@ -1,4 +1,4 @@
-"""Entry point: starts the WebSocket server and the MCP stdio server in one asyncio loop."""
+"""Run MCP stdio, WebSocket, and loopback HTTP servers in one asyncio loop."""
 from __future__ import annotations
 
 import asyncio
@@ -10,7 +10,7 @@ import anyio
 from mcp.server.stdio import stdio_server
 
 from oral_exam_server.app import ExamApp, ModelLoader, PageChannel
-from oral_exam_server.entrypoints import mcp_tools, ws_server
+from oral_exam_server.entrypoints import http_server, mcp_tools, ws_server
 
 # All logging to stderr — stdout is the JSON-RPC transport
 logging.basicConfig(
@@ -40,8 +40,11 @@ async def _amain(protocol_stdout) -> None:
     # Start model loading in background (non-blocking)
     loader.start()
 
-    # Start WebSocket server as a background task
-    ws_task = asyncio.create_task(ws_server.serve_forever(), name="ws-server")
+    # Network listeners share the MCP loop; model loading never blocks them.
+    network_tasks = [
+        asyncio.create_task(ws_server.serve_forever(), name="ws-server"),
+        asyncio.create_task(http_server.serve_forever(), name="http-server"),
+    ]
 
     logger.debug("oral-exam-server started; MCP handshake available immediately")
 
@@ -53,11 +56,9 @@ async def _amain(protocol_stdout) -> None:
                 reader, writer, mcp._mcp_server.create_initialization_options()
             )
     finally:
-        ws_task.cancel()
-        try:
-            await ws_task
-        except asyncio.CancelledError:
-            pass
+        for task in network_tasks:
+            task.cancel()
+        await asyncio.gather(*network_tasks, return_exceptions=True)
 
 
 def main() -> None:
