@@ -8,8 +8,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from oral_exam_server.app import ExamApp, PageChannel
-from oral_exam_server.entrypoints.mcp_tools import create_mcp, wire_app
+from socra_server.app import ExamApp, PageChannel
+from socra_server.entrypoints.mcp_tools import create_mcp, wire_app
 from tests.conftest import FakeLoader
 
 
@@ -37,7 +37,7 @@ async def tool_call(app, name, arguments):
 
 @pytest.mark.asyncio
 async def test_static_files_and_spa_fallback_are_served_on_loopback(tmp_path):
-    from oral_exam_server.entrypoints.http_server import serve_page
+    from socra_server.entrypoints.http_server import serve_page
 
     (tmp_path / "index.html").write_text("<h1>Exam page</h1>")
     (tmp_path / "assets").mkdir()
@@ -82,7 +82,7 @@ async def test_no_client_url_and_build_hint_for_all_tools(tmp_path, built, monke
     if built:
         (tmp_path / "index.html").write_text("exam")
     app = ExamApp(PageChannel(), FakeLoader(), web_dist=tmp_path, launcher=lambda: None)
-    monkeypatch.setattr("oral_exam_server.app.OPEN_PAGE_TIMEOUT_S", 0.01)
+    monkeypatch.setattr("socra_server.app.OPEN_PAGE_TIMEOUT_S", 0.01)
     expected = {"status": "no_client", "url": "http://localhost:8767/"}
     if not built:
         expected["hint"] = "run pnpm -C web build"
@@ -103,7 +103,7 @@ async def test_open_page_reuses_connected_page_without_launching():
 async def test_open_page_times_out_with_fake_launcher(tmp_path, monkeypatch):
     launcher = Mock()
     app = ExamApp(PageChannel(), FakeLoader(), web_dist=tmp_path, launcher=launcher)
-    monkeypatch.setattr("oral_exam_server.app.OPEN_PAGE_TIMEOUT_S", 0.03)
+    monkeypatch.setattr("socra_server.app.OPEN_PAGE_TIMEOUT_S", 0.03)
     start = perf_counter()
     assert await tool_call(app, "open_page", {}) == {
         "status": "no_client", "url": "http://localhost:8767/", "hint": "run pnpm -C web build",
@@ -115,7 +115,7 @@ async def test_open_page_times_out_with_fake_launcher(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_open_page_waits_for_connection(monkeypatch):
     app = ExamApp(PageChannel(), FakeLoader(), launcher=lambda: None)
-    monkeypatch.setattr("oral_exam_server.app.OPEN_PAGE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("socra_server.app.OPEN_PAGE_TIMEOUT_S", 0.2)
 
     async def connect():
         await asyncio.sleep(0.01)

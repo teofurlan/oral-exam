@@ -7,7 +7,7 @@ import subprocess
 import sys
 import webbrowser
 
-from oral_exam_server.entrypoints.http_server import PAGE_URL
+from socra_server.entrypoints.http_server import PAGE_URL
 
 
 def launch_page() -> None:

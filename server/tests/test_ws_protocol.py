@@ -10,8 +10,8 @@ import pytest_asyncio
 from websockets.asyncio.server import serve, ServerConnection
 from websockets.asyncio.client import connect
 
-from oral_exam_server.app import ExamApp, PageChannel
-from oral_exam_server.entrypoints import ws_server as ws_mod
+from socra_server.app import ExamApp, PageChannel
+from socra_server.entrypoints import ws_server as ws_mod
 from tests.conftest import FakeLoader, make_wav_bytes
 
 

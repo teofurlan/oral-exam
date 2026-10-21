@@ -6,7 +6,7 @@ import base64
 import json
 import pytest
 
-from oral_exam_server.app import ExamApp, PageChannel
+from socra_server.app import ExamApp, PageChannel
 from tests.conftest import FakeLoader, make_wav_bytes
 
 
@@ -283,7 +283,7 @@ async def test_reanswer_clears_pending_answer_and_sends_listening(app, channel):
 @pytest.mark.asyncio
 async def test_malformed_message_does_not_crash(app, channel):
     """The WS handler logs and ignores malformed JSON; the app stays alive."""
-    from oral_exam_server.entrypoints import ws_server
+    from socra_server.entrypoints import ws_server
     ws_server.wire_app(app)
 
     page = _FakePage()

@@ -13,15 +13,15 @@ import tomllib
 import pytest
 from websockets.asyncio.client import connect
 
-from oral_exam_server.adapters import kokoro_tts, whisper_stt
+from socra_server.adapters import kokoro_tts, whisper_stt
 from tests.conftest import make_wav_bytes
 from tests.test_ws_protocol import ws_bundle, _collect
 
 
 def test_runtime_dependencies_and_dev_group():
-    from oral_exam_server.entrypoints.mcp_tools import create_mcp
+    from socra_server.entrypoints.mcp_tools import create_mcp
 
-    assert create_mcp().name == "oral-exam-server"
+    assert create_mcp().name == "socra-server"
     config = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
     assert config["dependency-groups"]["dev"]
     assert "dev-dependencies" not in config.get("tool", {}).get("uv", {})
@@ -130,7 +130,7 @@ async def test_answer_arrives_while_get_answer_waits(ws_bundle):
 async def test_mcp_handshake_does_not_wait_for_noisy_models():
     code = '''
 import os, threading
-from oral_exam_server.app import ExamApp
+from socra_server.app import ExamApp
 
 release_models = threading.Event()
 original_say = ExamApp.say
@@ -138,8 +138,8 @@ async def release_on_say(self, text):
     release_models.set()
     return await original_say(self, text)
 ExamApp.say = release_on_say
-from oral_exam_server.adapters.kokoro_tts import KokoroTTS
-from oral_exam_server.adapters.whisper_stt import WhisperSTT
+from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.whisper_stt import WhisperSTT
 
 def noisy_load(self):
     print("PYTHON MODEL OUTPUT", flush=True)
@@ -158,7 +158,7 @@ def noisy_load(self):
     assert release_models.wait(30), "Models were not released by the MCP client"
 KokoroTTS.load = noisy_load
 WhisperSTT.load = noisy_load
-from oral_exam_server.__main__ import main
+from socra_server.__main__ import main
 main()
 '''
     proc = await asyncio.create_subprocess_exec(sys.executable, "-c", code, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -176,7 +176,7 @@ main()
         assert line, (await proc.stderr.read()).decode()
         response = json.loads(line)
         assert response["id"] == 1
-        assert response["result"]["serverInfo"]["name"] == "oral-exam-server"
+        assert response["result"]["serverInfo"]["name"] == "socra-server"
         assert time.perf_counter() - before < 2.5
         proc.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n')
         await proc.stdin.drain()

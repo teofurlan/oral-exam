@@ -7,8 +7,8 @@ from time import perf_counter
 import io
 import wave
 
-from oral_exam_server.adapters.kokoro_tts import KokoroTTS
-from oral_exam_server.adapters.whisper_stt import WhisperSTT
+from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.whisper_stt import WhisperSTT
 
 TEXT = "Un proceso tiene su propia memoria; un thread comparte la memoria del proceso."
 

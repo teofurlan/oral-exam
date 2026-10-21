@@ -5,7 +5,7 @@ import threading
 
 import pytest
 
-from oral_exam_server.app import ModelLoader, PageChannel
+from socra_server.app import ModelLoader, PageChannel
 
 
 @pytest.mark.asyncio

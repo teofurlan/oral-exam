@@ -9,8 +9,8 @@ import sys
 import anyio
 from mcp.server.stdio import stdio_server
 
-from oral_exam_server.app import ExamApp, ModelLoader, PageChannel
-from oral_exam_server.entrypoints import http_server, mcp_tools, ws_server
+from socra_server.app import ExamApp, ModelLoader, PageChannel
+from socra_server.entrypoints import http_server, mcp_tools, ws_server
 
 # All logging to stderr — stdout is the JSON-RPC transport
 logging.basicConfig(
@@ -46,7 +46,7 @@ async def _amain(protocol_stdout) -> None:
         asyncio.create_task(http_server.serve_forever(), name="http-server"),
     ]
 
-    logger.debug("oral-exam-server started; MCP handshake available immediately")
+    logger.debug("socra-server started; MCP handshake available immediately")
 
     # Run MCP over stdio (blocks until the client disconnects / process exits)
     try:

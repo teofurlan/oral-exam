@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from oral_exam_server.domain.session import ExamSession
+from socra_server.domain.session import ExamSession
 
 
 def test_initial_state():

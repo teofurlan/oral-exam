@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from oral_exam_server.adapters.whisper_stt import WhisperSTT
+from socra_server.adapters.whisper_stt import WhisperSTT
 from tests.conftest import make_wav_bytes
 
 

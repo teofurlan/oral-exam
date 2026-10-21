@@ -29,7 +29,7 @@ def wire_app(app) -> None:
 def create_mcp() -> FastMCP:
     """Build the MCP interface that an exam session uses to drive the page."""
     mcp = FastMCP(
-        "oral-exam-server",
+        "socra-server",
         instructions=(
             "Local oral exam tools. Start with open_page(). Use say() for spoken feedback, "
             "ask() for questions with optional display-only code, and call get_answer() "

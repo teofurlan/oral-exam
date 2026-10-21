@@ -14,7 +14,7 @@ def _voice_stack_dir() -> Path:
         return Path(env).resolve()
     # Default: the voice stack inside this repo (voice/)
     here = Path(__file__).resolve()
-    # server/src/oral_exam_server/adapters/kokoro_tts.py -> repo root is 4 levels up
+    # server/src/socra_server/adapters/kokoro_tts.py -> repo root is 4 levels up
     repo_root = here.parents[4]
     return (repo_root / "voice").resolve()
 

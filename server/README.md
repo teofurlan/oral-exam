@@ -1,4 +1,4 @@
-# oral-exam-server
+# socra-server
 
 Local voice exam server. One process, one asyncio loop:
 
@@ -35,7 +35,7 @@ Register the MCP server for your user, replacing `<abs path>` with the absolute
 path to this repository. Quote the path if it contains spaces:
 
 ```bash
-claude mcp add --scope user oral-exam -- uv run --project "<abs path>/server" oral-exam-server
+claude mcp add --scope user socra -- uv run --project "<abs path>/server" socra-server
 ```
 
 An exam session calls `open_page()` first. If no page is connected, it opens a
@@ -47,14 +47,14 @@ at most 15 seconds for a connection. All `no_client` responses point to
 ## Run
 
 ```bash
-# From the repo root (oral-exam/); Claude Code normally starts this via MCP.
-uv run --project server oral-exam-server
+# From the repo root (socra/); Claude Code normally starts this via MCP.
+uv run --project server socra-server
 ```
 
 Or from inside `server/`:
 
 ```bash
-uv run oral-exam-server
+uv run socra-server
 ```
 
 The MCP handshake is instant; the Kokoro and Whisper models load lazily in a
@@ -114,13 +114,13 @@ Add this to your project's `.mcp.json` (or `~/.claude/mcp.json`), replacing
 ```json
 {
   "mcpServers": {
-    "oral-exam": {
+    "socra": {
       "command": "uv",
       "args": [
         "run",
         "--project",
         "<abs-path>/server",
-        "oral-exam-server"
+        "socra-server"
       ]
     }
   }
@@ -132,13 +132,13 @@ Example (Windows):
 ```json
 {
   "mcpServers": {
-    "oral-exam": {
+    "socra": {
       "command": "uv",
       "args": [
         "run",
         "--project",
-        "<absolute path to>/oral-exam/server",
-        "oral-exam-server"
+        "<absolute path to>/socra/server",
+        "socra-server"
       ]
     }
   }
@@ -150,7 +150,7 @@ Example (Windows):
 ## Architecture
 
 ```
-oral_exam_server/
+socra_server/
 ├── domain/
 │   └── session.py          # Pure ExamSession state — no I/O
 ├── adapters/

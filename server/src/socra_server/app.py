@@ -14,11 +14,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from oral_exam_server.domain.session import ExamSession
-from oral_exam_server.adapters.kokoro_tts import KokoroTTS
-from oral_exam_server.adapters.whisper_stt import WhisperSTT
-from oral_exam_server.adapters.browser import launch_page
-from oral_exam_server.entrypoints.http_server import PAGE_URL, WEB_DIST
+from socra_server.domain.session import ExamSession
+from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.whisper_stt import WhisperSTT
+from socra_server.adapters.browser import launch_page
+from socra_server.entrypoints.http_server import PAGE_URL, WEB_DIST
 
 if TYPE_CHECKING:
     import websockets

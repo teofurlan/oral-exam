@@ -6,7 +6,7 @@ import wave
 import numpy as np
 import pytest
 
-from oral_exam_server.adapters.whisper_stt import WhisperSTT, _wav_bytes_to_array
+from socra_server.adapters.whisper_stt import WhisperSTT, _wav_bytes_to_array
 from tests.conftest import make_wav_bytes
 
 

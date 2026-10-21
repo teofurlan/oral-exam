@@ -29,7 +29,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from websockets.asyncio.client import connect
 
-from oral_exam_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.kokoro_tts import KokoroTTS
 
 ROOT = Path(__file__).resolve().parents[2]
 QUESTION = "Explica la diferencia entre un proceso y un hilo."
@@ -157,7 +157,7 @@ async def main() -> None:
     check_ports_free()
     parameters = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "oral_exam_server"],
+        args=["-m", "socra_server"],
         cwd=str(ROOT),
         env={
             **{key: os.environ[key] for key in (

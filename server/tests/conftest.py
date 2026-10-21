@@ -10,9 +10,9 @@ import wave
 import pytest
 import pytest_asyncio
 
-from oral_exam_server.app import ExamApp, ModelLoader, PageChannel
-from oral_exam_server.adapters.kokoro_tts import KokoroTTS
-from oral_exam_server.adapters.whisper_stt import WhisperSTT
+from socra_server.app import ExamApp, ModelLoader, PageChannel
+from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.whisper_stt import WhisperSTT
 
 
 # ---------------------------------------------------------------------------
