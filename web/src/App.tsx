@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { useExamSocket } from '@/hooks/useExamSocket'
 import { useMicCapture } from '@/hooks/useMicCapture'
 import { OrbVisualizer } from '@/components/OrbVisualizer'
+import { ConnectionIndicator } from '@/components/ConnectionIndicator'
 import { QuestionPanel } from '@/components/QuestionPanel'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
@@ -19,14 +20,6 @@ const STATE_LABEL: Record<string, { label: string; color: string }> = {
   listening: { label: 'Your turn: speak your answer', color: 'var(--listen)' },
   thinking: { label: 'Examiner thinking', color: 'var(--warn)' },
   idle: { label: 'Ready', color: 'var(--label-2)' },
-}
-
-const CONNECTION: Record<string, { label: string; color: string; pulse?: boolean }> = {
-  connected: { label: 'Connected', color: 'var(--live)' },
-  mock: { label: 'Mock driver', color: 'var(--accent)' },
-  connecting: { label: 'Connecting...', color: 'var(--warn)', pulse: true },
-  reconnecting: { label: 'Reconnecting…', color: 'var(--warn)', pulse: true },
-  disconnected: { label: 'Disconnected', color: 'var(--danger)' },
 }
 
 export const App: React.FC = () => {
@@ -60,7 +53,6 @@ export const App: React.FC = () => {
     setStoredOrbPalette(id)
   }
 
-  const conn = CONNECTION[state.connectionStatus] ?? CONNECTION.disconnected
   const stateLabel = STATE_LABEL[state.protocolState] ?? STATE_LABEL.idle
   const modeLabel = state.mode === 'auto' ? 'Automatic turns' : 'Hold Space to talk'
   const ambientKey = state.protocolState
@@ -82,16 +74,7 @@ export const App: React.FC = () => {
       <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-5 py-3.5">
         <div className="flex items-center gap-3">
           <h1 className="t-title">Socra</h1>
-          <span
-            className="glass-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-caption"
-            style={{ color: 'var(--label-2)' }}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${conn.pulse ? 'animate-pulse' : ''}`}
-              style={{ background: conn.color }}
-            />
-            {conn.label}
-          </span>
+          <ConnectionIndicator status={state.connectionStatus} />
         </div>
 
         <SettingsMenu
