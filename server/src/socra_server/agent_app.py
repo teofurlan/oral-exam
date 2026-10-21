@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -90,6 +91,7 @@ class AgentApp:
         except UnknownSelection as exc:
             await self._error(str(exc))
             return
+        await self._cancel_turn()
         await self._close_conversation()
         try:
             self._conversation = await backend.open(model, folder, self._decide_permission)
@@ -103,15 +105,30 @@ class AgentApp:
         await self._state("listening")
 
     async def handle_turn_text(self, text: str) -> None:
+        if not text.strip():
+            return
         if await self._can_take_turn():
             self._start_turn(text)
 
     async def handle_turn_audio(self, b64_data: str) -> None:
         if not await self._can_take_turn():
             return
-        wav_bytes = base64.b64decode(b64_data, validate=True)
-        await self.loader.ready()
-        text = await asyncio.to_thread(self.loader.stt.transcribe_with_glossary, wav_bytes, None)
+        try:
+            wav_bytes = base64.b64decode(b64_data, validate=True)
+        except (binascii.Error, ValueError):
+            await self._error("Could not read the recorded audio.")
+            await self._state("listening")
+            return
+        try:
+            await self.loader.ready()
+            text = await asyncio.to_thread(
+                self.loader.stt.transcribe_with_glossary, wav_bytes, None
+            )
+        except Exception as exc:
+            logger.error("Agent turn transcription failed: %s", exc)
+            await self._error("Could not transcribe the audio. Please try again.")
+            await self._state("listening")
+            return
         if not text or not is_valid_answer(text):
             await self.channel.send({"type": "notice", "text": "Didn't catch that. Please say it again."})
             await self._state("listening")
@@ -166,6 +183,19 @@ class AgentApp:
     def _start_turn(self, text: str) -> None:
         self.turn_task = asyncio.create_task(self._run_turn(text), name="agent-turn")
 
+    async def _cancel_turn(self) -> None:
+        """Stop a running turn before its conversation goes away."""
+        task = self.turn_task
+        if task is None or task.done():
+            return
+        if self._conversation is not None:
+            try:
+                await self._conversation.interrupt()
+            except Exception as exc:
+                logger.warning("Interrupting the agent turn failed: %s", exc)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
     async def _run_turn(self, text: str) -> None:
         conversation = self._conversation
         assert conversation is not None
@@ -206,6 +236,10 @@ class AgentApp:
                 "detail": request.detail,
             })
             return await future
+        except asyncio.CancelledError:
+            # The turn was interrupted or restarted: take the prompt off the page.
+            await self.channel.send({"type": "permission_closed", "id": request.request_id})
+            raise
         finally:
             self._pending.pop(request.request_id, None)
 

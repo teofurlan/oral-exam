@@ -413,3 +413,68 @@ async def test_interrupt_reaches_the_running_conversation(tmp_path):
     assert backend.conversations[0].interrupted
     gate.set()
     await _finish_turn(app, channel)
+
+
+async def test_restart_cancels_the_running_turn_and_withdraws_its_prompt(tmp_path):
+    request = PermissionRequest("req-1", "Bash", "Run", "")
+    backend = FakeBackend([request, ReplyDone("old reply")])
+    app, channel, _, _ = _app(backend)
+    await app.handle_start("fake", "small", str(tmp_path))
+    await app.handle_turn_text("go")
+    for _ in range(50):
+        if channel.of_type("permission_request"):
+            break
+        await asyncio.sleep(0)
+    old_turn = app.turn_task
+    backend.script = [ReplyDone("new reply")]
+
+    await app.handle_start("fake", "large", str(tmp_path))
+
+    assert old_turn.done()
+    first = backend.conversations[0]
+    assert first.interrupted and first.closed
+    assert channel.of_type("permission_closed") == [{"type": "permission_closed", "id": "req-1"}]
+    after_start = channel.sent[channel.sent.index(channel.of_type("agent_started")[-1]):]
+    assert all(m["type"] != "agent_reply" for m in after_start)
+    await app.handle_turn_text("new turn")
+    await _finish_turn(app, channel)
+    assert backend.conversations[1].turns == ["new turn"]
+
+
+async def test_unreadable_audio_reports_an_error_and_keeps_listening(tmp_path):
+    app, channel, backend, _ = _app()
+    await app.handle_start("fake", "small", str(tmp_path))
+    channel.sent.clear()
+
+    await app.handle_turn_audio("not base64!!")
+
+    assert len(channel.of_type("agent_error")) == 1
+    assert channel.sent[-1] == {"type": "state", "state": "listening"}
+    assert backend.conversations[0].turns == []
+
+
+async def test_transcription_failure_reports_an_error_and_keeps_listening(tmp_path):
+    app, channel, _, loader = _app()
+
+    def broken(wav, glossary):
+        raise RuntimeError("CUDA out of memory")
+
+    loader.stt.transcribe_with_glossary = broken
+    await app.handle_start("fake", "small", str(tmp_path))
+    channel.sent.clear()
+
+    await app.handle_turn_audio(base64.b64encode(_wav(0.5)).decode())
+
+    assert len(channel.of_type("agent_error")) == 1
+    assert channel.sent[-1] == {"type": "state", "state": "listening"}
+
+
+async def test_blank_text_turn_is_ignored(tmp_path):
+    app, channel, backend, _ = _app()
+    await app.handle_start("fake", "small", str(tmp_path))
+    channel.sent.clear()
+
+    await app.handle_turn_text("   ")
+
+    assert app.turn_task is None
+    assert channel.sent == []

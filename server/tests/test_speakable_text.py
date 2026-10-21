@@ -30,3 +30,15 @@ def test_reply_with_only_code_has_nothing_to_speak():
 
 def test_plain_text_is_unchanged_apart_from_whitespace():
     assert speakable_text("  Hello,\n\nworld.  ") == "Hello, world."
+
+
+def test_markers_inside_words_and_math_survive():
+    assert speakable_text("Edit __init__ and compute 2**10.") == "Edit __init__ and compute 2**10."
+
+
+def test_tilde_fences_are_not_spoken():
+    assert speakable_text("Before\n~~~\ncode\n~~~\nafter") == "Before after"
+
+
+def test_a_year_starting_a_line_is_not_a_list_number():
+    assert speakable_text("2024. was a good year") == "2024. was a good year"

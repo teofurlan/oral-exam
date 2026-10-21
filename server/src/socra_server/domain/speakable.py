@@ -7,16 +7,16 @@ from __future__ import annotations
 
 import re
 
-_FENCED_CODE = re.compile(r"```.*?(?:```|\Z)", re.DOTALL)
+_FENCED_CODE = re.compile(r"(```|~~~).*?(?:\1|\Z)", re.DOTALL)
 _INLINE_CODE = re.compile(r"`([^`]*)`")
 _LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
-_LINE_MARKER = re.compile(r"^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s?)", re.MULTILINE)
-_EMPHASIS = (
-    re.compile(r"\*\*(.+?)\*\*"),
-    re.compile(r"__(.+?)__"),
-    # Single markers only at word edges, so snake_case and a*b survive.
-    re.compile(r"(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)"),
-    re.compile(r"(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)"),
+# Up to three digits, so a year opening a line is not taken for a list number.
+_LINE_MARKER = re.compile(r"^\s*(?:#{1,6}\s+|[-*+]\s+|\d{1,3}[.)]\s+|>\s?)", re.MULTILINE)
+# Markers only at word edges, so snake_case, 2**10 and a*b survive. "__x__"
+# is left alone: it reads the same as a dunder name such as __init__.
+_EMPHASIS = tuple(
+    re.compile(rf"(?<!\w){marker}(?![\s*_])(.+?)(?<![\s*_]){marker}(?!\w)")
+    for marker in (r"\*\*", r"\*", "_")
 )
 
 
