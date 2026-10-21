@@ -21,14 +21,20 @@ export interface OrbVisualizerProps {
   protocolState: ProtocolState
   className?: string
   getOutputVolume?: () => number
+  getInputVolume?: () => number
 }
 
 export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
   protocolState,
   className = '',
   getOutputVolume,
+  getInputVolume,
 }) => {
   const agentState = mapProtocolToAgentState(protocolState)
+
+  const useManualVolume =
+    (protocolState === 'speaking' && !!getOutputVolume) ||
+    (protocolState === 'listening' && !!getInputVolume)
 
   return (
     <div
@@ -40,8 +46,9 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
       <div className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 relative">
         <Orb
           agentState={agentState}
-          volumeMode={protocolState === 'speaking' && getOutputVolume ? 'manual' : 'auto'}
+          volumeMode={useManualVolume ? 'manual' : 'auto'}
           getOutputVolume={getOutputVolume}
+          getInputVolume={getInputVolume}
           colors={['#818cf8', '#c084fc']}
           className="w-full h-full"
         />

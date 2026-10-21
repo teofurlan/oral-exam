@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useCallback } from 'react'
+import { useEffect, useReducer, useRef, useCallback, useState } from 'react'
 import type {
   ClientMessage,
   ServerMessage,
@@ -44,6 +44,8 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
     mode: getStoredTurnMode('auto'),
   })
 
+  // Re-answer can deliver listening -> listening; the state string alone is not a turn identity.
+  const [listeningEpoch, setListeningEpoch] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
   const mockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMockActiveRef = useRef<boolean>(false)
@@ -148,6 +150,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
 
     // If mock driver is active, simulate listening for an answer again
     if (isMockActiveRef.current) {
+      setListeningEpoch((epoch) => epoch + 1)
       clearMockTimers()
       const total = MOCK_QUESTIONS.length
       const qIndex = (currentQuestionIdxRef.current % total) + 1
@@ -243,6 +246,9 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           if (data.type === 'tts_audio') {
             if (data.format === 'wav') playAudio(data.data)
           } else {
+            if (data.type === 'state' && data.state === 'listening') {
+              setListeningEpoch((epoch) => epoch + 1)
+            }
             dispatch(data)
           }
         } catch (err) {
@@ -283,6 +289,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
     reanswer,
     sendAudio,
     getOutputVolume,
+    listeningEpoch,
     dispatch,
   }
 }
