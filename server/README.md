@@ -137,7 +137,7 @@ Example (Windows):
       "args": [
         "run",
         "--project",
-        "C:/Users/teofu/Code/ideaslab/oral-exam/server",
+        "<absolute path to>/oral-exam/server",
         "oral-exam-server"
       ]
     }
