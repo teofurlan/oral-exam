@@ -119,6 +119,8 @@ async def test_open_connects_with_model_cwd_cli_and_permission_callback(tmp_path
     assert client.options.can_use_tool is not None
     # The user's own defaultMode decides; Socra never overrides it.
     assert client.options.permission_mode is None
+    # Keep Claude Code's own system prompt (unset would send an empty one).
+    assert client.options.system_prompt == {"type": "preset", "preset": "claude_code"}
 
 
 async def test_send_streams_text_tools_and_final_reply(tmp_path):
@@ -175,6 +177,17 @@ async def test_client_failure_yields_agent_error_instead_of_raising(tmp_path):
     assert "CLI exited" in events[0].message
 
 
+async def test_stream_ending_without_result_still_ends_the_turn(tmp_path):
+    script = [AssistantMessage(content=[TextBlock(text="partial")], model="opus")]
+    conversation = await _backend(script=script).open("opus", tmp_path, _never_asked)
+
+    events = await _collect(conversation)
+
+    assert events[0] == TextDelta("partial")
+    assert isinstance(events[-1], AgentError)
+    assert len(events) == 2
+
+
 async def test_interrupt_and_close_reach_the_client(tmp_path):
     conversation = await _backend().open("opus", tmp_path, _never_asked)
     client = FakeClient.instances[-1]
@@ -222,6 +235,15 @@ async def test_permission_denied_by_user(tmp_path):
         return False
 
     result = await _ask_permission(tmp_path, deny)
+
+    assert isinstance(result, PermissionResultDeny)
+
+
+async def test_permission_allows_only_an_explicit_true(tmp_path):
+    async def vague(request: PermissionRequest):
+        return "no"
+
+    result = await _ask_permission(tmp_path, vague)
 
     assert isinstance(result, PermissionResultDeny)
 

@@ -73,6 +73,7 @@ async def run_auth_status(cli_path: str) -> str:
         stdout, _ = await asyncio.wait_for(process.communicate(), timeout=STATUS_TIMEOUT_S)
     except TimeoutError:
         process.kill()
+        await process.wait()
         raise
     return stdout.decode("utf-8", errors="replace")
 
@@ -112,6 +113,10 @@ class ClaudeCodeConversation:
         except Exception as exc:
             logger.error("Claude Code turn failed: %s", exc)
             yield AgentError(f"Claude Code failed: {exc}")
+            return
+        # The SDK stream can end silently when the CLI's output closes; every
+        # turn must still end with ReplyDone or AgentError.
+        yield AgentError("Claude Code stopped before finishing the reply.")
 
     async def interrupt(self) -> None:
         await self._client.interrupt()
@@ -177,7 +182,7 @@ class ClaudeCodeBackend:
                 # No answer is a denial, never a silent approval.
                 logger.error("Permission decision failed for %s: %s", tool_name, exc)
                 allowed = False
-            if allowed:
+            if allowed is True:
                 return PermissionResultAllow()
             return PermissionResultDeny(message=DENIED_MESSAGE)
 
@@ -186,6 +191,8 @@ class ClaudeCodeBackend:
             cwd=str(cwd),
             cli_path=self._cli_path,
             can_use_tool=can_use_tool,
+            # Unset would make the SDK pass an empty system prompt.
+            system_prompt={"type": "preset", "preset": "claude_code"},
         )
         client = self._client_factory(options)
         await client.connect()
