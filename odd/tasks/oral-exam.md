@@ -21,7 +21,7 @@ Branch: feat/orb-front (first slice) · Delivery: ask-on-risk · Test runner: Vi
 
 ## Tasks
 
-- T1 [S2,S3,S4,S7] Web front with mocked WebSocket state: orb, mode toggle, question + transcript panel, re-answer button. Route: delegated (Gemini 3.8 Flash via Pi, user request to save Claude quota). Status: in progress.
+- T1 [S2,S3,S4,S7] Web front with mocked WebSocket state: orb, mode toggle, question + transcript panel, re-answer button. Route: delegated (Gemini 3.8 Flash via Pi, user request to save Claude quota). Validated by GPT 6.1 Sol (4 defects fixed: remote Perlin texture, TTS playback, socket lifecycle, Space hold). 38 tests pass, build OK, mock driver visually checked. Status: done.
 - T2 [S5,S6] Python MCP + WebSocket server wired to Kokoro and faster-whisper. Route: TBD. Status: pending.
 - T3 [S3] Browser mic capture with VAD (auto) and push-to-talk. Route: TBD. Status: pending.
 - T4 [S1] Hook `project-exam` skill to the MCP tools. Route: TBD. Status: pending.
@@ -30,3 +30,4 @@ Branch: feat/orb-front (first slice) · Delivery: ask-on-risk · Test runner: Vi
 
 - L1 (2026-10-20) User request, verbatim: "La orbe podemos utilizar directamente la de ElevenLabs entonces. / Dale, me alegra que sirve ese stack directamente, habría que hacerle un front a eso entonces no más. Puede ser un browser headless o algo así? / Lo que mencionas en el punto 4 me hace sentido. Vamos a implementar la app para que me tomes exámenes directamente primero y después si quiero usarla para sesiones normales, la modifico para uso general. / Sobre la decisión abierta, prefiero que el sistema detecte, pero entiendo la dificultad con eso. Lo que podemos hacer ya de entrada es que se pueda configurar ahí en el front el modo y que tenga los dos (por default el que detecta solo)"
 - L2 (2026-10-20) User: "Fijate que no tengo mucho margen de la quota de claude. Empeza por tareas chicas que puedas delegar a gemini 3.8 flash en gentle-pi, puede ser?"
+- L3 (2026-10-20) WebSocket port moved 8765 -> 8766 (8765 is used by the pricor-demo launch config).
