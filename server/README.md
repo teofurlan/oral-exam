@@ -66,6 +66,40 @@ failures are logged, not returned as fabricated empty answers.
 Only MCP JSON-RPC uses stdout. Python prints, library warnings and native
 speech-library stdout are redirected to stderr before model loading.
 
+### Agent mode
+
+Agent mode drives an agent by voice in a folder you choose (the first backend
+is Claude Code, through the Claude Agent SDK). Start it without an MCP client:
+
+```bash
+uv run --project server socra-server --agent
+```
+
+This runs the HTTP and WebSocket servers without MCP stdio and opens
+`http://localhost:8767/?mode=agent`. If Socra is already running (for example
+as the exam MCP server), it only opens the page. The page talks to
+`ws://localhost:8766/ws/agent`; the exam keeps using `/ws`.
+
+- The folder is chosen with the native OS dialog, which the server opens:
+  browsers never hand a page an absolute path.
+- Tool calls follow your Claude Code permission settings. Only calls those
+  settings mark as "ask" show Allow / Deny on the page; with
+  `defaultMode: bypassPermissions` nothing asks.
+- Claude Code must be logged in (`claude auth login`); the page shows the
+  backend as not configured otherwise.
+
+For a one-click desktop shortcut (Windows):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File server\install-shortcut.ps1
+# Remove it again:
+powershell -ExecutionPolicy Bypass -File server\install-shortcut.ps1 -Remove
+```
+
+The shortcut runs `.venv\Scripts\pythonw.exe -m socra_server --agent` with no
+console window; anything the server prints goes to `server/logs/socra-agent.log`.
+Closing the page does not stop the server: the next click reuses it.
+
 ### Environment variables
 
 | Variable | Default | Description |

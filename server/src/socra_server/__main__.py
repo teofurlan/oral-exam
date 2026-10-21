@@ -10,6 +10,7 @@ import asyncio
 from collections.abc import Callable
 import logging
 import os
+from pathlib import Path
 import sys
 
 import anyio
@@ -22,6 +23,25 @@ from socra_server.agent_app import AgentApp
 from socra_server.agent_registry import BackendRegistry
 from socra_server.app import ExamApp, ModelLoader, PageChannel
 from socra_server.entrypoints import http_server, mcp_tools, ws_server
+
+LOG_DIR = Path(__file__).resolve().parents[2] / "logs"
+
+
+def _ensure_streams(log_dir: Path = LOG_DIR) -> None:
+    """Under pythonw (the desktop shortcut) there is no console: stdout and
+    stderr are None, and a library writing to them (a progress bar, a print)
+    would crash the server.  Send them to a log file instead."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    log_dir.mkdir(parents=True, exist_ok=True)
+    stream = open(log_dir / "socra-agent.log", "a", encoding="utf-8", buffering=1)
+    if sys.stdout is None:
+        sys.stdout = stream
+    if sys.stderr is None:
+        sys.stderr = stream
+
+
+_ensure_streams()
 
 # All logging to stderr — stdout is the JSON-RPC transport
 logging.basicConfig(
