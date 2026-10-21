@@ -6,6 +6,9 @@ import {
   getStoredMicDeviceId,
   setStoredMicDeviceId,
   STORAGE_KEY_MIC_DEVICE,
+  getStoredVisualizer,
+  setStoredVisualizer,
+  STORAGE_KEY_VISUALIZER,
 } from './storage'
 
 describe('storage (turn mode persistence)', () => {
@@ -68,5 +71,27 @@ describe('storage (microphone selection)', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked') })
     expect(() => setStoredMicDeviceId('usb-mic')).not.toThrow()
     expect(getStoredMicDeviceId()).toBe('')
+  })
+})
+
+describe('storage (visualizer choice)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('defaults to the orb when nothing is stored', () => {
+    expect(getStoredVisualizer()).toBe('orb')
+  })
+
+  it('persists a particle visualizer and reads it back', () => {
+    setStoredVisualizer('particle-letters')
+    expect(window.localStorage.getItem(STORAGE_KEY_VISUALIZER)).toBe('particle-letters')
+    expect(getStoredVisualizer()).toBe('particle-letters')
+  })
+
+  it('ignores an unknown stored value', () => {
+    window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'hologram')
+    expect(getStoredVisualizer()).toBe('orb')
   })
 })
