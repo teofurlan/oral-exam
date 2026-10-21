@@ -1,49 +1,51 @@
 import React from 'react'
 import type { TurnMode } from '@/types/exam'
-import { Mic, Radio } from 'lucide-react'
+import { Mic, AudioLines } from 'lucide-react'
 
 export interface ModeToggleProps {
   mode: TurnMode
   onChange: (mode: TurnMode) => void
 }
 
+const options: { id: TurnMode; testId: string; label: string; Icon: typeof Mic }[] = [
+  { id: 'auto', testId: 'mode-auto', label: 'Auto (VAD)', Icon: AudioLines },
+  { id: 'push-to-talk', testId: 'mode-ptt', label: 'Push-to-talk', Icon: Mic },
+]
+
+/** Segmented control; the thumb slides under the active option. */
 export const ModeToggle: React.FC<ModeToggleProps> = ({ mode, onChange }) => {
+  const index = options.findIndex((o) => o.id === mode)
   return (
     <div
       data-testid="mode-toggle"
-      className="inline-flex items-center gap-1 p-1 bg-neutral-900/90 border border-neutral-800 rounded-xl shadow-inner backdrop-blur-sm"
+      role="radiogroup"
+      aria-label="Turn mode"
+      className="glass-chip relative grid grid-cols-2 rounded-full p-[3px]"
     >
-      <button
-        type="button"
-        role="radio"
-        aria-checked={mode === 'auto'}
-        data-testid="mode-auto"
-        onClick={() => onChange('auto')}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-          mode === 'auto'
-            ? 'bg-neutral-800 text-neutral-100 shadow-sm border border-neutral-700/50'
-            : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/40'
-        }`}
-      >
-        <Radio className="w-3.5 h-3.5" />
-        <span>Auto (VAD)</span>
-      </button>
-
-      <button
-        type="button"
-        role="radio"
-        aria-checked={mode === 'push-to-talk'}
-        data-testid="mode-ptt"
-        onClick={() => onChange('push-to-talk')}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-          mode === 'push-to-talk'
-            ? 'bg-neutral-800 text-neutral-100 shadow-sm border border-neutral-700/50'
-            : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/40'
-        }`}
-      >
-        <Mic className="w-3.5 h-3.5" />
-        <span>Push-to-talk</span>
-      </button>
+      <span
+        aria-hidden
+        className="absolute top-[3px] bottom-[3px] left-[3px] rounded-full bg-white/[0.14] shadow-[0_1px_3px_rgba(0,0,0,0.4)]"
+        style={{
+          width: 'calc(50% - 3px)',
+          transform: `translateX(${index * 100}%)`,
+          transition: 'transform 0.5s var(--spring)',
+        }}
+      />
+      {options.map(({ id, testId, label, Icon }) => (
+        <button
+          key={id}
+          type="button"
+          role="radio"
+          aria-checked={mode === id}
+          data-testid={testId}
+          onClick={() => onChange(id)}
+          className="press relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 t-caption whitespace-nowrap"
+          style={{ color: mode === id ? 'var(--label)' : 'var(--label-2)' }}
+        >
+          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+          <span>{label}</span>
+        </button>
+      ))}
     </div>
   )
 }

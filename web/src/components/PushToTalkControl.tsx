@@ -90,23 +90,21 @@ export const PushToTalkControl: React.FC<PushToTalkControlProps> = ({
           setTalking(false)
         }}
         onTouchCancel={() => setTalking(false)}
-        className={`group relative flex items-center gap-3 px-6 py-3.5 rounded-2xl font-medium text-sm transition-all select-none shadow-xl ${
-          isPressed
-            ? 'bg-rose-500 text-white scale-95 ring-4 ring-rose-500/30'
-            : 'bg-neutral-800/90 hover:bg-neutral-700/90 text-neutral-200 border border-neutral-700/60 active:scale-95'
-        }`}
+        className="press relative inline-flex select-none items-center gap-2.5 rounded-full px-6 py-3.5 t-body font-semibold"
+        style={{
+          background: isPressed ? 'var(--danger)' : 'rgba(255,255,255,0.92)',
+          color: isPressed ? '#fff' : '#0a0a0c',
+          transform: isPressed ? 'scale(0.96)' : undefined,
+          boxShadow: isPressed
+            ? '0 0 0 6px color-mix(in srgb, var(--danger) 28%, transparent)'
+            : '0 8px 24px -8px rgba(0,0,0,0.7)',
+          transition:
+            'transform 0.5s var(--spring), background-color 0.15s, box-shadow 0.25s var(--ease-settle), color 0.15s',
+        }}
       >
-        <div
-          className={`w-3 h-3 rounded-full transition-colors ${
-            isPressed ? 'bg-white animate-ping' : 'bg-neutral-500'
-          }`}
-        />
-        <Mic className={`w-4 h-4 ${isPressed ? 'text-white' : 'text-neutral-400'}`} />
+        <Mic className="h-4 w-4" strokeWidth={2.4} />
         <span>{isPressed ? 'Transcribing answer...' : 'Hold to speak (or Space)'}</span>
       </button>
-      <span className="text-[11px] text-neutral-500">
-        Press & hold button or Spacebar while speaking
-      </span>
     </div>
   )
 }

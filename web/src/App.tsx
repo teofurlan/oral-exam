@@ -5,13 +5,21 @@ import { OrbVisualizer } from '@/components/OrbVisualizer'
 import { QuestionPanel } from '@/components/QuestionPanel'
 import { ModeToggle } from '@/components/ModeToggle'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
+import { STATE_AMBIENT } from '@/components/orbPalettes'
 import {
   getStoredSilenceTimeout,
   setStoredSilenceTimeout,
   MIN_SILENCE_TIMEOUT_MS,
   MAX_SILENCE_TIMEOUT_MS,
 } from '@/lib/storage'
-import { Radio, Wifi, WifiOff, AlertTriangle, X, Timer } from 'lucide-react'
+import { AlertTriangle, Timer } from 'lucide-react'
+
+const CONNECTION: Record<string, { label: string; color: string; pulse?: boolean }> = {
+  connected: { label: 'Connected', color: 'var(--live)' },
+  mock: { label: 'Mock driver', color: 'var(--accent)' },
+  connecting: { label: 'Connecting...', color: 'var(--warn)', pulse: true },
+  disconnected: { label: 'Disconnected', color: 'var(--danger)' },
+}
 
 export const App: React.FC = () => {
   const { state, setMode, reanswer, sendAudio, getOutputVolume, listeningEpoch } = useExamSocket()
@@ -38,68 +46,55 @@ export const App: React.FC = () => {
     setStoredSilenceTimeout(newMs)
   }
 
-  const renderConnectionBadge = () => {
-    switch (state.connectionStatus) {
-      case 'connected':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <Wifi className="w-3 h-3" />
-            Connected
-          </span>
-        )
-      case 'mock':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <Radio className="w-3 h-3" />
-            Mock Driver
-          </span>
-        )
-      case 'connecting':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-            Connecting...
-          </span>
-        )
-      case 'disconnected':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            <WifiOff className="w-3 h-3" />
-            Disconnected
-          </span>
-        )
-    }
-  }
+  const conn = CONNECTION[state.connectionStatus] ?? CONNECTION.disconnected
+  const ambientKey = state.protocolState
+  const ambientOpacity = state.protocolState === 'idle' ? 0.5 : 1
 
   return (
-    <div className="min-h-screen w-full bg-neutral-950 text-neutral-100 flex flex-col justify-between p-4 sm:p-6 md:p-8 select-none">
-      {/* Header */}
-      <header className="w-full max-w-5xl mx-auto flex items-center justify-between gap-4">
+    <div
+      className="relative flex h-full w-full select-none flex-col overflow-hidden"
+      style={
+        {
+          '--ambient': STATE_AMBIENT[ambientKey] ?? STATE_AMBIENT.idle,
+          '--ambient-o': ambientOpacity,
+        } as React.CSSProperties
+      }
+    >
+      <div className="ambient" aria-hidden />
+
+      {/* Toolbar: translucent, content scrolls under it. */}
+      <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-5 py-3.5">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight bg-gradient-to-r from-neutral-100 via-neutral-300 to-neutral-400 bg-clip-text text-transparent">
-            Oral Exam
-          </h1>
-          {renderConnectionBadge()}
+          <h1 className="t-title">Oral Exam</h1>
+          <span
+            className="glass-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-caption"
+            style={{ color: 'var(--label-2)' }}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${conn.pulse ? 'animate-pulse' : ''}`}
+              style={{ background: conn.color }}
+            />
+            {conn.label}
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Silence-timeout control (auto mode only) */}
           {state.mode === 'auto' && (
             <label
-              className="inline-flex items-center gap-2 text-xs text-neutral-400"
+              className="hidden items-center gap-2 t-caption sm:inline-flex"
+              style={{ color: 'var(--label-2)' }}
               data-testid="silence-timeout-control"
             >
-              <Timer className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
-              <span className="hidden sm:inline">Silence</span>
+              <Timer className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+              <span>Silence</span>
               <input
                 type="range"
+                className="slim w-20"
                 min={MIN_SILENCE_TIMEOUT_MS}
                 max={MAX_SILENCE_TIMEOUT_MS}
                 step={500}
                 value={silenceTimeoutMs}
                 onChange={(e) => handleSilenceChange(Number(e.target.value))}
-                className="w-20 accent-indigo-500 cursor-pointer"
                 aria-label="End-of-answer silence duration"
               />
               <span className="w-9 text-right tabular-nums">
@@ -107,61 +102,59 @@ export const App: React.FC = () => {
               </span>
             </label>
           )}
-
           <ModeToggle mode={state.mode} onChange={setMode} />
         </div>
       </header>
 
-      {/* Mic permission / device error banner */}
       {micError && (
         <div
           role="alert"
           data-testid="mic-error-banner"
-          className="w-full max-w-5xl mx-auto mt-3 flex items-start gap-3 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm"
+          className="materialize glass relative z-20 mx-5 flex items-start gap-3 rounded-2xl px-4 py-3 t-caption"
+          style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 40%, transparent)' }}
         >
-          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-rose-400" />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
           <span className="flex-1">{micError}</span>
-          {/* The error persists until the user fixes permissions; no dismiss needed,
-              but an X gives an escape hatch for the UI tour. */}
-          <button
-            type="button"
-            aria-label="Dismiss error"
-            onClick={() => {/* errors clear on next successful mic attempt */}}
-            className="p-0.5 rounded hover:bg-rose-500/20 transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
         </div>
       )}
 
-      {/* Main / Center: Orb and Question */}
-      <main className="w-full max-w-3xl mx-auto flex-1 flex flex-col items-center justify-center my-6 gap-6">
-        {/* Orb visualizer */}
-        <div className="relative">
+      <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-5 pb-6">
+        {/* Orb */}
+        <div className="relative mt-1 shrink-0">
           <OrbVisualizer
             protocolState={state.protocolState}
             getOutputVolume={getOutputVolume}
             getInputVolume={getInputVolume}
           />
 
-          {/* Silence countdown overlay */}
           {state.protocolState === 'listening' &&
             state.mode === 'auto' &&
             silenceCountdownMs > 0 && (
               <div
                 data-testid="silence-countdown"
-                className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900/80 border border-neutral-700/60 text-xs text-amber-400 font-medium backdrop-blur-sm pointer-events-none"
+                className="materialize glass-chip pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full px-3 py-1 t-caption whitespace-nowrap"
+                style={{ color: 'var(--warn)' }}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--warn)]" />
                 Finalizing in {(silenceCountdownMs / 1000).toFixed(1)}s…
               </div>
             )}
         </div>
 
-        {/* Question + Transcript panel */}
+        {state.notice && (
+          <div
+            role="status"
+            data-testid="notice-banner"
+            className="materialize glass-chip w-full max-w-2xl rounded-2xl px-4 py-2.5 text-center t-caption"
+            style={{ color: 'var(--warn)' }}
+          >
+            {state.notice}
+          </div>
+        )}
+
         {state.finished ? (
-          <section role="status" className="w-full text-center py-8">
-            <h2 className="text-2xl font-semibold">Exam finished</h2>
+          <section role="status" className="materialize w-full py-8 text-center">
+            <h2 className="t-display">Exam finished</h2>
           </section>
         ) : (
           <QuestionPanel
@@ -172,18 +165,12 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Push-to-talk button if active */}
         {!state.finished && state.mode === 'push-to-talk' && (
-          <div className="w-full flex justify-center pt-2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="materialize flex w-full justify-center pt-1">
             <PushToTalkControl onTalkingChange={onTalkingChange} />
           </div>
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="w-full max-w-5xl mx-auto text-center py-2 text-xs text-neutral-500">
-        Local Voice Oral Exam · ElevenLabs Orb
-      </footer>
     </div>
   )
 }

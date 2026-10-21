@@ -1,5 +1,6 @@
 import React from 'react'
 import { Orb, type AgentState } from '@/components/ui/orb'
+import { STATE_PALETTES } from '@/components/orbPalettes'
 import type { ProtocolState } from '@/types/exam'
 
 export function mapProtocolToAgentState(state: ProtocolState): AgentState {
@@ -43,13 +44,13 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
       data-protocol-state={protocolState}
       className={`relative flex items-center justify-center ${className}`}
     >
-      <div className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 relative">
+      <div className="relative h-[min(34vh,20rem)] w-[min(34vh,20rem)]">
         <Orb
           agentState={agentState}
           volumeMode={useManualVolume ? 'manual' : 'auto'}
           getOutputVolume={getOutputVolume}
           getInputVolume={getInputVolume}
-          colors={['#818cf8', '#c084fc']}
+          colors={STATE_PALETTES[protocolState] ?? STATE_PALETTES.idle}
           className="w-full h-full"
         />
       </div>

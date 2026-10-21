@@ -1,6 +1,6 @@
 import React from 'react'
 import type { QuestionData, TranscriptData, ProtocolState } from '@/types/exam'
-import { RotateCcw, Volume2, Mic, Brain } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 
 export interface QuestionPanelProps {
   question: QuestionData | null
@@ -9,84 +9,65 @@ export interface QuestionPanelProps {
   onReanswer: () => void
 }
 
+const STATUS: Record<ProtocolState, { label: string; color: string }> = {
+  speaking: { label: 'Examiner speaking', color: 'var(--accent)' },
+  listening: { label: 'Listening to your answer', color: 'var(--live)' },
+  thinking: { label: 'Examiner thinking', color: 'var(--warn)' },
+  idle: { label: 'Ready', color: 'var(--label-3)' },
+}
+
 export const QuestionPanel: React.FC<QuestionPanelProps> = ({
   question,
   transcript,
   protocolState,
   onReanswer,
 }) => {
-  const getStatusBadge = () => {
-    switch (protocolState) {
-      case 'speaking':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <Volume2 className="w-3.5 h-3.5 animate-pulse" />
-            Examiner speaking
-          </span>
-        )
-      case 'listening':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <Mic className="w-3.5 h-3.5 animate-pulse" />
-            Listening to your answer
-          </span>
-        )
-      case 'thinking':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Brain className="w-3.5 h-3.5 animate-spin" />
-            Examiner thinking
-          </span>
-        )
-      case 'idle':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-800 text-neutral-400 border border-neutral-700/50">
-            Ready
-          </span>
-        )
-    }
-  }
+  const status = STATUS[protocolState] ?? STATUS.idle
+  const live = protocolState !== 'idle'
 
   return (
     <div
       data-testid="question-panel"
-      className="w-full max-w-2xl mx-auto flex flex-col gap-4 text-left"
+      className="mx-auto flex w-full max-w-2xl flex-col gap-5 text-left"
     >
-      {/* Question Card */}
-      <div className="bg-neutral-900/80 border border-neutral-800/80 rounded-2xl p-6 shadow-xl backdrop-blur-sm transition-all">
-        <div className="flex items-center justify-between mb-3">
-          <span
-            data-testid="question-index"
-            className="text-xs uppercase tracking-wider font-semibold text-neutral-400"
-          >
+      {/* Question: type is the hero, no card. */}
+      <section key={question?.index ?? 'none'} className="materialize flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <span data-testid="question-index" className="t-eyebrow">
             {question
               ? `Question ${question.index}/${question.total}`
               : 'Waiting for exam question'}
           </span>
-          {getStatusBadge()}
+          <span
+            className="inline-flex items-center gap-2 t-caption"
+            style={{ color: live ? status.color : 'var(--label-3)' }}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${live ? 'animate-pulse' : ''}`}
+              style={{ background: 'currentColor' }}
+            />
+            {status.label}
+          </span>
         </div>
 
-        <p
-          data-testid="question-text"
-          className="text-lg sm:text-xl font-medium text-neutral-100 leading-relaxed min-h-[3.5rem]"
-        >
+        <p data-testid="question-text" className="t-display min-h-[2.4em] select-text">
           {question?.text || 'Connecting to examiner server...'}
         </p>
+
         {question?.code !== undefined && (
-          <pre className="mt-4 max-w-full overflow-x-auto rounded-xl bg-neutral-950 p-4 font-mono text-sm text-neutral-200 select-text">
+          <pre className="glass-chip max-w-full overflow-x-auto rounded-2xl p-4 font-mono text-[0.8125rem] leading-relaxed text-white/85 select-text">
             <code>{question.code}</code>
           </pre>
         )}
-      </div>
+      </section>
 
-      {/* Transcript Card */}
-      <div className="bg-neutral-900/60 border border-neutral-800/60 rounded-2xl p-5 shadow-lg backdrop-blur-sm flex flex-col gap-3">
+      {/* Transcript: a floating translucent sheet. */}
+      <section className="glass flex flex-col gap-2 rounded-[1.75rem] p-4 pl-5">
         <div className="flex items-center justify-between">
-          <span className="text-xs uppercase tracking-wider font-semibold text-neutral-400 flex items-center gap-2">
-            Transcript
+          <span className="t-eyebrow inline-flex items-center gap-2">
+            Your answer
             {transcript.text && !transcript.final && (
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--live)]" />
             )}
           </span>
 
@@ -94,32 +75,32 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
             type="button"
             data-testid="reanswer-button"
             onClick={onReanswer}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800/80 hover:bg-neutral-700/80 active:bg-neutral-600 rounded-lg border border-neutral-700/60 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             title="Re-answer the current question"
+            className="press glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 t-caption text-white/80 hover:text-white"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
             Re-answer
           </button>
         </div>
 
         <div
           data-testid="transcript-text"
-          className="text-sm sm:text-base leading-relaxed text-neutral-200 min-h-[3rem] p-3 rounded-xl bg-neutral-950/40 border border-neutral-800/40"
+          className="scroll-fade max-h-32 min-h-[3rem] overflow-y-auto t-body select-text"
         >
           {transcript.text ? (
-            <span className={transcript.final ? 'text-neutral-100' : 'text-neutral-300 italic'}>
+            <span style={{ color: transcript.final ? 'var(--label)' : 'var(--label-2)' }}>
               {transcript.text}
-              {!transcript.final && <span className="inline-block ml-1 animate-pulse">▍</span>}
+              {!transcript.final && <span className="ml-1 inline-block animate-pulse">▍</span>}
             </span>
           ) : (
-            <span className="text-neutral-500 italic">
+            <span style={{ color: 'var(--label-3)' }}>
               {protocolState === 'listening'
                 ? 'Listening... speak your answer'
                 : 'Your answer will appear here'}
             </span>
           )}
         </div>
-      </div>
+      </section>
     </div>
   )
 }
