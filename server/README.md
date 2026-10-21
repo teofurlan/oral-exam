@@ -71,6 +71,23 @@ speech-library stdout are redirected to stderr before model loading.
 | Variable | Default | Description |
 |---|---|---|
 | `VOICE_STACK_DIR` | `voice/` (relative to repo root) | Absolute path to the voice stack directory |
+| `SOCRA_WHISPER_MODEL` | `large-v3-turbo` | Faster-whisper model (`base`, `small`, `large-v3-turbo`, etc.) |
+| `SOCRA_WHISPER_DEVICE` | `auto` | Execution device: `auto` (CUDA float16 if available, else CPU int8), `cuda`, or `cpu` |
+
+### Whisper Model Benchmark (RTX 4060 8 GB)
+
+Benchmark of Spanish answer transcription using Kokoro-synthesized audio:
+- **A1** (3.09s): *"El río más largo de Sudamérica es el Amazonas."*
+- **A2** (4.24s): *"No recuerdo bien, pero creo que fue en mil cuatrocientos noventa y dos."*
+
+| Model | Device | Load Time (cached) | A1 Time | A1 Transcript | A2 Time | A2 Transcript |
+|---|---|---|---|---|---|---|
+| `base` | cuda (float16) | 1.86 s | 0.60 s | "El río más largo de Sudamérica es el Amazonas." | 0.15 s | "No recuerdo bien, pero creo que fue en 1492." |
+| `small` | cuda (float16) | 1.24 s | 0.30 s | "El río más largo de Sudamérica es el Amazonas." | 0.26 s | "No recuerdo bien, pero creo que fue en 1492." |
+| `large-v3-turbo` | cuda (float16) | 4.35 s | 0.55 s | "El río más largo de Sudamérica es el Amazonas." | 0.43 s | "No recuerdo bien, pero creo que fue en 1492." |
+
+**Chosen default: `large-v3-turbo`**.
+All models comfortably beat the <= 3.0 s transcription budget on the RTX 4060 (taking <= 0.6 s for ~5 s of audio). `large-v3-turbo` provides the highest recognition accuracy and robustness against accents/slang, while executing in ~0.5 s.
 
 ---
 
@@ -178,7 +195,7 @@ socra_server/
 5. `finish(summary=None)` optionally speaks a summary, then sends idle and
    finished. The page replaces the question panel with **Exam finished**.
 
-Speech tools return after synthesis/delivery, not after browser audio playback.
+Speech tools `say()` and `ask()` wait for browser playback (`playback_done`) with timeout = WAV duration + 2 s before returning or transitioning to `listening`.
 
 ### WebSocket protocol
 
@@ -190,6 +207,7 @@ Speech tools return after synthesis/delivery, not after browser audio playback.
 | `question` | `index`, `total`, `text`, optional display-only `code` |
 | `tts_audio` | `format: "wav"`, `data: <base64>` |
 | `transcript` | `text`, `final: true` |
+| `notice` | `text`: temporary notice (e.g. non-answer rejection) |
 | `finished` | No fields; sent after `state: idle` |
 
 **Page → server**
@@ -197,5 +215,6 @@ Speech tools return after synthesis/delivery, not after browser audio playback.
 | Message | Fields |
 |---|---|
 | `answer_audio` | `format: "wav"`, `data: <base64>` |
+| `playback_done` | Sent when `tts_audio` playback completes or fails |
 | `reanswer` | _(none)_ |
 | `mode` | `mode`: `"auto"` \| `"push-to-talk"` |

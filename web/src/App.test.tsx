@@ -168,4 +168,20 @@ describe('App Integration', () => {
     expect(screen.queryByText('print(42)')).not.toBeInTheDocument()
   })
 
+  it('renders notice banner when notice message is received', () => {
+    render(<App />)
+    const ws = MockWebSocket.instances[0]
+    expect(screen.queryByTestId('notice-banner')).not.toBeInTheDocument()
+
+    act(() => {
+      ws.simulateMessage({
+        type: 'notice',
+        text: "Didn't catch that. Please answer again.",
+      })
+    })
+
+    const banner = screen.getByTestId('notice-banner')
+    expect(banner).toBeInTheDocument()
+    expect(banner).toHaveTextContent("Didn't catch that. Please answer again.")
+  })
 })

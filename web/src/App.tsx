@@ -25,6 +25,7 @@ const CONNECTION: Record<string, { label: string; color: string; pulse?: boolean
   connected: { label: 'Connected', color: 'var(--live)' },
   mock: { label: 'Mock driver', color: 'var(--accent)' },
   connecting: { label: 'Connecting...', color: 'var(--warn)', pulse: true },
+  reconnecting: { label: 'Reconnecting…', color: 'var(--warn)', pulse: true },
   disconnected: { label: 'Disconnected', color: 'var(--danger)' },
 }
 

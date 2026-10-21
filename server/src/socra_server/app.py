@@ -8,15 +8,17 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import json
 import logging
+import wave
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from socra_server.domain.session import ExamSession
 from socra_server.adapters.kokoro_tts import KokoroTTS
-from socra_server.adapters.whisper_stt import WhisperSTT
+from socra_server.adapters.whisper_stt import WhisperSTT, is_valid_answer
 from socra_server.adapters.browser import launch_page
 from socra_server.entrypoints.http_server import PAGE_URL, WEB_DIST
 
@@ -25,6 +27,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 OPEN_PAGE_TIMEOUT_S = 15.0
+
+
+def get_wav_duration(wav_bytes: bytes) -> float:
+    """Calculate the duration of a WAV byte string in seconds."""
+    try:
+        with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+            frames = wf.getnframes()
+            rate = wf.getframerate()
+            return frames / float(rate) if rate > 0 else 0.0
+    except Exception:
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +161,7 @@ class ExamApp:
         self._launcher = launcher
         self._finished = False
         self.channel = channel
+        self.channel.app = self  # type: ignore[attr-defined]
         self.loader = loader
         self.session = ExamSession()
         # Event set when a final answer arrives; cleared at ask() / reanswer
@@ -155,6 +169,7 @@ class ExamApp:
         self._answer_generation = 0
         self._glossary: list[str] | None = None
         self._stt_lock = asyncio.Lock()
+        self._playback_done_event: asyncio.Event = asyncio.Event()
 
     # ------------------------------------------------------------------ #
     # Helpers                                                              #
@@ -169,6 +184,23 @@ class ExamApp:
         wav = await asyncio.to_thread(self.loader.tts.synthesize, text)
         b64 = base64.b64encode(wav).decode()
         await self.channel.send({"type": "tts_audio", "format": "wav", "data": b64})
+
+    def handle_playback_done(self) -> None:
+        """Page reported that a tts_audio clip finished playing (or failed)."""
+        self._playback_done_event.set()
+
+    async def _send_tts_and_wait(self, text: str) -> None:
+        """Synthesize text, push tts_audio to page, and wait for playback_done (timeout = duration + 2s)."""
+        wav = await asyncio.to_thread(self.loader.tts.synthesize, text)
+        duration = get_wav_duration(wav)
+        timeout_s = duration + 2.0
+        self._playback_done_event.clear()
+        b64 = base64.b64encode(wav).decode()
+        await self.channel.send({"type": "tts_audio", "format": "wav", "data": b64})
+        try:
+            await asyncio.wait_for(self._playback_done_event.wait(), timeout=timeout_s)
+        except asyncio.TimeoutError:
+            logger.warning("TTS playback wait timed out after %.2f s (duration=%.2f s)", timeout_s, duration)
 
     # ------------------------------------------------------------------ #
     # MCP tool implementations                                            #
@@ -196,12 +228,12 @@ class ExamApp:
         return {"status": "connected"}
 
     async def say(self, text: str) -> dict:
-        """Say text: send state speaking + tts_audio."""
+        """Say text: send state speaking + tts_audio, wait for playback_done."""
         if not self.channel.is_connected:
             return self._no_client()
         await self.loader.ready()
         await self._send_state("speaking")
-        await self._send_tts(text)
+        await self._send_tts_and_wait(text)
         return {"status": "ok"}
 
     async def ask(
@@ -218,7 +250,7 @@ class ExamApp:
         await self.loader.ready()
 
         self._finished = False
-        self.session.set_question(index, total, question)
+        self.session.set_question(index, total, question, code=code)
         self._answer_generation += 1
         self._glossary = list(glossary) if glossary else None
         self._answer_event.clear()
@@ -228,7 +260,7 @@ class ExamApp:
             message["code"] = code
         await self.channel.send(message)
         await self._send_state("speaking")
-        await self._send_tts(question)
+        await self._send_tts_and_wait(question)
         await self._send_state("listening")
         return {"status": "asked"}
 
@@ -249,12 +281,24 @@ class ExamApp:
         return {"status": "finished"}
 
     async def get_answer(self, wait_s: float = 20) -> dict:
-        """Wait up to wait_s seconds for a final answer."""
-        if not self.channel.is_connected:
-            return self._no_client()
+        """Wait up to wait_s seconds for a final answer.
 
+        If no page is connected, wait for one within the same wait_s window
+        before returning no_client.
+        """
         # Clamp to [1, 25]
         wait_s = max(1.0, min(25.0, float(wait_s)))
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + wait_s
+
+        if not self.channel.is_connected:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                return self._no_client()
+            try:
+                await asyncio.wait_for(self.channel.wait_connected(), timeout=remaining)
+            except asyncio.TimeoutError:
+                return self._no_client()
 
         # Fast path: answer already present
         idx = self.session.question_index
@@ -263,9 +307,13 @@ class ExamApp:
             await self._send_state("thinking")
             return {"status": "answered", "index": idx, "text": text}
 
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            return {"status": "listening"}
+
         # Wait for the event
         try:
-            await asyncio.wait_for(self._answer_event.wait(), timeout=wait_s)
+            await asyncio.wait_for(self._answer_event.wait(), timeout=remaining)
         except asyncio.TimeoutError:
             return {"status": "listening"}
 
@@ -296,6 +344,13 @@ class ExamApp:
                 self.loader.stt.transcribe_with_glossary, wav_bytes, glossary
             )
         if generation != self._answer_generation or page is not self.channel._ws:
+            return
+        if not text or not is_valid_answer(text):
+            await self.channel.send({
+                "type": "notice",
+                "text": "Didn't catch that. Please answer again.",
+            })
+            await self._send_state("listening")
             return
         self.session.store_answer(text)
         await self.channel.send({"type": "transcript", "text": text, "final": True})

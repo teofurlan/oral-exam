@@ -16,6 +16,7 @@ class ExamSession:
     question_index: int = 0
     question_total: int = 0
     question_text: str = ""
+    question_code: str | None = None
 
     # Protocol state shown on the page
     turn_state: TurnState = "idle"
@@ -33,10 +34,13 @@ class ExamSession:
     # Mutators                                                             #
     # ------------------------------------------------------------------ #
 
-    def set_question(self, index: int, total: int, text: str) -> None:
+    def set_question(
+        self, index: int, total: int, text: str, code: str | None = None
+    ) -> None:
         self.question_index = index
         self.question_total = total
         self.question_text = text
+        self.question_code = code
         self.pending_answer = None
         self.pending_answer_index = -1
 

@@ -16,16 +16,22 @@ from tests.conftest import FakeLoader
 class Page:
     def __init__(self):
         self.messages = []
+        self._app = None
 
     async def send(self, message):
-        self.messages.append(json.loads(message))
+        msg = json.loads(message)
+        self.messages.append(msg)
+        if self._app and msg.get("type") == "tts_audio":
+            self._app.handle_playback_done()
 
 
 def connected_app(**kwargs):
     channel = PageChannel()
     page = Page()
     channel.set_connection(page, asyncio.get_running_loop())
-    return ExamApp(channel, FakeLoader(), **kwargs), page
+    app = ExamApp(channel, FakeLoader(), **kwargs)
+    page._app = app
+    return app, page
 
 
 async def tool_call(app, name, arguments):

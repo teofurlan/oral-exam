@@ -48,16 +48,23 @@ class ProtocolErrors(logging.Handler):
         self.messages.append(record.getMessage())
 
 
-def check_ports_free() -> None:
-    for port in (8766, 8767):
-        with socket.socket() as probe:
-            # On Windows SO_REUSEADDR can steal an existing listener's port.
-            if sys.platform == "win32":
-                probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-            try:
-                probe.bind(("127.0.0.1", port))
-            except OSError as exc:
-                raise RuntimeError(f"Port {port} is already in use; smoke must own its server") from exc
+def check_ports_free() -> tuple[int, int]:
+    ws_env = os.environ.get("SOCRA_WS_PORT")
+    http_env = os.environ.get("SOCRA_HTTP_PORT")
+    if ws_env and http_env:
+        return int(ws_env), int(http_env)
+    for ws_p, http_p in [(8766, 8767), (8866, 8867), (8966, 8967)]:
+        try:
+            for port in (ws_p, http_p):
+                with socket.socket() as probe:
+                    # On Windows SO_REUSEADDR can steal an existing listener's port.
+                    if sys.platform == "win32":
+                        probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+                    probe.bind(("127.0.0.1", port))
+            return ws_p, http_p
+        except OSError:
+            continue
+    raise RuntimeError("No free ports found for smoke server")
 
 
 async def call(session: ClientSession, name: str, arguments: dict) -> dict:
@@ -69,17 +76,17 @@ async def call(session: ClientSession, name: str, arguments: dict) -> dict:
     return payload
 
 
-async def connect_page():
+async def connect_page(ws_port: int):
     # Bound startup retry, not an unbounded wait for model readiness.
     async with asyncio.timeout(15):
         while True:
             try:
-                return await connect("ws://127.0.0.1:8766/ws", open_timeout=1)
+                return await connect(f"ws://127.0.0.1:{ws_port}/ws", open_timeout=1)
             except OSError:
                 await asyncio.sleep(0.05)
 
 
-async def exercise(session: ClientSession) -> None:
+async def exercise(session: ClientSession, ws_port: int) -> None:
     started = perf_counter()
     await session.initialize()
     initialized = perf_counter()
@@ -87,7 +94,7 @@ async def exercise(session: ClientSession) -> None:
     print(f"MCP tools: {', '.join(sorted(tools))}", flush=True)
     print(f"MCP initialize: {initialized - started:.3f}s", flush=True)
 
-    ws = await connect_page()
+    ws = await connect_page(ws_port)
     try:
         assert json.loads(await asyncio.wait_for(ws.recv(), 5)) == {"type": "state", "state": "idle"}
         before_open = perf_counter()
@@ -97,20 +104,41 @@ async def exercise(session: ClientSession) -> None:
         assert "code" in tools["ask"].inputSchema["properties"], "ask does not advertise code"
 
         before_ask = perf_counter()
-        asked = await call(session, "ask", {
-            "question": QUESTION, "index": 1, "total": 1, "code": CODE,
-        })
-        assert asked == {"status": "asked"}, asked
-        messages = [json.loads(await asyncio.wait_for(ws.recv(), 5)) for _ in range(4)]
-        assert messages[0] == {
-            "type": "question", "index": 1, "total": 1, "text": QUESTION, "code": CODE,
-        }, messages[0]
-        assert messages[1] == {"type": "state", "state": "speaking"}, messages[1]
-        audio = messages[2]
-        assert audio["type"] == "tts_audio" and audio["format"] == "wav", audio
-        with wave.open(io.BytesIO(base64.b64decode(audio["data"], validate=True)), "rb") as wav:
+        ask_task = asyncio.create_task(
+            call(
+                session,
+                "ask",
+                {
+                    "question": QUESTION,
+                    "index": 1,
+                    "total": 1,
+                    "code": CODE,
+                },
+            )
+        )
+        m0 = json.loads(await asyncio.wait_for(ws.recv(), 30))
+        m1 = json.loads(await asyncio.wait_for(ws.recv(), 5))
+        m2 = json.loads(await asyncio.wait_for(ws.recv(), 5))
+        assert m0 == {
+            "type": "question",
+            "index": 1,
+            "total": 1,
+            "text": QUESTION,
+            "code": CODE,
+        }, m0
+        assert m1 == {"type": "state", "state": "speaking"}, m1
+        assert m2["type"] == "tts_audio" and m2["format"] == "wav", m2
+        with wave.open(io.BytesIO(base64.b64decode(m2["data"], validate=True)), "rb") as wav:
             assert wav.getnframes() > 0
-        assert messages[3] == {"type": "state", "state": "listening"}, messages[3]
+
+        # Page signals playback finished
+        await ws.send(json.dumps({"type": "playback_done"}))
+
+        asked = await asyncio.wait_for(ask_task, 5)
+        assert asked == {"status": "asked"}, asked
+
+        m3 = json.loads(await asyncio.wait_for(ws.recv(), 5))
+        assert m3 == {"type": "state", "state": "listening"}, m3
         asked_at = perf_counter()
         print(f"ask / real question TTS (including model readiness): {asked_at - before_ask:.3f}s", flush=True)
 
@@ -154,7 +182,7 @@ async def exercise(session: ClientSession) -> None:
 
 async def main() -> None:
     assert (ROOT / "web/dist/index.html").is_file(), "Build the page first: pnpm -C web build"
-    check_ports_free()
+    ws_port, http_port = check_ports_free()
     parameters = StdioServerParameters(
         command=sys.executable,
         args=["-m", "socra_server"],
@@ -163,6 +191,8 @@ async def main() -> None:
             **{key: os.environ[key] for key in (
                 "VOICE_STACK_DIR", "HF_HOME", "HF_HUB_CACHE", "XDG_CACHE_HOME",
             ) if key in os.environ},
+            "SOCRA_WS_PORT": str(ws_port),
+            "SOCRA_HTTP_PORT": str(http_port),
             "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8",
         },
     )
@@ -173,7 +203,7 @@ async def main() -> None:
         async with stdio_client(parameters) as (reader, writer):
             async with ClientSession(reader, writer, read_timeout_seconds=timedelta(seconds=120)) as session:
                 async with asyncio.timeout(180):
-                    await exercise(session)
+                    await exercise(session, ws_port)
         assert not errors.messages, f"Subprocess stdout contained non-JSON-RPC output: {errors.messages}"
         print("PASS: real MCP / WebSocket / Kokoro / Whisper round trip", flush=True)
     finally:

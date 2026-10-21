@@ -13,15 +13,28 @@ interface Playback {
 export function useExamAudio() {
   const playbackRef = useRef<Playback | null>(null)
 
-  const playAudio = useCallback((base64: string) => {
+  const playAudio = useCallback((base64: string, onDone?: () => void) => {
+    let doneCalled = false
+    const notifyDone = () => {
+      if (!doneCalled) {
+        doneCalled = true
+        onDone?.()
+      }
+    }
     if (!playbackRef.current) {
-      const context = new AudioContext()
-      const analyser = context.createAnalyser()
-      analyser.fftSize = 256
-      analyser.connect(context.destination)
-      playbackRef.current = {
-        context, analyser, samples: new Uint8Array(analyser.fftSize),
-        sources: new Set(), queue: Promise.resolve(), nextStart: 0, disposed: false,
+      try {
+        const context = new AudioContext()
+        const analyser = context.createAnalyser()
+        analyser.fftSize = 256
+        analyser.connect(context.destination)
+        playbackRef.current = {
+          context, analyser, samples: new Uint8Array(analyser.fftSize),
+          sources: new Set(), queue: Promise.resolve(), nextStart: 0, disposed: false,
+        }
+      } catch (err) {
+        console.error('Failed to create AudioContext:', err)
+        notifyDone()
+        return
       }
     }
     const playback = playbackRef.current
@@ -31,10 +44,16 @@ export function useExamAudio() {
       void context.resume().catch((error) => console.warn('Audio needs a user gesture:', error))
     }
     playback.queue = playback.queue.then(async () => {
-      if (playback.disposed) return
+      if (playback.disposed) {
+        notifyDone()
+        return
+      }
       const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
       const buffer = await context.decodeAudioData(bytes.buffer)
-      if (playback.disposed) return
+      if (playback.disposed) {
+        notifyDone()
+        return
+      }
       const source = context.createBufferSource()
       source.buffer = buffer
       source.connect(analyser)
@@ -42,12 +61,14 @@ export function useExamAudio() {
       source.onended = () => {
         source.disconnect()
         playback.sources.delete(source)
+        notifyDone()
       }
       const start = Math.max(context.currentTime, playback.nextStart)
       source.start(start)
       playback.nextStart = start + buffer.duration
     }).catch((error) => {
       if (!playback.disposed) console.error('Failed to play exam audio:', error)
+      notifyDone()
     })
   }, [])
 

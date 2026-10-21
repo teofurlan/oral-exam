@@ -5,14 +5,15 @@ import asyncio
 from contextlib import asynccontextmanager
 import logging
 import mimetypes
+import os
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 logger = logging.getLogger(__name__)
 
 HTTP_HOST = "127.0.0.1"
-HTTP_PORT = 8767
-PAGE_URL = "http://localhost:8767/"
+HTTP_PORT = int(os.environ.get("SOCRA_HTTP_PORT", "8767"))
+PAGE_URL = f"http://localhost:{HTTP_PORT}/"
 WEB_DIST = Path(__file__).resolve().parents[4] / "web" / "dist"
 
 

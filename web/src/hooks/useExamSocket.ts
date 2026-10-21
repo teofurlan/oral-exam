@@ -51,6 +51,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
   const isMockActiveRef = useRef<boolean>(false)
   const currentQuestionIdxRef = useRef<number>(0)
   const unmountedRef = useRef<boolean>(false)
+  const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearMockTimers = useCallback(() => {
     if (mockTimerRef.current) {
@@ -210,6 +211,9 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
     let hasConnected = false
     let disposed = false
     let fellBack = false
+    let backoffMs = 500
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    const finishedRef = { current: false }
 
     const detachSocket = () => {
       if (!socket) return
@@ -227,56 +231,103 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
       startMockDriver()
     }
 
-    try {
-      socket = new WebSocket(url)
-      socketRef.current = socket
+    const connectSocket = () => {
+      if (disposed || fellBack || finishedRef.current) return
 
-      socket.onopen = () => {
-        if (disposed || fellBack) return
-        hasConnected = true
-        dispatch({ type: 'set_status', status: 'connected' })
-        const currentMode = getStoredTurnMode('auto')
-        socket?.send(JSON.stringify({ type: 'mode', mode: currentMode }))
-      }
+      try {
+        socket = new WebSocket(url)
+        socketRef.current = socket
 
-      socket.onmessage = (event) => {
-        if (disposed || fellBack) return
-        try {
-          const data = JSON.parse(event.data) as ServerMessage
-          if (data.type === 'tts_audio') {
-            if (data.format === 'wav') playAudio(data.data)
-          } else {
-            if (data.type === 'state' && data.state === 'listening') {
-              setListeningEpoch((epoch) => epoch + 1)
-            }
-            dispatch(data)
-          }
-        } catch (err) {
-          console.error('Failed to parse WebSocket message:', err)
+        socket.onopen = () => {
+          if (disposed || fellBack) return
+          hasConnected = true
+          backoffMs = 500
+          dispatch({ type: 'set_status', status: 'connected' })
+          const currentMode = getStoredTurnMode('auto')
+          socket?.send(JSON.stringify({ type: 'mode', mode: currentMode }))
         }
-      }
 
-      socket.onerror = () => {
-        if (!disposed && !hasConnected) fallBack()
-      }
+        socket.onmessage = (event) => {
+          if (disposed || fellBack) return
+          try {
+            const data = JSON.parse(event.data) as ServerMessage
+            if (data.type === 'finished') {
+              finishedRef.current = true
+            } else if (data.type === 'question') {
+              finishedRef.current = false
+            }
 
-      socket.onclose = () => {
-        if (disposed || fellBack) return
+            if (data.type === 'tts_audio') {
+              if (data.format === 'wav') {
+                playAudio(data.data, () => {
+                  send({ type: 'playback_done' })
+                })
+              } else {
+                send({ type: 'playback_done' })
+              }
+            } else {
+              if (data.type === 'state' && data.state === 'listening') {
+                setListeningEpoch((epoch) => epoch + 1)
+              }
+              if (data.type === 'notice') {
+                if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current)
+                noticeTimeoutRef.current = setTimeout(() => {
+                  dispatch({ type: 'clear_notice' })
+                }, 4000)
+              }
+              dispatch(data)
+            }
+          } catch (err) {
+            console.error('Failed to parse WebSocket message:', err)
+          }
+        }
+
+        socket.onerror = () => {
+          if (!disposed && !hasConnected) fallBack()
+        }
+
+        socket.onclose = () => {
+          if (disposed || fellBack) return
+          if (!hasConnected) {
+            fallBack()
+          } else if (finishedRef.current) {
+            dispatch({ type: 'set_status', status: 'disconnected' })
+          } else {
+            dispatch({ type: 'set_status', status: 'reconnecting' })
+            const delay = backoffMs
+            backoffMs = Math.min(5000, backoffMs * 2)
+            if (reconnectTimer) clearTimeout(reconnectTimer)
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null
+              connectSocket()
+            }, delay)
+          }
+        }
+      } catch {
         if (!hasConnected) {
           fallBack()
-        } else {
-          dispatch({ type: 'set_status', status: 'disconnected' })
+        } else if (!finishedRef.current) {
+          dispatch({ type: 'set_status', status: 'reconnecting' })
+          const delay = backoffMs
+          backoffMs = Math.min(5000, backoffMs * 2)
+          if (reconnectTimer) clearTimeout(reconnectTimer)
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            connectSocket()
+          }, delay)
         }
       }
-    } catch {
-      fallBack()
     }
+
+    connectSocket()
 
     return () => {
       disposed = true
       unmountedRef.current = true
       isMockActiveRef.current = false
       clearMockTimers()
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current)
       detachSocket()
       if (!fellBack) socket?.close()
       socketRef.current = null
