@@ -16,7 +16,7 @@ URL in development (Vite on 5180) and when served by the Python server on 8767.
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) installed
-- The voice stack checked out at `../../kokoro-audio-test` relative to this
+- The voice stack checked out at `voice/` in this
   repo (or set `VOICE_STACK_DIR` to the absolute path), with its Kokoro model
   files under `models/` and Whisper model cache under `models/whisper/`.
 - Run `uv sync --project server` to install server and speech dependencies.
@@ -70,14 +70,14 @@ speech-library stdout are redirected to stderr before model loading.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VOICE_STACK_DIR` | `../../kokoro-audio-test` (relative to repo root) | Absolute path to the kokoro-audio-test directory |
+| `VOICE_STACK_DIR` | `voice/` (relative to repo root) | Absolute path to the kokoro-audio-test directory |
 
 ---
 
 ## Tests
 
 ```bash
-uv run --project server pytest -q
+uv run --project server pytest -q server/tests
 ```
 
 No real models are loaded during tests — all adapters use in-process fakes.

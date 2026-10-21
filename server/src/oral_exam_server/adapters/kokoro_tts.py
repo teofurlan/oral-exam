@@ -12,11 +12,11 @@ def _voice_stack_dir() -> Path:
     env = os.environ.get("VOICE_STACK_DIR")
     if env:
         return Path(env).resolve()
-    # Default: two levels up from this repo's root, into kokoro-audio-test
+    # Default: the voice stack inside this repo (voice/)
     here = Path(__file__).resolve()
     # server/src/oral_exam_server/adapters/kokoro_tts.py -> repo root is 4 levels up
     repo_root = here.parents[4]
-    return (repo_root / ".." / ".." / "kokoro-audio-test").resolve()
+    return (repo_root / "voice").resolve()
 
 
 class KokoroTTS:

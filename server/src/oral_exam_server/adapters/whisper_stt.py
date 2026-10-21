@@ -17,7 +17,7 @@ def _voice_stack_dir() -> Path:
         return Path(env).resolve()
     here = Path(__file__).resolve()
     repo_root = here.parents[4]
-    return (repo_root / ".." / ".." / "kokoro-audio-test").resolve()
+    return (repo_root / "voice").resolve()
 
 
 def _wav_bytes_to_array(wav_bytes: bytes) -> "np.ndarray":

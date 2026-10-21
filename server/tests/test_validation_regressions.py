@@ -29,7 +29,7 @@ def test_runtime_dependencies_and_dev_group():
 
 def test_default_stack_path(monkeypatch):
     monkeypatch.delenv("VOICE_STACK_DIR", raising=False)
-    expected = (Path(__file__).resolve().parents[2] / "../../kokoro-audio-test").resolve()
+    expected = (Path(__file__).resolve().parents[2] / "voice").resolve()
     assert kokoro_tts._voice_stack_dir() == expected
     assert whisper_stt._voice_stack_dir() == expected
 

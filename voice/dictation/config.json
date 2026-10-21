@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hotkey": "<ctrl>+<alt>+<space>",
+  "mode": "toggle",
+  "whisper_model": "base",
+  "language": "es",
+  "ollama_model": "phi4-mini",
+  "ollama_host": "http://localhost:11434",
+  "clean_with_llm": true,
+  "simulate_paste": true,
+  "sound_feedback": true
+}

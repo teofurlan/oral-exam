@@ -8,7 +8,7 @@ Branch: feat/orb-front (first slice) · Delivery: ask-on-risk · Test runner: Vi
 - S3. Turn-taking modes: "que se pueda configurar ahí en el front el modo y que tenga los dos (por default el que detecta solo)". Modes: `auto` (voice activity detection ends the answer, default) and `push-to-talk`.
 - S4. Raw answers: exam answers are stored and shown verbatim as transcribed; never passed through the Ollama cleaner. The page shows the transcript and lets the user re-answer.
 - S5. Server: a local MCP server (Python) exposes short tools `say(text)`, `ask(question)`, `get_answer(wait_s)`; `get_answer` returns the transcript or a "still listening" status (no long blocking calls).
-- S6. Reuse the existing local voice stack in `../../kokoro-audio-test` (Kokoro TTS, faster-whisper STT, `pi_voice/terms.json` glossary as Whisper `initial_prompt`).
+- S6. Reuse the local voice stack, now in `voice/` (moved from the former kokoro-audio-test folder) (Kokoro TTS, faster-whisper STT, `pi_voice/terms.json` glossary as Whisper `initial_prompt`).
 - S7. Front runs in a normal visible browser tab (or Chrome/Edge `--app` window) on localhost, not a headless browser.
 
 ## WebSocket protocol (draft, server -> page unless noted)

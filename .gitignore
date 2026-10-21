@@ -4,3 +4,13 @@ node_modules/
 .venv/
 __pycache__/
 .pytest_cache/
+# voice stack: local models, venv, caches and generated audio stay out of git
+voice/.venv/
+voice/models/
+voice/.cache/
+voice/.tmp/
+voice/.browser-check/
+voice/runtime/
+voice/samples/
+voice/comparison/
+*.wav

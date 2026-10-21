@@ -1,0 +1,10 @@
+﻿{
+    "voices":  [
+                   "ef_dora",
+                   "em_alex"
+               ],
+    "playback_api":  "System.Media.SoundPlayer.PlaySync",
+    "completed_at":  "2026-10-16T14:30:47.2627183-03:00",
+    "audible_quality_verified":  false,
+    "note":  "Playback calls completed; human confirmation is required for audibility and quality."
+}
