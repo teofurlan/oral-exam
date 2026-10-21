@@ -15,6 +15,7 @@ const backends = {
     },
   ],
   default: { backend: 'claude-code', model: 'sonnet' },
+  session: null,
 } as const satisfies AgentAction
 
 const started = {
@@ -132,6 +133,35 @@ describe('agentReducer', () => {
     )
 
     expect(state.permissions).toEqual([])
+  })
+
+  it('a reconnect to a server without that session drops the stale session', () => {
+    const state = run(
+      started,
+      { type: 'agent_reply', text: 'old' },
+      { ...backends, session: null },
+    )
+
+    expect(state.session).toBeNull()
+    expect(state.timeline.at(-1)).toMatchObject({ kind: 'reply', text: 'old' })
+  })
+
+  it('a reconnect to the same session keeps the conversation', () => {
+    const state = run(
+      started,
+      { type: 'agent_reply', text: 'still here' },
+      { ...backends, session: { backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work' } },
+    )
+
+    expect(state.session).toEqual({ backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work' })
+    expect(state.timeline).toHaveLength(1)
+  })
+
+  it('a page opened while the server runs a session joins it', () => {
+    const state = run({ ...backends, session: { backend: 'claude-code', model: 'opus', cwd: 'D:\\app' } })
+
+    expect(state.session).toEqual({ backend: 'claude-code', model: 'opus', cwd: 'D:\\app' })
+    expect(state.folder).toBe('D:\\app')
   })
 
   it('ignores unknown messages', () => {

@@ -24,8 +24,21 @@ function append(state: AgentState, entry: Omit<TimelineEntry, 'id'>): AgentState
 
 export function agentReducer(state: AgentState, action: AgentAction): AgentState {
   switch (action.type) {
-    case 'agent_backends':
-      return { ...state, backends: action.backends, defaultSelection: action.default }
+    case 'agent_backends': {
+      const next = { ...state, backends: action.backends, defaultSelection: action.default }
+      if (action.session === undefined) return next
+      if (action.session === null) {
+        // The server no longer runs the conversation this page shows (it restarted).
+        return state.session ? { ...next, session: null, permissions: [] } : next
+      }
+      const same =
+        state.session?.backend === action.session.backend &&
+        state.session.model === action.session.model &&
+        state.session.cwd === action.session.cwd
+      return same
+        ? next
+        : { ...next, session: action.session, folder: action.session.cwd, timeline: [], permissions: [] }
+    }
     case 'agent_folder':
       // A cancelled dialog (null) keeps the folder already chosen.
       return { ...state, pickingFolder: false, folder: action.path ?? state.folder }

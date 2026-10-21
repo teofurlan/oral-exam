@@ -49,6 +49,8 @@ class AgentApp:
         self.loader = loader
         self._folder_picker = folder_picker
         self._conversation: AgentConversation | None = None
+        # What the page needs to resync after a reconnect; None without a conversation.
+        self._session: dict[str, str] | None = None
         self._pending: dict[str, asyncio.Future[bool]] = {}
         self._playback_done = asyncio.Event()
         self.turn_task: asyncio.Task | None = None
@@ -75,6 +77,7 @@ class AgentApp:
             "default": (
                 {"backend": default.backend, "model": default.model} if default else None
             ),
+            "session": self._session,
         })
 
     async def handle_pick_folder(self) -> None:
@@ -99,9 +102,8 @@ class AgentApp:
             logger.error("Could not start %s: %s", backend_id, exc)
             await self._error(f"Could not start {backend.label}: {exc}")
             return
-        await self.channel.send({
-            "type": "agent_started", "backend": backend_id, "model": model, "cwd": str(folder),
-        })
+        self._session = {"backend": backend_id, "model": model, "cwd": str(folder)}
+        await self.channel.send({"type": "agent_started", **self._session})
         await self._state("listening")
 
     async def handle_turn_text(self, text: str) -> None:
@@ -263,6 +265,7 @@ class AgentApp:
 
     async def _close_conversation(self) -> None:
         conversation, self._conversation = self._conversation, None
+        self._session = None
         if conversation is not None:
             try:
                 await conversation.close()

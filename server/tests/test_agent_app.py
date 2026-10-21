@@ -161,6 +161,30 @@ async def test_hello_lists_backends_with_status_and_default_selection():
         "status": {"state": "not_configured", "message": "Log in first"},
     }]
     assert message["default"] == {"backend": "fake", "model": "small"}
+    assert message["session"] is None
+
+
+async def test_hello_reports_the_running_session_so_a_reconnected_page_can_resync(tmp_path):
+    app, channel, _, _ = _app()
+    await app.handle_start("fake", "large", str(tmp_path))
+
+    await app.handle_hello()
+
+    assert channel.of_type("agent_backends")[-1]["session"] == {
+        "backend": "fake", "model": "large", "cwd": str(tmp_path),
+    }
+
+
+async def test_a_failed_start_leaves_no_session_behind(tmp_path):
+    backend = FakeBackend()
+    app, channel, _, _ = _app(backend)
+    await app.handle_start("fake", "small", str(tmp_path))
+    backend.fail_open = RuntimeError("CLI missing")
+    await app.handle_start("fake", "large", str(tmp_path))
+
+    await app.handle_hello()
+
+    assert channel.of_type("agent_backends")[-1]["session"] is None
 
 
 @pytest.mark.parametrize("picked", ["C:/work", None])
