@@ -33,3 +33,4 @@ Branch: feat/orb-front (first slice) · Delivery: ask-on-risk · Test runner: Vi
 - L2 (2026-10-20) User: "Fijate que no tengo mucho margen de la quota de claude. Empeza por tareas chicas que puedas delegar a gemini 3.8 flash en gentle-pi, puede ser?"
 - L3 (2026-10-20) WebSocket port moved 8765 -> 8766 (8765 is used by the pricor-demo launch config).
 - L4 (2026-10-21) Smoke roundtrip: Spanish TTS mispronounces English terms missing from terms.json; add them to the glossary or pass a per-exam glossary.
+- L5 (2026-10-21) User: "unifica los proyectos en este, y también asigna todas las notas de obsidian que correspondan a este proyecto. Una vez hecho eso, borramos el proyecto anterior". Voice stack moved to voice/ (models, venv, caches gitignored), vault folder renamed to Projects/Oral-Exam and registered for this repo, old Code-root registry entry removed, old kokoro-audio-test folder deleted.

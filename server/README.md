@@ -70,7 +70,7 @@ speech-library stdout are redirected to stderr before model loading.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VOICE_STACK_DIR` | `voice/` (relative to repo root) | Absolute path to the kokoro-audio-test directory |
+| `VOICE_STACK_DIR` | `voice/` (relative to repo root) | Absolute path to the voice stack directory |
 
 ---
 
