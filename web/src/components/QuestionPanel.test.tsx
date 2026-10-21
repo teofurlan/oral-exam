@@ -85,6 +85,32 @@ describe('QuestionPanel', () => {
     }
   })
 
+  it('keeps long code in a bounded, keyboard-scrollable region without changing its contents', async () => {
+    const user = userEvent.setup()
+    const code = `const value = "${'x'.repeat(500)}<script>";\n  return value`
+    const { container } = render(
+      <QuestionPanel
+        question={{ ...sampleQuestion, code }}
+        transcript={{ text: 'y'.repeat(500), final: true }}
+        protocolState="listening"
+        onReanswer={vi.fn()}
+      />
+    )
+
+    const region = screen.getByRole('region', { name: 'Question code' })
+    expect(region).toHaveClass('min-w-0', 'max-w-full', 'overflow-x-auto')
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(region.querySelector('code')?.textContent).toBe(code)
+    expect(container.querySelector('script')).not.toBeInTheDocument()
+    expect(screen.getByTestId('question-panel')).toHaveClass('min-w-0', 'shrink-0')
+    expect(screen.getByTestId('question-text')).toHaveClass('[overflow-wrap:anywhere]')
+    expect(screen.getByTestId('transcript-text')).toHaveClass('[overflow-wrap:anywhere]')
+    await user.tab()
+    expect(region).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: /Re-answer/ })).toHaveFocus()
+  })
+
   it('triggers re-answer with the R key, but not while typing in a field', async () => {
     const onReanswer = vi.fn()
     const user = userEvent.setup()

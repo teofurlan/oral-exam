@@ -44,9 +44,9 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
       data-testid="orb-visualizer"
       data-agent-state={agentState ?? 'null'}
       data-protocol-state={protocolState}
-      className={`relative flex items-center justify-center ${className}`}
+      className={`relative flex min-w-0 w-full items-center justify-center ${className}`}
     >
-      <div className="relative h-[min(34vh,20rem)] w-[min(34vh,20rem)]">
+      <div className="relative aspect-square w-[min(100%,34vh,20rem)] supports-[height:100dvh]:w-[min(100%,34dvh,20rem)]">
         <Orb
           agentState={agentState}
           volumeMode={useManualVolume ? 'manual' : 'auto'}
