@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react'
+import './App.css'
 import { useExamSocket } from '@/hooks/useExamSocket'
 import { useMicCapture } from '@/hooks/useMicCapture'
 import { useAudioInputs } from '@/hooks/useAudioInputs'
@@ -71,7 +72,7 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className="relative flex h-full w-full select-none flex-col overflow-hidden"
+      className="exam-app relative flex h-full min-w-0 w-full select-none flex-col overflow-hidden"
       style={
         {
           '--ambient': ambientColor(paletteId, ambientKey),
@@ -82,8 +83,8 @@ export const App: React.FC = () => {
       <div className="ambient" aria-hidden />
 
       {/* Toolbar: translucent, content scrolls under it. */}
-      <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-5 py-3.5">
-        <div className="flex items-center gap-3">
+      <header className="exam-toolbar relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="t-title">Socra</h1>
           <ConnectionIndicator status={state.connectionStatus} />
         </div>
@@ -107,17 +108,17 @@ export const App: React.FC = () => {
         <div
           role="alert"
           data-testid="mic-error-banner"
-          className="materialize glass relative z-20 mx-5 flex items-start gap-3 rounded-2xl px-4 py-3 t-caption"
+          className="materialize glass relative z-20 mx-4 flex shrink-0 items-start gap-3 rounded-2xl px-4 py-3 t-caption [overflow-wrap:anywhere] sm:mx-5"
           style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 40%, transparent)' }}
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
-          <span className="flex-1">{micError}</span>
+          <span className="min-w-0 flex-1">{micError}</span>
         </div>
       )}
 
-      <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-5 pb-6">
+      <main className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-4 pb-6 sm:px-5">
         {/* Orb */}
-        <div className="relative mt-1 shrink-0">
+        <div className="relative mt-1 w-full max-w-80 shrink-0">
           <OrbVisualizer
             protocolState={state.protocolState}
             getOutputVolume={getOutputVolume}
@@ -139,7 +140,7 @@ export const App: React.FC = () => {
             )}
         </div>
 
-        <div className="flex shrink-0 flex-col items-center gap-0.5 text-center" role="status" aria-live="polite">
+        <div className="flex w-full shrink-0 flex-col items-center gap-0.5 text-center [overflow-wrap:anywhere]" role="status" aria-live="polite">
           <span
             data-testid="state-label"
             className="t-title"
@@ -156,7 +157,7 @@ export const App: React.FC = () => {
           <div
             role="status"
             data-testid="notice-banner"
-            className="materialize glass-chip w-full max-w-2xl rounded-2xl px-4 py-2.5 text-center t-caption"
+            className="materialize glass-chip w-full max-w-2xl shrink-0 rounded-2xl px-4 py-2.5 text-center t-caption [overflow-wrap:anywhere]"
             style={{ color: 'var(--warn)' }}
           >
             {state.notice}
@@ -164,7 +165,7 @@ export const App: React.FC = () => {
         )}
 
         {state.finished ? (
-          <section role="status" className="materialize w-full py-8 text-center">
+          <section role="status" className="materialize w-full shrink-0 py-8 text-center">
             <h2 className="t-display">Exam finished</h2>
           </section>
         ) : (
@@ -177,7 +178,7 @@ export const App: React.FC = () => {
         )}
 
         {!state.finished && state.mode === 'push-to-talk' && (
-          <div className="materialize flex w-full justify-center pt-1">
+          <div className="materialize flex w-full shrink-0 justify-center pt-1">
             <PushToTalkControl onTalkingChange={onTalkingChange} />
           </div>
         )}
