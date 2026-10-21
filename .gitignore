@@ -1,3 +1,6 @@
 .codegraph/
 odd/*.log
 node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
