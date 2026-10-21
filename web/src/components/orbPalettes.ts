@@ -20,7 +20,7 @@ export const ORB_PALETTES: OrbPalette[] = [
 ]
 
 export const STATE_PALETTES: Record<'idle' | 'speaking' | 'listening' | 'thinking', [string, string]> = {
-  idle: ['#6366f1', '#a78bfa'],
+  idle: ['#818cf8', '#c084fc'],
   speaking: ['#818cf8', '#c084fc'],
   listening: ['#34d399', '#22d3ee'],
   thinking: ['#fbbf24', '#fb7185'],
