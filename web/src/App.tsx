@@ -1,7 +1,10 @@
 import React, { useCallback, useState } from 'react'
+import './App.css'
 import { useExamSocket } from '@/hooks/useExamSocket'
 import { useMicCapture } from '@/hooks/useMicCapture'
+import { useAudioInputs } from '@/hooks/useAudioInputs'
 import { OrbVisualizer } from '@/components/OrbVisualizer'
+import { ConnectionIndicator } from '@/components/ConnectionIndicator'
 import { QuestionPanel } from '@/components/QuestionPanel'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
@@ -11,7 +14,12 @@ import {
   setStoredSilenceTimeout,
   getStoredOrbPalette,
   setStoredOrbPalette,
+  getStoredMicDeviceId,
+  setStoredMicDeviceId,
+  getStoredVisualizer,
+  setStoredVisualizer,
 } from '@/lib/storage'
+import type { VisualizerId } from '@/components/visualizers'
 import { AlertTriangle } from 'lucide-react'
 
 const STATE_LABEL: Record<string, { label: string; color: string }> = {
@@ -21,19 +29,14 @@ const STATE_LABEL: Record<string, { label: string; color: string }> = {
   idle: { label: 'Ready', color: 'var(--label-2)' },
 }
 
-const CONNECTION: Record<string, { label: string; color: string; pulse?: boolean }> = {
-  connected: { label: 'Connected', color: 'var(--live)' },
-  mock: { label: 'Mock driver', color: 'var(--accent)' },
-  connecting: { label: 'Connecting...', color: 'var(--warn)', pulse: true },
-  reconnecting: { label: 'Reconnecting…', color: 'var(--warn)', pulse: true },
-  disconnected: { label: 'Disconnected', color: 'var(--danger)' },
-}
-
 export const App: React.FC = () => {
   const { state, setMode, reanswer, sendAudio, getOutputVolume, listeningEpoch } = useExamSocket()
 
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
+  const [visualizer, setVisualizer] = useState<VisualizerId>(getStoredVisualizer)
+  const [micDeviceId, setMicDeviceId] = useState<string>(getStoredMicDeviceId)
+  const { microphones, refresh: refreshMicrophones } = useAudioInputs()
 
   const handleFinalize = useCallback(
     (base64: string) => {
@@ -42,13 +45,19 @@ export const App: React.FC = () => {
     [sendAudio],
   )
 
-  const { micError, getInputVolume, silenceCountdownMs, onTalkingChange } = useMicCapture({
+  const { micError, micFallback, getInputVolume, silenceCountdownMs, onTalkingChange } = useMicCapture({
     protocolState: state.protocolState,
     mode: state.mode,
     silenceTimeoutMs,
     listeningEpoch,
+    deviceId: micDeviceId,
     onFinalize: handleFinalize,
   })
+
+  const handleMicChange = (id: string) => {
+    setMicDeviceId(id)
+    setStoredMicDeviceId(id)
+  }
 
   const handleSilenceChange = (newMs: number) => {
     setSilenceTimeoutMs(newMs)
@@ -60,7 +69,11 @@ export const App: React.FC = () => {
     setStoredOrbPalette(id)
   }
 
-  const conn = CONNECTION[state.connectionStatus] ?? CONNECTION.disconnected
+  const handleVisualizerChange = (id: VisualizerId) => {
+    setVisualizer(id)
+    setStoredVisualizer(id)
+  }
+
   const stateLabel = STATE_LABEL[state.protocolState] ?? STATE_LABEL.idle
   const modeLabel = state.mode === 'auto' ? 'Automatic turns' : 'Hold Space to talk'
   const ambientKey = state.protocolState
@@ -68,7 +81,7 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className="relative flex h-full w-full select-none flex-col overflow-hidden"
+      className="exam-app relative flex h-full min-w-0 w-full select-none flex-col overflow-hidden"
       style={
         {
           '--ambient': ambientColor(paletteId, ambientKey),
@@ -79,19 +92,10 @@ export const App: React.FC = () => {
       <div className="ambient" aria-hidden />
 
       {/* Toolbar: translucent, content scrolls under it. */}
-      <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-5 py-3.5">
-        <div className="flex items-center gap-3">
+      <header className="exam-toolbar relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="t-title">Socra</h1>
-          <span
-            className="glass-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-caption"
-            style={{ color: 'var(--label-2)' }}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${conn.pulse ? 'animate-pulse' : ''}`}
-              style={{ background: conn.color }}
-            />
-            {conn.label}
-          </span>
+          <ConnectionIndicator status={state.connectionStatus} />
         </div>
 
         <SettingsMenu
@@ -101,6 +105,13 @@ export const App: React.FC = () => {
           onSilenceChange={handleSilenceChange}
           paletteId={paletteId}
           onPaletteChange={handlePaletteChange}
+          visualizer={visualizer}
+          onVisualizerChange={handleVisualizerChange}
+          microphones={microphones}
+          micDeviceId={micDeviceId}
+          onMicChange={handleMicChange}
+          micFallback={micFallback}
+          onOpen={refreshMicrophones}
         />
       </header>
 
@@ -108,22 +119,24 @@ export const App: React.FC = () => {
         <div
           role="alert"
           data-testid="mic-error-banner"
-          className="materialize glass relative z-20 mx-5 flex items-start gap-3 rounded-2xl px-4 py-3 t-caption"
+          className="materialize glass relative z-20 mx-4 flex shrink-0 items-start gap-3 rounded-2xl px-4 py-3 t-caption [overflow-wrap:anywhere] sm:mx-5"
           style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 40%, transparent)' }}
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
-          <span className="flex-1">{micError}</span>
+          <span className="min-w-0 flex-1">{micError}</span>
         </div>
       )}
 
-      <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-5 pb-6">
+      <main className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-4 pb-6 sm:px-5">
         {/* Orb */}
-        <div className="relative mt-1 shrink-0">
+        <div className="relative mt-1 w-full max-w-80 shrink-0">
           <OrbVisualizer
             protocolState={state.protocolState}
             getOutputVolume={getOutputVolume}
             getInputVolume={getInputVolume}
             paletteId={paletteId}
+            visualizer={visualizer}
+            questionText={state.question?.text}
           />
 
           {state.protocolState === 'listening' &&
@@ -140,7 +153,7 @@ export const App: React.FC = () => {
             )}
         </div>
 
-        <div className="flex shrink-0 flex-col items-center gap-0.5 text-center" role="status" aria-live="polite">
+        <div className="flex w-full shrink-0 flex-col items-center gap-0.5 text-center [overflow-wrap:anywhere]" role="status" aria-live="polite">
           <span
             data-testid="state-label"
             className="t-title"
@@ -157,7 +170,7 @@ export const App: React.FC = () => {
           <div
             role="status"
             data-testid="notice-banner"
-            className="materialize glass-chip w-full max-w-2xl rounded-2xl px-4 py-2.5 text-center t-caption"
+            className="materialize glass-chip w-full max-w-2xl shrink-0 rounded-2xl px-4 py-2.5 text-center t-caption [overflow-wrap:anywhere]"
             style={{ color: 'var(--warn)' }}
           >
             {state.notice}
@@ -165,7 +178,7 @@ export const App: React.FC = () => {
         )}
 
         {state.finished ? (
-          <section role="status" className="materialize w-full py-8 text-center">
+          <section role="status" className="materialize w-full shrink-0 py-8 text-center">
             <h2 className="t-display">Exam finished</h2>
           </section>
         ) : (
@@ -178,7 +191,7 @@ export const App: React.FC = () => {
         )}
 
         {!state.finished && state.mode === 'push-to-talk' && (
-          <div className="materialize flex w-full justify-center pt-1">
+          <div className="materialize flex w-full shrink-0 justify-center pt-1">
             <PushToTalkControl onTalkingChange={onTalkingChange} />
           </div>
         )}

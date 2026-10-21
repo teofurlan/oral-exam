@@ -709,3 +709,137 @@ describe('T3 validation regressions', () => {
     expect(wav.getInt16(44 + 320, true)).toBe(-16384)
   })
 })
+
+// ─── #9: microphone selection ────────────────────────────────────────────────
+
+const PROCESSING = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+
+describe('#9 — microphone selection', () => {
+  it('opens the selected microphone in automatic mode', async () => {
+    renderHook(() => useMicCapture({ ...makeOpts('listening', 'auto'), deviceId: 'usb-mic' }))
+    await act(async () => {})
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+      audio: { ...PROCESSING, deviceId: { exact: 'usb-mic' } },
+    })
+  })
+
+  it('keeps using the system default when no microphone is selected', async () => {
+    renderHook(() => useMicCapture({ ...makeOpts('listening', 'auto'), deviceId: '' }))
+    await act(async () => {})
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: PROCESSING })
+  })
+
+  it('opens the selected microphone for push-to-talk', async () => {
+    const { result } = renderHook(() =>
+      useMicCapture({ ...makeOpts('listening', 'push-to-talk'), deviceId: 'usb-mic' }),
+    )
+    await act(async () => {})
+    await act(async () => { result.current.onTalkingChange(true) })
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+      audio: { ...PROCESSING, deviceId: { exact: 'usb-mic' } },
+    })
+  })
+
+  it('switches to a newly selected microphone while listening', async () => {
+    const first = makeMockStream()
+    getUserMediaResult = first
+    const onFinalize = vi.fn()
+    const { result, rerender } = renderHook((opts) => useMicCapture(opts), {
+      initialProps: { ...makeOpts('listening', 'auto', onFinalize), deviceId: 'mic-a' },
+    })
+    await act(async () => {})
+
+    const second = makeMockStream()
+    getUserMediaResult = second
+    rerender({ ...makeOpts('listening', 'auto', onFinalize), deviceId: 'mic-b' })
+    await act(async () => {})
+
+    expect(first.getTracks()[0].stop).toHaveBeenCalled()
+    expect(vadDestroyFn).toHaveBeenCalledOnce()
+    expect(MicVAD.new).toHaveBeenCalledTimes(2)
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenLastCalledWith({
+      audio: { ...PROCESSING, deviceId: { exact: 'mic-b' } },
+    })
+    expect(second.getTracks()[0].stop).not.toHaveBeenCalled()
+
+    // The new microphone still finalizes the turn.
+    act(() => { lastVADCallbacks.onSpeechEnd?.(new Float32Array(160).fill(0.25)); vi.advanceTimersByTime(3000) })
+    expect(onFinalize).toHaveBeenCalledOnce()
+    expect(result.current.micError).toBeNull()
+  })
+
+  it('falls back to the system default when the selected microphone is gone', async () => {
+    const stream = makeMockStream()
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementation(async (constraints) => {
+      const audio = (constraints as MediaStreamConstraints).audio as MediaTrackConstraints
+      if (audio.deviceId) throw new DOMException('Device gone', 'OverconstrainedError')
+      return stream
+    })
+
+    const { result } = renderHook(() =>
+      useMicCapture({ ...makeOpts('listening', 'auto'), deviceId: 'unplugged' }),
+    )
+    await act(async () => {})
+
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenLastCalledWith({ audio: PROCESSING })
+    expect(MicVAD.new).toHaveBeenCalledOnce()
+    expect(result.current.micFallback).toBe(true)
+    expect(result.current.micError).toBeNull()
+  })
+
+  it('clears the fallback note once a different microphone is selected', async () => {
+    const stream = makeMockStream()
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementation(async (constraints) => {
+      const audio = (constraints as MediaStreamConstraints).audio as MediaTrackConstraints
+      if (audio.deviceId) throw new DOMException('Device gone', 'OverconstrainedError')
+      return stream
+    })
+    const { result, rerender } = renderHook((opts) => useMicCapture(opts), {
+      initialProps: { ...makeOpts('listening', 'auto'), deviceId: 'unplugged' },
+    })
+    await act(async () => {})
+    expect(result.current.micFallback).toBe(true)
+
+    rerender({ ...makeOpts('thinking', 'auto'), deviceId: '' })
+    await act(async () => {})
+    expect(result.current.micFallback).toBe(false)
+  })
+
+  it('ignores a fallback from a request superseded by a newer selection', async () => {
+    const stream = makeMockStream()
+    let rejectSlow!: (error: unknown) => void
+    const slow = new Promise<MediaStream>((_, reject) => { rejectSlow = reject })
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockImplementation(async (constraints) => {
+      const audio = (constraints as MediaStreamConstraints).audio as MediaTrackConstraints
+      if (audio.deviceId) return slow
+      return stream
+    })
+    const { result, rerender } = renderHook((opts) => useMicCapture(opts), {
+      initialProps: { ...makeOpts('listening', 'auto'), deviceId: 'slow-mic' },
+    })
+    await act(async () => {})
+    rerender({ ...makeOpts('listening', 'auto'), deviceId: '' })
+    await act(async () => {})
+
+    await act(async () => { rejectSlow(new DOMException('Device gone', 'OverconstrainedError')) })
+    expect(result.current.micFallback).toBe(false)
+  })
+
+  it('reports no fallback when the selected microphone opens', async () => {
+    const { result } = renderHook(() =>
+      useMicCapture({ ...makeOpts('listening', 'auto'), deviceId: 'usb-mic' }),
+    )
+    await act(async () => {})
+    expect(result.current.micFallback).toBe(false)
+  })
+
+  it('still surfaces a permission error for a selected microphone', async () => {
+    getUserMediaError = new DOMException('Permission denied', 'NotAllowedError')
+    const { result } = renderHook(() =>
+      useMicCapture({ ...makeOpts('listening', 'auto'), deviceId: 'usb-mic' }),
+    )
+    await act(async () => {})
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledOnce()
+    expect(result.current.micError).toContain('denied')
+  })
+})

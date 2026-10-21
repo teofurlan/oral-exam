@@ -30,7 +30,7 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
   return (
     <div
       data-testid="question-panel"
-      className="mx-auto flex w-full max-w-2xl flex-col gap-5 text-left"
+      className="mx-auto flex min-w-0 w-full max-w-2xl shrink-0 flex-col gap-5 text-left"
     >
       {/* Question: type is the hero, no card. */}
       <section key={question?.index ?? 'none'} className="materialize flex flex-col gap-3">
@@ -44,12 +44,17 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
             : 'Waiting for exam question'}
         </span>
 
-        <p data-testid="question-text" className="t-display min-h-[2.4em] select-text">
+        <p data-testid="question-text" className="t-display min-h-[2.4em] [overflow-wrap:anywhere] select-text">
           {question?.text || 'Connecting to examiner server...'}
         </p>
 
         {question?.code !== undefined && (
-          <pre className="glass-chip max-w-full overflow-x-auto rounded-2xl p-4 font-mono text-[0.8125rem] leading-relaxed text-white/85 select-text">
+          <pre
+            role="region"
+            aria-label="Question code"
+            tabIndex={0}
+            className="glass-chip min-w-0 max-w-full overflow-x-auto rounded-2xl p-4 font-mono text-[0.8125rem] leading-relaxed text-white/85 select-text"
+          >
             <code>{question.code}</code>
           </pre>
         )}
@@ -57,7 +62,7 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
 
       {/* Transcript: a floating translucent sheet. */}
       <section className="surface flex flex-col gap-2 rounded-[1.75rem] p-4 pl-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="inline-flex items-center gap-2 t-caption" style={{ color: 'var(--label-2)' }}>
             {transcript.text && !transcript.final ? (
               <>
@@ -85,7 +90,7 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
 
         <div
           data-testid="transcript-text"
-          className="scroll-fade max-h-48 min-h-[3rem] overflow-y-auto t-body select-text"
+          className="scroll-fade max-h-48 min-h-[3rem] overflow-y-auto [overflow-wrap:anywhere] t-body select-text"
         >
           {transcript.text ? (
             <span style={{ color: transcript.final ? 'var(--label)' : 'var(--label-2)' }}>

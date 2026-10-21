@@ -19,6 +19,21 @@ describe('PushToTalkControl', () => {
     expect(onTalkingChange).toHaveBeenCalledWith(false)
   })
 
+  it('preserves touch holds and releases on touch end or cancellation', () => {
+    const onTalkingChange = vi.fn()
+    render(<PushToTalkControl onTalkingChange={onTalkingChange} />)
+    const button = screen.getByRole('button', { name: 'Hold to speak (or Space)' })
+
+    fireEvent.touchStart(button)
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.touchEnd(button)
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.touchStart(button)
+    fireEvent.touchCancel(button)
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+    expect(onTalkingChange.mock.calls).toEqual([[true], [false], [true], [false]])
+  })
+
   it('toggles talking state with Space keydown and keyup', () => {
     const onTalkingChange = vi.fn()
     render(<PushToTalkControl onTalkingChange={onTalkingChange} />)

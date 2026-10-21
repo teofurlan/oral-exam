@@ -73,7 +73,7 @@ export const PushToTalkControl: React.FC<PushToTalkControlProps> = ({
   }, [setTalking])
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex min-w-0 max-w-full flex-col items-center gap-2">
       <button
         type="button"
         data-testid="ptt-button"
@@ -91,7 +91,7 @@ export const PushToTalkControl: React.FC<PushToTalkControlProps> = ({
           setTalking(false)
         }}
         onTouchCancel={() => setTalking(false)}
-        className="press relative inline-flex select-none items-center gap-2.5 rounded-full px-6 py-3.5 t-body font-semibold"
+        className="press relative inline-flex min-h-11 min-w-11 max-w-full select-none items-center justify-center gap-2.5 rounded-full px-4 py-3.5 text-center t-body font-semibold sm:px-6"
         style={{
           background: isPressed ? 'var(--danger)' : 'rgba(255,255,255,0.92)',
           color: isPressed ? '#fff' : '#0a0a0c',
@@ -103,7 +103,7 @@ export const PushToTalkControl: React.FC<PushToTalkControlProps> = ({
             'transform 0.5s var(--spring), background-color 0.15s, box-shadow 0.25s var(--ease-settle), color 0.15s',
         }}
       >
-        <Mic className="h-4 w-4" strokeWidth={2.4} />
+        <Mic className="h-4 w-4 shrink-0" strokeWidth={2.4} />
         <span>{isPressed ? 'Transcribing answer...' : 'Hold to speak (or Space)'}</span>
       </button>
     </div>

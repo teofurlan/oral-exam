@@ -16,11 +16,15 @@ export interface UseMicCaptureOptions {
   silenceTimeoutMs: number
   /** Increments on each server listening message, including re-answer. */
   listeningEpoch?: number
+  /** Selected microphone; '' or undefined uses the system default. */
+  deviceId?: string
   onFinalize: (base64: string) => void
 }
 
 export interface UseMicCaptureResult {
   micError: string | null
+  /** The selected microphone could not be opened, so the system default is in use. */
+  micFallback: boolean
   getInputVolume: () => number
   silenceCountdownMs: number
   onTalkingChange: (talking: boolean) => void
@@ -58,6 +62,36 @@ async function teardownCapture(capture: AudioCapture | null): Promise<void> {
   try { await capture.context.close() } catch { /* already closed */ }
 }
 
+function audioConstraints(deviceId?: string): MediaStreamConstraints {
+  const processing = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+  return { audio: deviceId ? { ...processing, deviceId: { exact: deviceId } } : processing }
+}
+
+/** The selected device is unplugged or no longer matches any input. */
+function isMissingDevice(error: unknown): boolean {
+  const name = (error as { name?: string } | null)?.name
+  return name === 'OverconstrainedError' || name === 'NotFoundError'
+}
+
+interface OpenedStream {
+  stream: MediaStream
+  /** The selected deviceId that could not be opened, or null. */
+  fallbackFor: string | null
+}
+
+/** Opens the selected microphone, or the system default when it is gone. */
+async function openStream(selected: string): Promise<OpenedStream> {
+  if (selected) {
+    try {
+      return { stream: await navigator.mediaDevices.getUserMedia(audioConstraints(selected)), fallbackFor: null }
+    } catch (error) {
+      if (!isMissingDevice(error)) throw error
+      return { stream: await navigator.mediaDevices.getUserMedia(audioConstraints()), fallbackFor: selected }
+    }
+  }
+  return { stream: await navigator.mediaDevices.getUserMedia(audioConstraints()), fallbackFor: null }
+}
+
 function micErrorMessage(error: unknown): string {
   if (error instanceof DOMException && error.name === 'NotAllowedError') {
     return 'Microphone access was denied. Please allow microphone access and try again.'
@@ -69,9 +103,12 @@ function micErrorMessage(error: unknown): string {
 }
 
 export function useMicCapture({
-  protocolState, mode, silenceTimeoutMs, listeningEpoch = 0, onFinalize,
+  protocolState, mode, silenceTimeoutMs, listeningEpoch = 0, deviceId = '', onFinalize,
 }: UseMicCaptureOptions): UseMicCaptureResult {
   const [micError, setMicError] = useState<string | null>(null)
+  const [fallbackFor, setFallbackFor] = useState<string | null>(null)
+  // Derived, so a new selection hides a note that belonged to the previous one.
+  const micFallback = fallbackFor !== null && fallbackFor === deviceId
   const [silenceCountdownMs, setSilenceCountdownMs] = useState(0)
   const captureRef = useRef<AudioCapture | null>(null)
   const vadRef = useRef<MicVAD | null>(null)
@@ -90,6 +127,8 @@ export function useMicCapture({
   useEffect(() => { onFinalizeRef.current = onFinalize }, [onFinalize])
   const silenceTimeoutRef = useRef(silenceTimeoutMs)
   useEffect(() => { silenceTimeoutRef.current = silenceTimeoutMs }, [silenceTimeoutMs])
+  const deviceIdRef = useRef(deviceId)
+  useEffect(() => { deviceIdRef.current = deviceId }, [deviceId])
 
   const getInputVolume = useCallback(() => {
     const capture = captureRef.current
@@ -173,19 +212,19 @@ export function useMicCapture({
   const startAutoVAD = useCallback(async (generation: number) => {
     const isCurrent = () => generation === generationRef.current && !sentRef.current
     setMicError(null)
-    let stream: MediaStream
+    let opened: OpenedStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      })
+      opened = await openStream(deviceIdRef.current)
     } catch (error) {
       if (isCurrent()) setMicError(micErrorMessage(error))
       return
     }
+    const { stream } = opened
     if (!isCurrent()) {
       stream.getTracks().forEach((track) => track.stop())
       return
     }
+    setFallbackFor(opened.fallbackFor)
     let capture: AudioCapture | null = null
     try {
       capture = buildAudioCapture(stream)
@@ -258,13 +297,12 @@ export function useMicCapture({
     pttChunksRef.current = []
     setMicError(null)
     // The promise boundary also catches an unavailable mediaDevices API.
-    void Promise.resolve().then(() => navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    })).then((stream) => {
+    void Promise.resolve().then(() => openStream(deviceIdRef.current)).then(({ stream, fallbackFor: failed }) => {
       if (!isCurrent()) {
         stream.getTracks().forEach((track) => track.stop())
         return
       }
+      setFallbackFor(failed)
       try {
         captureRef.current = buildAudioCapture(stream)
         const { context, sourceNode } = captureRef.current
@@ -286,6 +324,7 @@ export function useMicCapture({
     })
   }, [finalizePTT, mode, protocolState, stopCapture])
 
+  // A new deviceId restarts listening on that microphone; unsent audio of the turn is dropped.
   useEffect(() => {
     const generation = ++generationRef.current
     if (listeningEpochRef.current !== listeningEpoch) {
@@ -302,7 +341,7 @@ export function useMicCapture({
       ++generationRef.current
       stopCapture()
     }
-  }, [protocolState, mode, listeningEpoch, startAutoVAD, stopCapture])
+  }, [protocolState, mode, listeningEpoch, deviceId, startAutoVAD, stopCapture])
 
-  return { micError, getInputVolume, silenceCountdownMs, onTalkingChange }
+  return { micError, micFallback, getInputVolume, silenceCountdownMs, onTalkingChange }
 }
