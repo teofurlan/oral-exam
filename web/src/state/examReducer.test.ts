@@ -102,4 +102,33 @@ describe('examReducer', () => {
     })
     expect(newState.connectionStatus).toBe('connected')
   })
+
+  it('handles notice and clear_notice actions correctly', () => {
+    const noticeAction: ServerMessage = {
+      type: 'notice',
+      text: "Didn't catch that. Please answer again.",
+    }
+    const stateWithNotice = examReducer(initialExamState, noticeAction)
+    expect(stateWithNotice.notice).toBe("Didn't catch that. Please answer again.")
+
+    const cleared = examReducer(stateWithNotice, { type: 'clear_notice' })
+    expect(cleared.notice).toBeNull()
+  })
+
+  it('resets notice on question or finished', () => {
+    const stateWithNotice = {
+      ...initialExamState,
+      notice: 'Some notice',
+    }
+    const qState = examReducer(stateWithNotice, {
+      type: 'question',
+      index: 1,
+      total: 2,
+      text: 'Question?',
+    })
+    expect(qState.notice).toBeNull()
+
+    const finState = examReducer(stateWithNotice, { type: 'finished' })
+    expect(finState.notice).toBeNull()
+  })
 })

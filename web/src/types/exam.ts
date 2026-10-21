@@ -2,7 +2,7 @@ export type ProtocolState = 'idle' | 'speaking' | 'listening' | 'thinking'
 
 export type TurnMode = 'auto' | 'push-to-talk'
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'mock'
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'mock' | 'reconnecting'
 
 export interface QuestionData {
   index: number
@@ -23,12 +23,14 @@ export type ServerMessage =
   | { type: 'finished' }
   | { type: 'tts_audio'; format: string; data: string }
   | { type: 'transcript'; text: string; final: boolean }
+  | { type: 'notice'; text: string }
 
 // Client -> Server messages
 export type ClientMessage =
   | { type: 'answer_audio'; format: string; data: string }
   | { type: 'reanswer' }
   | { type: 'mode'; mode: TurnMode }
+  | { type: 'playback_done' }
 
 export interface ExamState {
   connectionStatus: ConnectionStatus
@@ -37,4 +39,5 @@ export interface ExamState {
   finished: boolean
   transcript: TranscriptData
   mode: TurnMode
+  notice: string | null
 }

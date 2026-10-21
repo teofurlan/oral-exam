@@ -61,6 +61,13 @@ export const App: React.FC = () => {
             Connecting...
           </span>
         )
+      case 'reconnecting':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+            Reconnecting…
+          </span>
+        )
       case 'disconnected':
       default:
         return (
@@ -157,6 +164,17 @@ export const App: React.FC = () => {
               </div>
             )}
         </div>
+
+        {/* Notice banner */}
+        {state.notice && (
+          <div
+            role="status"
+            data-testid="notice-banner"
+            className="w-full max-w-2xl mx-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm font-medium animate-in fade-in"
+          >
+            <span>{state.notice}</span>
+          </div>
+        )}
 
         {/* Question + Transcript panel */}
         {state.finished ? (

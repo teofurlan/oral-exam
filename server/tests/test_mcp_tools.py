@@ -17,14 +17,18 @@ from tests.conftest import FakeLoader, make_wav_bytes
 class _FakePage:
     """Collects messages sent by the app and simulates a websocket connection."""
 
-    def __init__(self):
+    def __init__(self, app: ExamApp | None = None):
         self.messages: list[dict] = []
         self._closed = False
+        self._app = app
 
     async def send(self, data: str) -> None:
         if self._closed:
             raise Exception("closed")
-        self.messages.append(json.loads(data))
+        msg = json.loads(data)
+        self.messages.append(msg)
+        if msg.get("type") == "tts_audio" and self._app is not None:
+            self._app.handle_playback_done()
 
     @property
     def remote_address(self):
@@ -38,6 +42,8 @@ class _FakePage:
 
 
 def _connect(channel: PageChannel, fake_page: _FakePage) -> None:
+    if hasattr(channel, "app") and fake_page._app is None:
+        fake_page._app = getattr(channel, "app")
     channel.set_connection(fake_page, asyncio.get_event_loop())  # type: ignore[arg-type]
 
 

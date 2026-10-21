@@ -306,4 +306,123 @@ describe('useExamSocket', () => {
     expect(result.current.state.protocolState).toBe('speaking')
     expect(result.current.state.question).not.toBeNull()
   })
+
+  it('sends playback_done on audio end', async () => {
+    renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => ws.simulateOpen())
+
+    await act(async () => {
+      ws.simulateMessage({ type: 'tts_audio', format: 'wav', data: 'UklGRg==' })
+    })
+
+    const audio = MockAudioContext.instances[0]
+    expect(audio.sources).toHaveLength(1)
+    const source = audio.sources[0]
+
+    act(() => {
+      source.onended?.()
+    })
+
+    expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'playback_done' }))
+  })
+
+  it('sends playback_done on audio play error', async () => {
+    const OriginalContext = MockAudioContext
+    vi.stubGlobal('AudioContext', class extends OriginalContext {
+      constructor() {
+        super()
+        this.decodeAudioData = vi.fn(async () => {
+          throw new Error('decode failed')
+        })
+      }
+    })
+
+    renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => ws.simulateOpen())
+
+    await act(async () => {
+      ws.simulateMessage({ type: 'tts_audio', format: 'wav', data: 'UklGRg==' })
+    })
+
+    expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'playback_done' }))
+  })
+
+  it('reconnects with backoff (0.5s doubling to 5s) when socket closes mid-exam', () => {
+    const { result } = renderHook(() => useExamSocket({ forceMock: false }))
+    const ws1 = MockWebSocket.instances[0]
+    act(() => ws1.simulateOpen())
+    expect(result.current.state.connectionStatus).toBe('connected')
+
+    // Close socket mid-exam (not finished)
+    act(() => {
+      ws1.close()
+    })
+    expect(result.current.state.connectionStatus).toBe('reconnecting')
+    expect(MockWebSocket.instances).toHaveLength(1)
+
+    // Advance 500ms (0.5s) -> first reconnect
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(MockWebSocket.instances).toHaveLength(2)
+    const ws2 = MockWebSocket.instances[1]
+
+    // ws2 fails/closes
+    act(() => {
+      ws2.close()
+    })
+    expect(result.current.state.connectionStatus).toBe('reconnecting')
+
+    // Advance 500ms -> should not reconnect yet because backoff doubled to 1000ms
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(MockWebSocket.instances).toHaveLength(2)
+
+    // Advance another 500ms (1000ms total) -> second reconnect
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(MockWebSocket.instances).toHaveLength(3)
+    const ws3 = MockWebSocket.instances[2]
+
+    // ws3 fails/closes -> next backoff should be 2000ms
+    act(() => {
+      ws3.close()
+    })
+    act(() => {
+      vi.advanceTimersByTime(1999)
+    })
+    expect(MockWebSocket.instances).toHaveLength(3)
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(MockWebSocket.instances).toHaveLength(4)
+  })
+
+  it('stops reconnecting after finished is received', () => {
+    const { result } = renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => ws.simulateOpen())
+
+    // Receive finished message
+    act(() => {
+      ws.simulateMessage({ type: 'finished' })
+    })
+
+    // Now close socket
+    act(() => {
+      ws.close()
+    })
+
+    expect(result.current.state.connectionStatus).toBe('disconnected')
+    // Advance timers by 10s
+    act(() => {
+      vi.advanceTimersByTime(10000)
+    })
+    // No new WebSocket instances should be created
+    expect(MockWebSocket.instances).toHaveLength(1)
+  })
 })

@@ -9,15 +9,45 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import logging.handlers
+import os
 import sys
+from pathlib import Path
 
 from websockets.asyncio.server import serve, ServerConnection
 from websockets.http11 import Request, Response
 
-logger = logging.getLogger(__name__)
+LOG_DIR = Path(__file__).resolve().parents[3] / "logs"
+LOG_PATH = LOG_DIR / "socra.log"
+
+
+def _setup_logger() -> logging.Logger:
+    ws_logger = logging.getLogger("socra_server.entrypoints.ws_server")
+    ws_logger.setLevel(logging.DEBUG)
+    if not any(isinstance(h, logging.handlers.RotatingFileHandler) for h in ws_logger.handlers):
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.handlers.RotatingFileHandler(
+            LOG_PATH, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+        )
+        ws_logger.addHandler(file_handler)
+    if not any(
+        isinstance(h, logging.StreamHandler)
+        and not isinstance(h, logging.handlers.RotatingFileHandler)
+        for h in ws_logger.handlers
+    ):
+        stderr_handler = logging.StreamHandler(sys.stderr)
+        stderr_handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        ws_logger.addHandler(stderr_handler)
+    return ws_logger
+
+
+logger = _setup_logger()
 
 WS_HOST = "127.0.0.1"
-WS_PORT = 8766
+WS_PORT = int(os.environ.get("SOCRA_WS_PORT", "8766"))
 WS_PATH = "/ws"
 
 # Injected by __main__
@@ -50,8 +80,11 @@ async def _handle(ws: ServerConnection) -> None:
     # Publish the replacement before closing the old handler.
     old = app.channel._ws
     app.channel.set_connection(ws, loop)
-    if old is not None and old is not ws:
-        await old.close(code=1000, reason="Replaced by a new page")
+    if old is not None and old is not ws and hasattr(old, "close"):
+        try:
+            await old.close(code=1000, reason="Replaced by a new page")
+        except Exception:
+            pass
     audio_tasks: set[asyncio.Task] = set()
 
     async def transcribe(data: str) -> None:
@@ -59,13 +92,24 @@ async def _handle(ws: ServerConnection) -> None:
             await app.handle_answer_audio(data)
         except Exception as exc:
             logger.error("Error handling answer_audio: %s", exc)
-    logger.debug("Page connected: %s", ws.remote_address)
+    logger.info("Page connected: %s", ws.remote_address)
 
-    # Send idle state on connect
+    # On a new page connection, resend the current question (with code) and current state (no audio replay).
     try:
-        await ws.send(json.dumps({"type": "state", "state": "idle"}))
-    except Exception:
-        pass
+        session = app.session
+        if session.question_index > 0 and not app._finished:
+            q_msg = {
+                "type": "question",
+                "index": session.question_index,
+                "total": session.question_total,
+                "text": session.question_text,
+            }
+            if session.question_code is not None:
+                q_msg["code"] = session.question_code
+            await ws.send(json.dumps(q_msg))
+        await ws.send(json.dumps({"type": "state", "state": session.turn_state}))
+    except Exception as exc:
+        logger.error("Failed to send initial messages on connect: %s", exc)
 
     try:
         async for raw in ws:
@@ -92,6 +136,8 @@ async def _handle(ws: ServerConnection) -> None:
                     task.add_done_callback(audio_tasks.discard)
                     # Capture this turn before reading a following reanswer.
                     await asyncio.sleep(0)
+                elif msg_type == "playback_done":
+                    app.handle_playback_done()
                 elif msg_type == "reanswer":
                     await app.handle_reanswer()
                 elif msg_type == "mode":
@@ -108,13 +154,27 @@ async def _handle(ws: ServerConnection) -> None:
             app.channel.set_connection(None, loop)
         if audio_tasks:
             await asyncio.gather(*audio_tasks)
-        logger.debug("Page disconnected")
+        close_code = getattr(ws, "close_code", None)
+        close_reason = getattr(ws, "close_reason", None) or ""
+        logger.info(
+            "Page disconnected: %s (code=%s, reason=%r)",
+            ws.remote_address,
+            close_code,
+            close_reason,
+        )
 
 
 async def serve_forever(host: str = WS_HOST, port: int = WS_PORT) -> None:
     """Start the WebSocket server and run until cancelled."""
     logger.debug("WebSocket server starting on ws://%s:%d%s", host, port, WS_PATH)
-    async with serve(_handle, host, port, process_request=_check_path) as server:
+    async with serve(
+        _handle,
+        host,
+        port,
+        process_request=_check_path,
+        ping_interval=20,
+        ping_timeout=60,
+    ) as server:
         logger.debug("WebSocket server ready on ws://%s:%d%s", host, port, WS_PATH)
         await asyncio.Future()  # run forever
 

@@ -6,6 +6,7 @@ export type ExamAction =
   | { type: 'set_status'; status: ConnectionStatus }
   | { type: 'reanswer' }
   | { type: 'reset_transcript' }
+  | { type: 'clear_notice' }
 
 export const initialExamState: ExamState = {
   connectionStatus: 'connecting',
@@ -17,6 +18,7 @@ export const initialExamState: ExamState = {
     final: false,
   },
   mode: 'auto',
+  notice: null,
 }
 
 export function examReducer(state: ExamState, action: ExamAction): ExamState {
@@ -41,6 +43,7 @@ export function examReducer(state: ExamState, action: ExamAction): ExamState {
           text: '',
           final: false,
         },
+        notice: null,
       }
 
     case 'finished':
@@ -50,6 +53,19 @@ export function examReducer(state: ExamState, action: ExamAction): ExamState {
         question: null,
         transcript: { text: '', final: false },
         finished: true,
+        notice: null,
+      }
+
+    case 'notice':
+      return {
+        ...state,
+        notice: action.text,
+      }
+
+    case 'clear_notice':
+      return {
+        ...state,
+        notice: null,
       }
 
     case 'transcript':

@@ -4,11 +4,99 @@ from __future__ import annotations
 import io
 import logging
 import os
+import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+
+SILENCE_HALLUCINATIONS: tuple[str, ...] = (
+    "subtítulos realizados por",
+    "amara.org",
+    "gracias por ver",
+    "suscríbete",
+)
+
+DEFAULT_WHISPER_MODEL = "large-v3-turbo"
+
+
+def get_whisper_config() -> tuple[str, str | None, str | None]:
+    """Return (model_size, device, compute_type) from environment or defaults."""
+    model_size = os.environ.get("SOCRA_WHISPER_MODEL", DEFAULT_WHISPER_MODEL).strip()
+    device_env = os.environ.get("SOCRA_WHISPER_DEVICE", "").strip().lower()
+
+    device = None
+    compute_type = None
+    if device_env == "cuda":
+        device = "cuda"
+        compute_type = "float16"
+    elif device_env == "cpu":
+        device = "cpu"
+        compute_type = "int8"
+    elif device_env and device_env != "auto":
+        device = device_env
+
+    return model_size, device, compute_type
+
+
+def _ensure_cuda_dlls() -> None:
+    """Ensure CUDA runtime DLLs (e.g. cublas64_12.dll) are accessible on Windows."""
+    if sys.platform != "win32":
+        return
+    candidate_dirs = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "lib" / "ollama" / "cuda_v12",
+        Path(sys.prefix) / "Lib" / "site-packages" / "torch" / "lib",
+        Path("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.0/bin"),
+        Path("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/bin"),
+        Path("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.2/bin"),
+        Path("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.3/bin"),
+        Path("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4/bin"),
+    ]
+    for d in candidate_dirs:
+        if (d / "cublas64_12.dll").is_file():
+            d_str = str(d.resolve())
+            if d_str not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = d_str + os.pathsep + os.environ.get("PATH", "")
+            if hasattr(os, "add_dll_directory"):
+                try:
+                    os.add_dll_directory(d_str)
+                except Exception:
+                    pass
+            break
+
+
+
+def is_valid_answer(text: str) -> bool:
+    """Validate whether transcribed text represents a meaningful answer.
+
+    Treat as no answer:
+    1. Text empty once punctuation/whitespace is stripped.
+    2. One token making >= 60% of >= 4 tokens.
+    3. Known silence hallucination phrases (case-insensitive substring).
+    """
+    if not text:
+        return False
+    stripped = re.sub(r"[\W_]+", "", text)
+    if not stripped:
+        return False
+
+    text_lower = text.lower()
+    for phrase in SILENCE_HALLUCINATIONS:
+        if phrase in text_lower:
+            return False
+
+    raw_tokens = text.split()
+    tokens = [re.sub(r"[\W_]+", "", t).lower() for t in raw_tokens]
+    tokens = [t for t in tokens if t]
+    if len(tokens) >= 4:
+        counts = Counter(tokens)
+        max_freq = max(counts.values())
+        if max_freq / len(tokens) >= 0.6:
+            return False
+
+    return True
 
 
 def _voice_stack_dir() -> Path:
@@ -52,19 +140,27 @@ class WhisperSTT:
         self._transcriber = None
         # Base glossary terms from the voice stack (set by the loader)
         self._base_terms: list[str] = glossary_terms or []
+        self._model_size: str = DEFAULT_WHISPER_MODEL
 
     def set_base_terms(self, terms: list[str]) -> None:
         self._base_terms = terms
 
     def load(self) -> None:
         """Load the Whisper model.  Must be called from a background thread."""
+        _ensure_cuda_dlls()
         stack_dir = _voice_stack_dir()
         if str(stack_dir) not in sys.path:
             sys.path.insert(0, str(stack_dir))
 
         from dictation.transcriber import WhisperTranscriber  # type: ignore[import]
 
-        self._transcriber = WhisperTranscriber()
+        model_size, device, compute_type = get_whisper_config()
+        self._model_size = model_size
+        self._transcriber = WhisperTranscriber(
+            model_size=model_size,
+            device=device,
+            compute_type=compute_type,
+        )
 
     def _build_prompt(self, extra_glossary: list[str] | None) -> str:
         """Combine base terms and any per-call extra terms into an initial_prompt string."""
@@ -100,8 +196,20 @@ class WhisperSTT:
                 vad_filter=True,
                 initial_prompt=initial_prompt or None,
             )
-            parts = [seg.text.strip() for seg in segments if seg.text.strip()]
-            return " ".join(parts).strip()
+            parts = []
+            for seg in segments:
+                text = seg.text.strip()
+                if not text:
+                    continue
+                no_speech = getattr(seg, "no_speech_prob", 0.0)
+                avg_logprob = getattr(seg, "avg_logprob", 0.0)
+                if no_speech > 0.6 and avg_logprob < -1.0:
+                    continue
+                parts.append(text)
+            joined = " ".join(parts).strip()
+            if not is_valid_answer(joined):
+                return ""
+            return joined
         except Exception:
             # CUDA can initialize successfully yet fail on the first inference
             # when runtime DLLs are missing. Preserve the stack's CPU fallback
@@ -109,11 +217,20 @@ class WhisperSTT:
             if getattr(self._transcriber, "device", "cpu") == "cpu":
                 raise
             logging.getLogger(__name__).warning("Whisper inference failed; falling back to CPU", exc_info=True)
-            self._transcriber = type(self._transcriber)(
-                device="cpu",
-                compute_type="int8",
-                download_root=self._transcriber.download_root,
-            )
+            fallback_cls = type(self._transcriber)
+            try:
+                self._transcriber = fallback_cls(
+                    model_size=self._model_size,
+                    device="cpu",
+                    compute_type="int8",
+                    download_root=self._transcriber.download_root,
+                )
+            except TypeError:
+                self._transcriber = fallback_cls(
+                    device="cpu",
+                    compute_type="int8",
+                    download_root=self._transcriber.download_root,
+                )
             return self.transcribe(wav_bytes, prompt=initial_prompt)
 
     def transcribe_with_glossary(
