@@ -10,7 +10,7 @@
   --bg: #050507;
   --label: rgba(255, 255, 255, 0.92);
   --label-2: rgba(235, 235, 245, 0.6);
-  --label-3: rgba(235, 235, 245, 0.34);
+  --label-3: rgba(235, 235, 245, 0.56);
   --fill: rgba(120, 120, 140, 0.16);
   --fill-2: rgba(120, 120, 140, 0.26);
   --hairline: rgba(255, 255, 255, 0.09);
@@ -70,14 +70,6 @@ body,
   letter-spacing: 0.01em;
   font-weight: 500;
 }
-.t-eyebrow {
-  font-size: 0.6875rem;
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--label-3);
-}
 
 /* Materials: translucent layer, bright top edge = light catching the glass. */
 .glass {
@@ -90,8 +82,10 @@ body,
 }
 .glass-chip {
   background: var(--fill);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--hairline);
+}
+.surface {
+  background: rgba(120, 120, 140, 0.12);
   border: 1px solid var(--hairline);
 }
 
@@ -158,6 +152,14 @@ input[type="range"].slim::-webkit-slider-thumb {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   transition: transform 0.3s var(--spring);
 }
+input[type="range"].slim::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
 input[type="range"].slim:active::-webkit-slider-thumb {
   transform: scale(1.15);
 }
@@ -193,8 +195,6 @@ input[type="range"].slim:active::-webkit-slider-thumb {
   }
   .glass-chip {
     background: #202027;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 }
 

@@ -14,6 +14,13 @@ import {
 } from '@/lib/storage'
 import { AlertTriangle } from 'lucide-react'
 
+const STATE_LABEL: Record<string, { label: string; color: string }> = {
+  speaking: { label: 'Examiner speaking', color: 'var(--accent)' },
+  listening: { label: 'Your turn: speak your answer', color: 'var(--listen)' },
+  thinking: { label: 'Examiner thinking', color: 'var(--warn)' },
+  idle: { label: 'Ready', color: 'var(--label-2)' },
+}
+
 const CONNECTION: Record<string, { label: string; color: string; pulse?: boolean }> = {
   connected: { label: 'Connected', color: 'var(--live)' },
   mock: { label: 'Mock driver', color: 'var(--accent)' },
@@ -53,6 +60,8 @@ export const App: React.FC = () => {
   }
 
   const conn = CONNECTION[state.connectionStatus] ?? CONNECTION.disconnected
+  const stateLabel = STATE_LABEL[state.protocolState] ?? STATE_LABEL.idle
+  const modeLabel = state.mode === 'auto' ? 'Automatic turns' : 'Hold Space to talk'
   const ambientKey = state.protocolState
   const ambientOpacity = state.protocolState === 'idle' ? 0.5 : 1
 
@@ -128,6 +137,19 @@ export const App: React.FC = () => {
                 Finalizing in {(silenceCountdownMs / 1000).toFixed(1)}s…
               </div>
             )}
+        </div>
+
+        <div className="flex shrink-0 flex-col items-center gap-0.5 text-center" role="status" aria-live="polite">
+          <span
+            data-testid="state-label"
+            className="t-title"
+            style={{ color: stateLabel.color, fontSize: '1.0625rem' }}
+          >
+            {stateLabel.label}
+          </span>
+          <span className="t-caption" style={{ color: 'var(--label-2)' }}>
+            {modeLabel}
+          </span>
         </div>
 
         {state.notice && (

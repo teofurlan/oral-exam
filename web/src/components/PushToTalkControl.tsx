@@ -78,6 +78,7 @@ export const PushToTalkControl: React.FC<PushToTalkControlProps> = ({
         type="button"
         data-testid="ptt-button"
         data-talking={isPressed}
+        aria-pressed={isPressed}
         onMouseDown={() => setTalking(true)}
         onMouseUp={() => setTalking(false)}
         onMouseLeave={() => setTalking(false)}

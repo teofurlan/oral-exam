@@ -8,8 +8,8 @@ export interface ModeToggleProps {
 }
 
 const options: { id: TurnMode; testId: string; label: string; Icon: typeof Mic }[] = [
-  { id: 'auto', testId: 'mode-auto', label: 'Auto (VAD)', Icon: AudioLines },
-  { id: 'push-to-talk', testId: 'mode-ptt', label: 'Push-to-talk', Icon: Mic },
+  { id: 'auto', testId: 'mode-auto', label: 'Automatic', Icon: AudioLines },
+  { id: 'push-to-talk', testId: 'mode-ptt', label: 'Hold to talk', Icon: Mic },
 ]
 
 /** Segmented control; the thumb slides under the active option. */
@@ -39,7 +39,7 @@ export const ModeToggle: React.FC<ModeToggleProps> = ({ mode, onChange }) => {
           aria-checked={mode === id}
           data-testid={testId}
           onClick={() => onChange(id)}
-          className="press relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 t-caption whitespace-nowrap"
+          className="press relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-2 t-caption whitespace-nowrap"
           style={{ color: mode === id ? 'var(--label)' : 'var(--label-2)' }}
         >
           <Icon className="h-3.5 w-3.5" strokeWidth={2} />
