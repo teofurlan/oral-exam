@@ -89,6 +89,20 @@ describe('App Integration', () => {
     expect(screen.queryByTestId('settings-panel')).not.toBeInTheDocument()
   })
 
+  it('updates the accessible connection indicator from WebSocket events', () => {
+    render(<App />)
+    const ws = MockWebSocket.instances[0]
+    expect(screen.getByRole('status', { name: 'Connection: Connecting...' })).toBeVisible()
+
+    act(() => ws.onopen?.(new Event('open')))
+    expect(screen.getByRole('status', { name: 'Connection: Connected' })).toBeVisible()
+    expect(screen.queryByRole('status', { name: 'Connection: Connecting...' })).not.toBeInTheDocument()
+
+    act(() => ws.onclose?.(new CloseEvent('close')))
+    expect(screen.getByRole('status', { name: 'Connection: Reconnecting…' })).toBeVisible()
+    expect(screen.queryByRole('status', { name: 'Connection: Connected' })).not.toBeInTheDocument()
+  })
+
   it('persists the chosen orb palette', async () => {
     const user = userEvent.setup()
     render(<App />)
