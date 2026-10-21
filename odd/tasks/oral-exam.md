@@ -22,7 +22,7 @@ Branch: feat/orb-front (first slice) · Delivery: ask-on-risk · Test runner: Vi
 ## Tasks
 
 - T1 [S2,S3,S4,S7] Web front with mocked WebSocket state: orb, mode toggle, question + transcript panel, re-answer button. Route: delegated (Gemini 3.8 Flash via Pi, user request to save Claude quota). Validated by GPT 6.1 Sol (4 defects fixed: remote Perlin texture, TTS playback, socket lifecycle, Space hold). 38 tests pass, build OK, mock driver visually checked. Status: done.
-- T2 [S5,S6] Python MCP + WebSocket server wired to Kokoro and faster-whisper. Route: TBD. Status: pending.
+- T2 [S4,S5,S6] Python MCP + WebSocket server wired to Kokoro and faster-whisper. Route: delegated (Sonnet 4.6 via Antigravity in Pi builds, GPT 6.1 Sol validates; needs more judgment than Flash: asyncio + MCP stdio + audio). Brief: odd/brief-T2.md. Status: in progress.
 - T3 [S3] Browser mic capture with VAD (auto) and push-to-talk. Route: TBD. Status: pending.
 - T4 [S1] Hook `project-exam` skill to the MCP tools. Route: TBD. Status: pending.
 
