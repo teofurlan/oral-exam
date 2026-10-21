@@ -85,4 +85,26 @@ describe('QuestionPanel', () => {
     }
   })
 
+  it('triggers re-answer with the R key, but not while typing in a field', async () => {
+    const onReanswer = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <>
+        <input data-testid="field" />
+        <QuestionPanel
+          question={sampleQuestion}
+          transcript={sampleTranscript}
+          protocolState="listening"
+          onReanswer={onReanswer}
+        />
+      </>
+    )
+
+    await user.keyboard('r')
+    expect(onReanswer).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByTestId('field'))
+    await user.keyboard('r')
+    expect(onReanswer).toHaveBeenCalledTimes(1)
+  })
 })

@@ -22,13 +22,31 @@ export const ORB_PALETTES: OrbPalette[] = [
 export const STATE_PALETTES: Record<'idle' | 'speaking' | 'listening' | 'thinking', [string, string]> = {
   idle: ['#818cf8', '#c084fc'],
   speaking: ['#818cf8', '#c084fc'],
-  listening: ['#34d399', '#22d3ee'],
+  listening: ['#f472b6', '#a78bfa'],
   thinking: ['#fbbf24', '#fb7185'],
 }
 
 export const STATE_AMBIENT: Record<'idle' | 'speaking' | 'listening' | 'thinking', string> = {
   idle: 'rgba(129,140,248,0.16)',
   speaking: 'rgba(129,140,248,0.26)',
-  listening: 'rgba(52,211,153,0.24)',
+  listening: 'rgba(244,114,182,0.24)',
   thinking: 'rgba(251,191,36,0.2)',
+}
+
+export type OrbState = keyof typeof STATE_PALETTES
+
+export function findPalette(id: string): OrbPalette | undefined {
+  return ORB_PALETTES.find((p) => p.id === id)
+}
+
+export function orbColors(paletteId: string, state: OrbState): [string, string] {
+  return findPalette(paletteId)?.colors ?? STATE_PALETTES[state]
+}
+
+export function ambientColor(paletteId: string, state: OrbState): string {
+  const p = findPalette(paletteId)
+  if (!p) return STATE_AMBIENT[state]
+  const n = parseInt(p.colors[0].slice(1), 16)
+  const a = state === 'idle' ? 0.16 : 0.26
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }

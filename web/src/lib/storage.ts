@@ -3,6 +3,8 @@ import type { TurnMode } from '@/types/exam'
 export const STORAGE_KEY_MODE = 'oral_exam_turn_mode'
 export const STORAGE_KEY_SILENCE_TIMEOUT = 'oral_exam_silence_timeout_ms'
 
+export const STORAGE_KEY_ORB_PALETTE = 'socra_orb_palette'
+
 export const DEFAULT_SILENCE_TIMEOUT_MS = 3000
 export const MIN_SILENCE_TIMEOUT_MS = 500
 export const MAX_SILENCE_TIMEOUT_MS = 10_000
@@ -47,5 +49,23 @@ export function setStoredSilenceTimeout(ms: number): void {
     window.localStorage.setItem(STORAGE_KEY_SILENCE_TIMEOUT, String(ms))
   } catch (err) {
     console.warn('Failed to write silence timeout to localStorage:', err)
+  }
+}
+
+/** 'state' = colours follow the protocol state; otherwise a palette id. */
+export function getStoredOrbPalette(): string {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY_ORB_PALETTE) || 'state'
+  } catch (err) {
+    console.warn('Failed to read orb palette from localStorage:', err)
+    return 'state'
+  }
+}
+
+export function setStoredOrbPalette(id: string): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY_ORB_PALETTE, id)
+  } catch (err) {
+    console.warn('Failed to write orb palette to localStorage:', err)
   }
 }

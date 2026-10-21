@@ -58,6 +58,9 @@ describe('App Integration', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    // Settings live behind the gear button
+    await user.click(screen.getByTestId('settings-button'))
+
     // Initial state: auto is active
     const autoBtn = screen.getByTestId('mode-auto')
     const pttBtn = screen.getByTestId('mode-ptt')
@@ -73,6 +76,26 @@ describe('App Integration', () => {
 
     // Push to talk control should now be visible
     expect(screen.getByTestId('ptt-button')).toBeInTheDocument()
+  })
+
+  it('shows the title Socra and hides settings until the gear is opened', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Socra' })).toBeInTheDocument()
+    expect(screen.queryByTestId('settings-panel')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('settings-button'))
+    expect(screen.getByTestId('settings-panel')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByTestId('settings-panel')).not.toBeInTheDocument()
+  })
+
+  it('persists the chosen orb palette', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('palette-orchid'))
+    expect(window.localStorage.getItem('socra_orb_palette')).toBe('orchid')
+    expect(screen.getByTestId('palette-orchid')).toHaveAttribute('aria-checked', 'true')
   })
 
   it('updates state, question, and transcript from WebSocket messages', async () => {

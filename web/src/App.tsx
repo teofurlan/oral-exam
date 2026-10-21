@@ -3,16 +3,16 @@ import { useExamSocket } from '@/hooks/useExamSocket'
 import { useMicCapture } from '@/hooks/useMicCapture'
 import { OrbVisualizer } from '@/components/OrbVisualizer'
 import { QuestionPanel } from '@/components/QuestionPanel'
-import { ModeToggle } from '@/components/ModeToggle'
+import { SettingsMenu } from '@/components/SettingsMenu'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
-import { STATE_AMBIENT } from '@/components/orbPalettes'
+import { ambientColor } from '@/components/orbPalettes'
 import {
   getStoredSilenceTimeout,
   setStoredSilenceTimeout,
-  MIN_SILENCE_TIMEOUT_MS,
-  MAX_SILENCE_TIMEOUT_MS,
+  getStoredOrbPalette,
+  setStoredOrbPalette,
 } from '@/lib/storage'
-import { AlertTriangle, Timer } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 
 const CONNECTION: Record<string, { label: string; color: string; pulse?: boolean }> = {
   connected: { label: 'Connected', color: 'var(--live)' },
@@ -25,6 +25,7 @@ export const App: React.FC = () => {
   const { state, setMode, reanswer, sendAudio, getOutputVolume, listeningEpoch } = useExamSocket()
 
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
+  const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
 
   const handleFinalize = useCallback(
     (base64: string) => {
@@ -46,6 +47,11 @@ export const App: React.FC = () => {
     setStoredSilenceTimeout(newMs)
   }
 
+  const handlePaletteChange = (id: string) => {
+    setPaletteId(id)
+    setStoredOrbPalette(id)
+  }
+
   const conn = CONNECTION[state.connectionStatus] ?? CONNECTION.disconnected
   const ambientKey = state.protocolState
   const ambientOpacity = state.protocolState === 'idle' ? 0.5 : 1
@@ -55,7 +61,7 @@ export const App: React.FC = () => {
       className="relative flex h-full w-full select-none flex-col overflow-hidden"
       style={
         {
-          '--ambient': STATE_AMBIENT[ambientKey] ?? STATE_AMBIENT.idle,
+          '--ambient': ambientColor(paletteId, ambientKey),
           '--ambient-o': ambientOpacity,
         } as React.CSSProperties
       }
@@ -65,7 +71,7 @@ export const App: React.FC = () => {
       {/* Toolbar: translucent, content scrolls under it. */}
       <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-5 py-3.5">
         <div className="flex items-center gap-3">
-          <h1 className="t-title">Oral Exam</h1>
+          <h1 className="t-title">Socra</h1>
           <span
             className="glass-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-caption"
             style={{ color: 'var(--label-2)' }}
@@ -78,32 +84,14 @@ export const App: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          {state.mode === 'auto' && (
-            <label
-              className="hidden items-center gap-2 t-caption sm:inline-flex"
-              style={{ color: 'var(--label-2)' }}
-              data-testid="silence-timeout-control"
-            >
-              <Timer className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-              <span>Silence</span>
-              <input
-                type="range"
-                className="slim w-20"
-                min={MIN_SILENCE_TIMEOUT_MS}
-                max={MAX_SILENCE_TIMEOUT_MS}
-                step={500}
-                value={silenceTimeoutMs}
-                onChange={(e) => handleSilenceChange(Number(e.target.value))}
-                aria-label="End-of-answer silence duration"
-              />
-              <span className="w-9 text-right tabular-nums">
-                {(silenceTimeoutMs / 1000).toFixed(1)}s
-              </span>
-            </label>
-          )}
-          <ModeToggle mode={state.mode} onChange={setMode} />
-        </div>
+        <SettingsMenu
+          mode={state.mode}
+          onModeChange={setMode}
+          silenceTimeoutMs={silenceTimeoutMs}
+          onSilenceChange={handleSilenceChange}
+          paletteId={paletteId}
+          onPaletteChange={handlePaletteChange}
+        />
       </header>
 
       {micError && (
@@ -125,6 +113,7 @@ export const App: React.FC = () => {
             protocolState={state.protocolState}
             getOutputVolume={getOutputVolume}
             getInputVolume={getInputVolume}
+            paletteId={paletteId}
           />
 
           {state.protocolState === 'listening' &&

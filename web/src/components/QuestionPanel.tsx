@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import type { QuestionData, TranscriptData, ProtocolState } from '@/types/exam'
 import { RotateCcw } from 'lucide-react'
 
@@ -11,7 +11,7 @@ export interface QuestionPanelProps {
 
 const STATUS: Record<ProtocolState, { label: string; color: string }> = {
   speaking: { label: 'Examiner speaking', color: 'var(--accent)' },
-  listening: { label: 'Listening to your answer', color: 'var(--live)' },
+  listening: { label: 'Listening to your answer', color: 'var(--listen)' },
   thinking: { label: 'Examiner thinking', color: 'var(--warn)' },
   idle: { label: 'Ready', color: 'var(--label-3)' },
 }
@@ -22,6 +22,18 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
   protocolState,
   onReanswer,
 }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'r' || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      onReanswer()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onReanswer])
+
   const status = STATUS[protocolState] ?? STATUS.idle
   const live = protocolState !== 'idle'
 
@@ -75,11 +87,15 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
             type="button"
             data-testid="reanswer-button"
             onClick={onReanswer}
-            title="Re-answer the current question"
+            title="Re-answer the current question (R)"
+            aria-keyshortcuts="R"
             className="press glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 t-caption text-white/80 hover:text-white"
           >
             <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
             Re-answer
+            <kbd className="rounded-md bg-white/10 px-1.5 py-px font-sans text-[0.6875rem] leading-4 text-white/60">
+              R
+            </kbd>
           </button>
         </div>
 

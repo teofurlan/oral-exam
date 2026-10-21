@@ -1,6 +1,6 @@
 import React from 'react'
 import { Orb, type AgentState } from '@/components/ui/orb'
-import { STATE_PALETTES } from '@/components/orbPalettes'
+import { orbColors, findPalette } from '@/components/orbPalettes'
 import type { ProtocolState } from '@/types/exam'
 
 export function mapProtocolToAgentState(state: ProtocolState): AgentState {
@@ -21,6 +21,7 @@ export function mapProtocolToAgentState(state: ProtocolState): AgentState {
 export interface OrbVisualizerProps {
   protocolState: ProtocolState
   className?: string
+  paletteId?: string
   getOutputVolume?: () => number
   getInputVolume?: () => number
 }
@@ -28,6 +29,7 @@ export interface OrbVisualizerProps {
 export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
   protocolState,
   className = '',
+  paletteId = 'state',
   getOutputVolume,
   getInputVolume,
 }) => {
@@ -50,7 +52,8 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
           volumeMode={useManualVolume ? 'manual' : 'auto'}
           getOutputVolume={getOutputVolume}
           getInputVolume={getInputVolume}
-          colors={STATE_PALETTES[protocolState] ?? STATE_PALETTES.idle}
+          colors={orbColors(paletteId, protocolState)}
+          seed={findPalette(paletteId)?.seed}
           className="w-full h-full"
         />
       </div>
