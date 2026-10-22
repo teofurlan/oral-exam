@@ -53,7 +53,13 @@ describe('AgentTimeline', () => {
     )
     const scrolled = vi.fn()
     Element.prototype.scrollIntoView = scrolled
-    render(
+    // The page opens with an empty conversation; the first reply arrives later.
+    const { rerender } = render(
+      <div className="shell-scroll">
+        <AgentTimeline entries={[]} protocolState="idle" />
+      </div>,
+    )
+    rerender(
       <div className="shell-scroll">
         <AgentTimeline entries={[{ id: 1, kind: 'reply', text: 'Done.' }]} protocolState="idle" />
       </div>,

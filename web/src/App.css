@@ -32,6 +32,12 @@
 .shell-panels > .panel:first-child {
   background: transparent;
 }
+/* ...but not its header: like the top bar, it stays solid, so a scrolled sphere slides under it. */
+.shell-panels > .panel:first-child > .panel-head {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+}
 
 /* The sphere swells past its slot with perspective and voice; keep the words clear of it. */
 .viz-slot {

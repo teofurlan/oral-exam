@@ -31,14 +31,24 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
   return (
     <div data-testid="question-panel" className="flex w-full min-w-0 max-w-[72ch] flex-col gap-5">
       <section key={question?.index ?? 'none'} className="grid grid-cols-[6ch_minmax(0,1fr)] gap-x-[1.5ch] gap-y-1">
-        <span className="t-small pt-[0.2em] text-right" style={{ color: 'var(--accent)' }} aria-hidden="true">
-          socra
+        <span className="t-small flex flex-col items-end pt-[0.2em]">
+          <span style={{ color: 'var(--accent)' }} aria-hidden="true">
+            socra
+          </span>
+          {/* The top bar shows the progress from tablet width up; phones keep it in the gutter. */}
+          {question && (
+            <span data-testid="question-index" className="tabular-nums md:hidden" style={{ color: 'var(--label-3)' }}>
+              <span className="sr-only">Question </span>
+              {question.index}/{question.total}
+            </span>
+          )}
         </span>
         <div className="flex min-w-0 flex-col gap-1">
-          {/* The top bar shows the progress from tablet width up; phones keep it here. */}
-          <span data-testid="question-index" className={`t-small tabular-nums${question ? ' md:hidden' : ''}`} style={{ color: 'var(--label-2)' }}>
-            {question ? `Question ${question.index}/${question.total}` : 'Waiting for exam question'}
-          </span>
+          {!question && (
+            <span data-testid="question-index" className="t-small" style={{ color: 'var(--label-2)' }}>
+              Waiting for exam question
+            </span>
+          )}
           <p
             data-testid="question-text"
             className="m-0 text-[1rem] leading-[1.65] font-medium [overflow-wrap:anywhere] select-text"

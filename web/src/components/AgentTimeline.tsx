@@ -59,7 +59,7 @@ function Body({ entry }: { entry: TimelineEntry }) {
           {withInlineCode(text)}
           {moved > 0 && (
             <span className="t-small mt-1 block" style={{ color: 'var(--label-3)' }}>
-              {moved === 1 ? 'code shown in the right pane' : `${moved} code blocks shown in the right pane`}
+              {moved === 1 ? 'code shown in the code panel' : `${moved} code blocks shown in the code panel`}
             </span>
           )}
         </span>
@@ -76,6 +76,7 @@ export function AgentTimeline({ entries, protocolState }: AgentTimelineProps) {
   // Follow the newest entry once the layout around it has settled (the code pane may have
   // just opened and shortened the conversation).
   const last = entries[entries.length - 1]
+  const hasEntries = entries.length > 0
   useEffect(() => {
     const id = requestAnimationFrame(() => endRef.current?.scrollIntoView?.({ block: 'end' }))
     return () => cancelAnimationFrame(id)
@@ -88,7 +89,8 @@ export function AgentTimeline({ entries, protocolState }: AgentTimelineProps) {
     const observer = new ResizeObserver(() => endRef.current?.scrollIntoView?.({ block: 'end' }))
     observer.observe(scroller)
     return () => observer.disconnect()
-  }, [])
+    // The end marker only exists once there are entries.
+  }, [hasEntries])
 
   if (entries.length === 0) {
     return (
