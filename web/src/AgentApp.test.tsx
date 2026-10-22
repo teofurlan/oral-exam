@@ -3,7 +3,7 @@ import { render, screen, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AgentApp from './AgentApp'
 import { FakeAudioContext, FakeWebSocket } from '@/test/fakeSocket'
-import { STORAGE_KEY_AGENT_FOLDER, STORAGE_KEY_AGENT_SELECTION } from '@/lib/storage'
+import { STORAGE_KEY_AGENT_FOLDER, STORAGE_KEY_AGENT_SELECTION, STORAGE_KEY_VISUALIZER } from '@/lib/storage'
 
 vi.mock('@/components/ui/orb', () => ({
   Orb: ({ agentState }: { agentState: string | null }) => (
@@ -118,6 +118,20 @@ describe('AgentApp', () => {
 
     await user.click(within(session).getByRole('button', { name: /change/i }))
     expect(screen.getByRole('button', { name: /start agent/i })).toBeInTheDocument()
+  })
+
+  it('uses the visualizer chosen in settings, shared with the exam page', async () => {
+    window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'particle-lines')
+    const user = userEvent.setup()
+    openPage()
+
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'lines')
+
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('visualizer-orb'))
+
+    expect(window.localStorage.getItem(STORAGE_KEY_VISUALIZER)).toBe('orb')
+    expect(screen.queryByTestId('particle-visualizer')).toBeNull()
   })
 
   it('sends dictated and typed turns', async () => {

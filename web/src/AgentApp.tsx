@@ -21,13 +21,16 @@ import {
   getStoredOrbPalette,
   getStoredSilenceTimeout,
   getStoredTurnMode,
+  getStoredVisualizer,
   setStoredAgentFolder,
   setStoredAgentSelection,
   setStoredMicDeviceId,
   setStoredOrbPalette,
   setStoredSilenceTimeout,
   setStoredTurnMode,
+  setStoredVisualizer,
 } from '@/lib/storage'
+import type { VisualizerId } from '@/components/visualizers'
 import type { TurnMode } from '@/types/exam'
 import type { AgentSelection, AgentSession } from '@/types/agent'
 
@@ -50,6 +53,8 @@ export const AgentApp: React.FC = () => {
   const [mode, setMode] = useState<TurnMode>(() => getStoredTurnMode('auto'))
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
+  // Shared with the exam page: one preference for the whole app.
+  const [visualizer, setVisualizer] = useState<VisualizerId>(getStoredVisualizer)
   const [micDeviceId, setMicDeviceId] = useState<string>(getStoredMicDeviceId)
   const { microphones, refresh: refreshMicrophones } = useAudioInputs()
 
@@ -97,6 +102,8 @@ export const AgentApp: React.FC = () => {
   const lastEntry = state.timeline.at(-1)
   const setupError = showSetup && lastEntry?.kind === 'error' ? lastEntry.text : null
   const stateLabel = STATE_LABEL[state.protocolState] ?? STATE_LABEL.idle
+  // The "letters" look spells the latest reply, or the latest turn before any reply.
+  const lettersText = [...state.timeline].reverse().find((entry) => entry.kind === 'reply' || entry.kind === 'user')?.text
 
   return (
     <div
@@ -128,6 +135,11 @@ export const AgentApp: React.FC = () => {
             setPaletteId(id)
             setStoredOrbPalette(id)
           }}
+          visualizer={visualizer}
+          onVisualizerChange={(id) => {
+            setVisualizer(id)
+            setStoredVisualizer(id)
+          }}
           microphones={microphones}
           micDeviceId={micDeviceId}
           onMicChange={(id) => {
@@ -157,6 +169,8 @@ export const AgentApp: React.FC = () => {
             getOutputVolume={socket.getOutputVolume}
             getInputVolume={getInputVolume}
             paletteId={paletteId}
+            visualizer={visualizer}
+            questionText={lettersText}
           />
           {!showSetup && state.protocolState === 'listening' && mode === 'auto' && silenceCountdownMs > 0 && (
             <div
