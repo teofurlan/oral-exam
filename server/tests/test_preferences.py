@@ -127,3 +127,94 @@ async def test_put_to_static_paths_is_still_not_allowed(dist, tmp_path):
         port = server.sockets[0].getsockname()[1]
         head, _ = await _request(port, "PUT", "/index.html", b"{}", {"Origin": f"http://localhost:{port}"})
         assert head.startswith("HTTP/1.1 405"), head
+
+
+# --- review follow-ups -------------------------------------------------------
+
+def test_transient_read_failure_is_retried_and_keeps_other_keys(tmp_path, monkeypatch):
+    path = tmp_path / "prefs.json"
+    store = PreferencesFile(path)
+    store.update({"socra_voice": "alex", "socra_theme": "dark"})
+    real_read_text = type(path).read_text
+    failures = iter([PermissionError("locked by another process")])
+
+    def flaky_read_text(self, *args, **kwargs):
+        error = next(failures, None)
+        if error is not None:
+            raise error
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(path), "read_text", flaky_read_text)
+    assert store.update({"socra_voice": "dora"}) == {"socra_voice": "dora", "socra_theme": "dark"}
+
+
+def test_update_refuses_to_write_when_the_file_stays_unreadable(tmp_path, monkeypatch):
+    path = tmp_path / "prefs.json"
+    store = PreferencesFile(path)
+    store.update({"socra_voice": "alex", "socra_theme": "dark"})
+    before = path.read_bytes()
+
+    def locked(self, *args, **kwargs):
+        raise PermissionError("locked by another process")
+
+    monkeypatch.setattr(type(path), "read_text", locked)
+    with pytest.raises(OSError):
+        store.update({"socra_voice": "dora"})
+    with pytest.raises(OSError):
+        store.read()
+    monkeypatch.undo()
+    assert path.read_bytes() == before
+
+
+def test_transient_replace_failure_is_retried(tmp_path, monkeypatch):
+    import socra_server.adapters.preferences_file as module
+
+    store = PreferencesFile(tmp_path / "prefs.json")
+    real_replace = module.os.replace
+    failures = iter([PermissionError("target open in another process")])
+
+    def flaky_replace(src, dst):
+        error = next(failures, None)
+        if error is not None:
+            raise error
+        real_replace(src, dst)
+
+    monkeypatch.setattr(module.os, "replace", flaky_replace)
+    assert store.update({"socra_voice": "dora"}) == {"socra_voice": "dora"}
+    assert PreferencesFile(tmp_path / "prefs.json").read() == {"socra_voice": "dora"}
+    assert list(tmp_path.glob(".preferences-*")) == []
+
+
+class BrokenStore:
+    def read(self):
+        raise PermissionError("locked")
+
+    def update(self, changes):
+        raise PermissionError("locked")
+
+
+@pytest.mark.asyncio
+async def test_store_failure_answers_503_and_logs_a_warning(dist, caplog):
+    async with serve_page(dist=dist, port=0, preferences=BrokenStore()) as server:
+        port = server.sockets[0].getsockname()[1]
+        with caplog.at_level("WARNING", logger="socra_server.entrypoints.http_server"):
+            head, payload = await _request(port, "GET", "/api/preferences")
+            assert head.startswith("HTTP/1.1 503"), head
+            head, payload = await _request(port, "PUT", "/api/preferences", b'{"socra_voice":"x"}', {
+                "Content-Type": "application/json", "Origin": f"http://localhost:{port}",
+            })
+            assert head.startswith("HTTP/1.1 503"), head
+            assert json.loads(payload) == {"error": "preferences unavailable"}
+        assert sum("preferences" in r.getMessage().lower() for r in caplog.records) == 2
+
+
+@pytest.mark.asyncio
+async def test_deeply_nested_body_gets_400(dist, tmp_path):
+    prefs = PreferencesFile(tmp_path / "prefs.json")
+    body = b"[" * 8000 + b"]" * 8000
+    async with serve_page(dist=dist, port=0, preferences=prefs) as server:
+        port = server.sockets[0].getsockname()[1]
+        head, _ = await _request(port, "PUT", "/api/preferences", body, {
+            "Content-Type": "application/json", "Origin": f"http://localhost:{port}",
+        })
+        assert head.startswith("HTTP/1.1 400"), head

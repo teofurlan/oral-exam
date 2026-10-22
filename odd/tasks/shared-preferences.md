@@ -15,6 +15,7 @@ Rejected: redirecting fallback pages to the 8767 origin (that origin belongs to 
 
 - T1 Server preferences store and `/api/preferences` (GET, PUT with same-origin check, JSON object of short keys to short strings, null deletes, body capped). Route: inline (two coupled files plus tests; the prior features in this repo ran inline). RED: collection error, `preferences_file` missing -> GREEN 13 passed; server suite 227 passed. Status: done.
 - T2 Web hydration before render, setters send changes; `useTheme` applies the hydrated theme on mount. Route: inline. RED: `./preferences` missing -> GREEN; web 311 passed, `tsc -b` and oxlint clean, `pnpm build` ok. Status: done.
+- T3 Review follow-ups (user: "Sí, corregí esos 4"): (1) the store retries a transient read/replace error and, when the file stays unreadable, raises instead of reading it as empty, so an update never wipes the other keys; (2) a store error answers 503 and logs a warning instead of dropping the connection; (3) a deeply nested body gets 400 (RecursionError); (4) a slow or failing first GET no longer disables sharing: the page retries in the background (2 s, 5 s, 15 s), holds the changes made meanwhile and sends them once the server answers, without overwriting the values it rendered with; writes retry on network errors and 5xx (300 ms, 1 s), not on 4xx. Route: inline. RED server 5, web 4 -> GREEN; server 232 passed, web 315 passed, tsc and oxlint clean. Status: done. Not addressed: the migration PUT is all-or-nothing when one value exceeds 1024 chars (review suggestion, not in the four).
 
 ## Acceptance
 
@@ -26,4 +27,5 @@ Rejected: redirecting fallback pages to the 8767 origin (that origin belongs to 
 
 - Smoke on the real build: two `serve_page` instances on free ports, one file; PUT on one origin, GET on the other returned it; a PUT with `Origin: http://evil.example` returned 403; `/?ws=` still serves index.html.
 - Not checked in a real browser session: the hydration order is covered by unit tests only.
+- T1/T2 commit f1070a3, native review (reliability lens) approved and acknowledged; its warnings became T3.
 - Known limit: on a fallback origin's first load the inline theme script in `index.html` runs before hydration, so the page can show the system theme for one frame before `useTheme` applies the stored one.

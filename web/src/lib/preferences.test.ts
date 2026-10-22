@@ -87,20 +87,110 @@ describe('shared preferences (#27)', () => {
     await expect(hydratePreferences(['socra_voice'])).resolves.toBeUndefined()
   })
 
-  it('a failed write does not stop the next one', async () => {
+  it('retries a failed write, then sends the next change', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({}))
       .mockRejectedValueOnce(new TypeError('offline'))
       .mockResolvedValue(jsonResponse({}))
     vi.stubGlobal('fetch', fetchMock)
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
     const { hydratePreferences, sharePreference, preferencesSettled } = await load()
 
     await hydratePreferences(['socra_voice'])
     sharePreference('socra_voice', 'alex')
     sharePreference('socra_voice', 'dora')
+    await vi.runAllTimersAsync()
+    await preferencesSettled()
+    vi.useRealTimers()
+
+    expect(sentBodies(fetchMock)).toEqual([{ socra_voice: 'alex' }, { socra_voice: 'alex' }, { socra_voice: 'dora' }])
+  })
+
+  it('gives up on a write after a few failed attempts and keeps going', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+      .mockResolvedValue(jsonResponse({}))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
+    const { hydratePreferences, sharePreference, preferencesSettled } = await load()
+
+    await hydratePreferences(['socra_voice'])
+    sharePreference('socra_voice', 'alex')
+    sharePreference('socra_voice', 'dora')
+    await vi.runAllTimersAsync()
+    await preferencesSettled()
+    vi.useRealTimers()
+
+    expect(sentBodies(fetchMock)).toEqual([
+      { socra_voice: 'alex' }, { socra_voice: 'alex' }, { socra_voice: 'alex' }, { socra_voice: 'dora' },
+    ])
+    expect(console.warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a write the server rejected as invalid', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(new Response('{}', { status: 400 }))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { hydratePreferences, sharePreference, preferencesSettled } = await load()
+
+    await hydratePreferences(['socra_voice'])
+    sharePreference('socra_voice', 'x')
     await preferencesSettled()
 
-    expect(sentBodies(fetchMock)).toEqual([{ socra_voice: 'alex' }, { socra_voice: 'dora' }])
+    expect(sentBodies(fetchMock)).toEqual([{ socra_voice: 'x' }])
+  })
+
+  it('keeps retrying a slow or failing server and then sends what changed meanwhile', async () => {
+    window.localStorage.setItem('socra_theme', 'light')
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'))
+      .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse({ socra_voice: 'santa', socra_theme: 'dark' }))
+      .mockResolvedValue(jsonResponse({}))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.useFakeTimers()
+    const { hydratePreferences, sharePreference, preferencesSettled } = await load()
+
+    await hydratePreferences(['socra_voice', 'socra_theme', 'socra_shape'])
+    sharePreference('socra_voice', 'dora')
+    window.localStorage.setItem('socra_voice', 'dora')
+    await vi.runAllTimersAsync()
+    await preferencesSettled()
+    vi.useRealTimers()
+
+    // The page already rendered with local values, so a late answer does not overwrite them;
+    // the change made meanwhile is sent instead of being lost.
+    expect(window.localStorage.getItem('socra_voice')).toBe('dora')
+    expect(window.localStorage.getItem('socra_theme')).toBe('light')
+    expect(sentBodies(fetchMock)).toEqual([{ socra_voice: 'dora' }])
+    sharePreference('socra_shape', 'wave')
+    await preferencesSettled()
+    expect(sentBodies(fetchMock)).toEqual([{ socra_voice: 'dora' }, { socra_shape: 'wave' }])
+  })
+
+  it('stops retrying after a few attempts and drops the queued changes', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('offline'))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.useFakeTimers()
+    const { hydratePreferences, sharePreference, preferencesSettled } = await load()
+
+    await hydratePreferences(['socra_voice'])
+    sharePreference('socra_voice', 'dora')
+    await vi.runAllTimersAsync()
+    await preferencesSettled()
+    const calls = fetchMock.mock.calls.length
+    sharePreference('socra_voice', 'alex')
+    await vi.runAllTimersAsync()
+    vi.useRealTimers()
+
+    expect(calls).toBe(4)
+    expect(sentBodies(fetchMock)).toEqual([])
+    expect(fetchMock.mock.calls.length).toBe(calls)
   })
 })

@@ -33,6 +33,7 @@ PREFERENCES_PATH = "/api/preferences"
 MAX_PREFERENCES_BODY = 16384
 MAX_PREFERENCE_VALUE = 1024
 _PREFERENCE_KEY = re.compile(r"[a-z][a-z0-9_]{0,63}")
+_PREFERENCES_UNAVAILABLE = ("503 Service Unavailable", b'{"error":"preferences unavailable"}')
 
 
 def _parse_preferences(body: bytes) -> dict[str, str | None]:
@@ -57,7 +58,11 @@ async def _preferences(
 ) -> tuple[str, bytes]:
     """GET reads, PUT merges. Only the page's own origin may write (#27)."""
     if method in ("GET", "HEAD"):
-        return "200 OK", json.dumps(await asyncio.to_thread(store.read)).encode()
+        try:
+            return "200 OK", json.dumps(await asyncio.to_thread(store.read)).encode()
+        except OSError:
+            logger.warning("Could not read the preferences file", exc_info=True)
+            return _PREFERENCES_UNAVAILABLE
     if method != "PUT":
         return "405 Method Not Allowed", b'{"error":"method not allowed"}'
     origin = headers.get("origin")
@@ -71,9 +76,13 @@ async def _preferences(
         return "413 Content Too Large", b'{"error":"body too large"}'
     try:
         changes = _parse_preferences(await reader.readexactly(length))
-    except (ValueError, UnicodeError):
+    except (ValueError, UnicodeError, RecursionError):
         return "400 Bad Request", b'{"error":"invalid preferences"}'
-    return "200 OK", json.dumps(await asyncio.to_thread(store.update, changes)).encode()
+    try:
+        return "200 OK", json.dumps(await asyncio.to_thread(store.update, changes)).encode()
+    except OSError:
+        logger.warning("Could not save the preferences file", exc_info=True)
+        return _PREFERENCES_UNAVAILABLE
 
 
 async def _static(method: str, path: str, dist: Path) -> tuple[str, bytes, str]:

@@ -10,61 +10,134 @@
 
 export const PREFERENCES_URL = '/api/preferences'
 const HYDRATE_TIMEOUT_MS = 1500
+/** A slow or failing server is asked again in the background after these delays. */
+const HYDRATE_RETRY_DELAYS_MS = [2000, 5000, 15000]
+const WRITE_RETRY_DELAYS_MS = [300, 1000]
 
-let serverAvailable = false
+/** 'unknown' = no answer yet, so changes wait; 'absent' = no server, changes stay local. */
+let server: 'unknown' | 'available' | 'absent' = 'unknown'
+let waiting: Record<string, string> = {}
 let writes: Promise<void> = Promise.resolve()
 
-async function send(changes: Record<string, string>): Promise<void> {
+/** The answer is not a preferences API (a dev server or an old build): asking again will not help. */
+class NoPreferencesApi extends Error {}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Throws NoPreferencesApi when there is no API, anything else when it may answer later. */
+async function fetchRemote(): Promise<Record<string, unknown>> {
+  const res = await fetch(PREFERENCES_URL, { cache: 'no-store', signal: AbortSignal.timeout(HYDRATE_TIMEOUT_MS) })
+  if (res.status >= 500) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) throw new NoPreferencesApi()
+  const text = await res.text()
+  let remote: unknown
   try {
-    const res = await fetch(PREFERENCES_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(changes),
-    })
-    if (!res.ok) console.warn(`Failed to save preferences: HTTP ${res.status}`)
-  } catch (err) {
-    console.warn('Failed to save preferences:', err)
+    remote = JSON.parse(text)
+  } catch {
+    throw new NoPreferencesApi()
+  }
+  if (typeof remote !== 'object' || remote === null || Array.isArray(remote)) throw new NoPreferencesApi()
+  return remote as Record<string, unknown>
+}
+
+async function send(changes: Record<string, string>): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    let failure: unknown
+    try {
+      const res = await fetch(PREFERENCES_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changes),
+      })
+      if (res.ok) return
+      // A 4xx means the server refused these values; sending them again would not help.
+      if (res.status < 500) {
+        console.warn(`Failed to save preferences: HTTP ${res.status}`)
+        return
+      }
+      failure = `HTTP ${res.status}`
+    } catch (err) {
+      failure = err
+    }
+    if (attempt >= WRITE_RETRY_DELAYS_MS.length) {
+      console.warn('Failed to save preferences:', failure)
+      return
+    }
+    await sleep(WRITE_RETRY_DELAYS_MS[attempt])
   }
 }
 
 function enqueue(changes: Record<string, string>): void {
-  writes = writes.then(() => send(changes))
+  if (Object.keys(changes).length > 0) writes = writes.then(() => send(changes))
+}
+
+/** Keys this origin has and the server lacks. */
+function onlyLocal(keys: readonly string[], remote: Record<string, unknown>): Record<string, string> {
+  const changes: Record<string, string> = {}
+  try {
+    for (const key of keys) {
+      const local = window.localStorage.getItem(key)
+      if (typeof remote[key] !== 'string' && local !== null) changes[key] = local
+    }
+  } catch (err) {
+    console.warn('Failed to read preferences from localStorage:', err)
+  }
+  return changes
+}
+
+/**
+ * The page rendered with local values while the server was slow, so a late
+ * answer does not overwrite them; what changed meanwhile is sent instead.
+ */
+async function retryInBackground(keys: readonly string[]): Promise<void> {
+  for (const delay of HYDRATE_RETRY_DELAYS_MS) {
+    await sleep(delay)
+    try {
+      const remote = await fetchRemote()
+      server = 'available'
+      enqueue({ ...onlyLocal(keys, remote), ...waiting })
+      waiting = {}
+      return
+    } catch (err) {
+      if (err instanceof NoPreferencesApi) break
+    }
+  }
+  server = 'absent'
+  waiting = {}
 }
 
 /** Load the server's values for ``keys``; keys only this origin has are sent up. Never rejects. */
 export async function hydratePreferences(keys: readonly string[]): Promise<void> {
-  let remote: unknown
+  let remote: Record<string, unknown>
   try {
-    const res = await fetch(PREFERENCES_URL, { cache: 'no-store', signal: AbortSignal.timeout(HYDRATE_TIMEOUT_MS) })
-    if (!res.ok) return
-    remote = await res.json()
-  } catch {
+    remote = await fetchRemote()
+  } catch (err) {
+    if (err instanceof NoPreferencesApi) {
+      server = 'absent'
+    } else {
+      void retryInBackground(keys)
+    }
     return
   }
-  if (typeof remote !== 'object' || remote === null || Array.isArray(remote)) return
-  serverAvailable = true
-
-  const values = remote as Record<string, unknown>
-  const onlyLocal: Record<string, string> = {}
+  server = 'available'
+  const changes = onlyLocal(keys, remote)
   try {
     for (const key of keys) {
-      const value = values[key]
-      if (typeof value === 'string') {
-        window.localStorage.setItem(key, value)
-      } else {
-        const local = window.localStorage.getItem(key)
-        if (local !== null) onlyLocal[key] = local
-      }
+      const value = remote[key]
+      if (typeof value === 'string') window.localStorage.setItem(key, value)
     }
   } catch (err) {
     console.warn('Failed to copy preferences into localStorage:', err)
   }
-  if (Object.keys(onlyLocal).length > 0) enqueue(onlyLocal)
+  enqueue(changes)
 }
 
 /** Send one changed preference to the server, after any earlier change. */
 export function sharePreference(key: string, value: string): void {
-  if (serverAvailable) enqueue({ [key]: value })
+  if (server === 'available') enqueue({ [key]: value })
+  else if (server === 'unknown') waiting[key] = value
 }
 
 /** Resolves once every queued write has finished. */
