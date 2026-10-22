@@ -237,6 +237,21 @@ describe('ParticleField', () => {
     }
   })
 
+  it('keeps the rest formation visible on a light ground, where paint does not add up', () => {
+    const restingAlpha = (light: boolean) => {
+      const field = new ParticleField({ count: 300, style: 'lines', random: seeded(14) })
+      field.resize(BASE.width, BASE.height)
+      field.setLightBackground(light)
+      let time = 0
+      for (let i = 0; i < 4 * 60; i++) {
+        time += BASE.dt
+        field.step({ ...BASE, state: 'idle', volume: 0, time, rest: true })
+      }
+      return field.particles.reduce((s, p) => s + p.alpha, 0) / field.particles.length
+    }
+    expect(restingAlpha(true)).toBeGreaterThan(restingAlpha(false) * 1.3)
+  })
+
   it('ignores the rest formation once the conversation has a voice', () => {
     const positions = (rest: boolean) => {
       const field = new ParticleField({ count: 200, style: 'lines', random: seeded(13) })

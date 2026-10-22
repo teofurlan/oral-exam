@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { splitCode } from './codeBlocks'
+import { codeSegments, splitCode } from './codeBlocks'
 
 describe('splitCode', () => {
   it('keeps plain text as it is', () => {
@@ -19,5 +19,27 @@ describe('splitCode', () => {
 
   it('treats an unclosed fence as code to the end, like a reply still streaming', () => {
     expect(splitCode('Look:\n```py\nprint(1)')).toEqual({ prose: 'Look:', blocks: [{ lang: 'py', code: 'print(1)' }] })
+  })
+})
+
+describe('codeSegments', () => {
+  it('keeps prose and code in their order, without the blank lines around each block', () => {
+    const text = 'Cap the delay instead:\n\n```ts\nconst a = 1\nconst b = 2\n```\n\nWant me to apply it?'
+    expect(codeSegments(text)).toEqual([
+      { kind: 'prose', text: 'Cap the delay instead:' },
+      { kind: 'code', lang: 'ts', lines: 2 },
+      { kind: 'prose', text: 'Want me to apply it?' },
+    ])
+  })
+
+  it('returns the text as one prose segment when there is no code', () => {
+    expect(codeSegments('Done.')).toEqual([{ kind: 'prose', text: 'Done.' }])
+  })
+
+  it('counts an unclosed fence as code to the end', () => {
+    expect(codeSegments('Look:\n```py\nprint(1)')).toEqual([
+      { kind: 'prose', text: 'Look:' },
+      { kind: 'code', lang: 'py', lines: 1 },
+    ])
   })
 })

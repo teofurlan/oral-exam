@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { splitCode } from '@/lib/codeBlocks'
+import { codeSegments } from '@/lib/codeBlocks'
 import type { ProtocolState } from '@/types/exam'
 import type { TimelineEntry } from '@/types/agent'
 
@@ -30,10 +30,13 @@ function withInlineCode(text: string) {
   )
 }
 
-/** Code goes to the code pane; the log keeps a pointer to it. */
-function proseOf(text: string): { text: string; moved: number } {
-  const { prose, blocks } = splitCode(text)
-  return { text: prose, moved: blocks.length }
+/** Code goes to the code pane; the log keeps a pointer to it where the block was. */
+function CodePointer({ lang, lines }: { lang: string; lines: number }) {
+  return (
+    <span data-testid="code-pointer" className="t-small block" style={{ color: 'var(--label-3)' }}>
+      {['code panel', lang, `${lines} ${lines === 1 ? 'line' : 'lines'}`].filter(Boolean).join(' · ')}
+    </span>
+  )
 }
 
 function Body({ entry }: { entry: TimelineEntry }) {
@@ -52,19 +55,20 @@ function Body({ entry }: { entry: TimelineEntry }) {
         </span>
       )
     case 'text':
-    case 'reply': {
-      const { text, moved } = proseOf(entry.text)
+    case 'reply':
       return (
-        <span className="whitespace-pre-wrap" style={{ color: entry.kind === 'text' ? 'var(--label-2)' : 'var(--label)' }}>
-          {withInlineCode(text)}
-          {moved > 0 && (
-            <span className="t-small mt-1 block" style={{ color: 'var(--label-3)' }}>
-              {moved === 1 ? 'code shown in the code panel' : `${moved} code blocks shown in the code panel`}
-            </span>
+        <span className="flex flex-col gap-2" style={{ color: entry.kind === 'text' ? 'var(--label-2)' : 'var(--label)' }}>
+          {codeSegments(entry.text).map((segment, i) =>
+            segment.kind === 'code' ? (
+              <CodePointer key={i} lang={segment.lang} lines={segment.lines} />
+            ) : (
+              <span key={i} className="block whitespace-pre-wrap">
+                {withInlineCode(segment.text)}
+              </span>
+            ),
           )}
         </span>
       )
-    }
     case 'error':
       return <span style={{ color: 'var(--danger)' }}>{entry.text}</span>
   }

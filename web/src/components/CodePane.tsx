@@ -53,7 +53,8 @@ export function CodePane({ code, name, label, lang = '', onClose }: CodePaneProp
       }
     >
       <pre tabIndex={0} className="t-code m-0 min-h-0 flex-1 overflow-auto py-3.5 select-text">
-        <code>
+        {/* As wide as the longest line, so its right padding scrolls clear of the edge. */}
+        <code className="block w-max min-w-full">
           {lines.map((line, i) => (
             <span key={i} className="block whitespace-pre pr-4">
               <span

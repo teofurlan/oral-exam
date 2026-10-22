@@ -39,6 +39,19 @@ describe('AgentTimeline', () => {
     expect(items[1].textContent).not.toContain('`')
   })
 
+  it('points to the code panel where the code was, between the paragraphs around it', () => {
+    const reply = 'Cap the delay instead:\n\n```ts\nconst a = 1\nconst b = 2\n```\n\nWant me to apply it?'
+    render(<AgentTimeline entries={[{ id: 1, kind: 'reply', text: reply }]} protocolState="speaking" />)
+
+    const text = screen.getByRole('listitem').textContent ?? ''
+    const pointer = screen.getByTestId('code-pointer')
+    expect(pointer).toHaveTextContent('code panel · ts · 2 lines')
+    expect(text.indexOf('instead:')).toBeLessThan(text.indexOf('code panel'))
+    expect(text.indexOf('code panel')).toBeLessThan(text.indexOf('Want me'))
+    expect(text).not.toContain('const a')
+    expect(screen.getAllByTestId('code-pointer')).toHaveLength(1)
+  })
+
   it('stays at the newest entry when the conversation is resized', () => {
     let onResize = () => {}
     vi.stubGlobal(

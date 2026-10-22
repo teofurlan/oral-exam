@@ -217,6 +217,11 @@ export class ParticleField {
     this.additive = light ? 'source-over' : 'lighter'
   }
 
+  /** Dimmer at rest; less so on a light ground, where overlapping paint does not add up. */
+  private restAlpha() {
+    return this.additive === 'lighter' ? 0.55 : 0.85
+  }
+
   setColors(colors: [string, string]) {
     this.target0 = hexToRgb(colors[0])
     this.target1 = hexToRgb(colors[1])
@@ -321,7 +326,7 @@ export class ParticleField {
 
       const twinkle = 0.7 + 0.3 * Math.sin(t * (0.8 + p.spd) + p.ph)
       p.depth = lerp(0.5, depth, e)
-      p.alpha = lerp(0.16 * twinkle, wave ? 0.35 + 0.65 * depth : 0.22 + 0.78 * depth, e) * (resting ? 0.55 : 1)
+      p.alpha = lerp(0.16 * twinkle, wave ? 0.35 + 0.65 * depth : 0.22 + 0.78 * depth, e) * (resting ? this.restAlpha() : 1)
       const scale = wave ? 0.85 + 0.25 * depth : 0.75 + 0.55 * depth
       p.size = lerp(7, 4 + 10 * vol + 3 * depth, e) * lerp(1, scale, e) + w * 6 * (1 - e)
       // On the wave each strand leans toward its own colour; at rest everything leans to the first.
