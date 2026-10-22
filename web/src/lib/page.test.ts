@@ -11,7 +11,7 @@ describe('pageForSearch', () => {
     expect(pageForSearch('?mode=agent')).toBe('agent')
   })
 
-  it('keeps the orb gallery at ?orbs', () => {
-    expect(pageForSearch('?orbs')).toBe('gallery')
+  it('no longer has an orb gallery: ?orbs shows the exam page', () => {
+    expect(pageForSearch('?orbs')).toBe('exam')
   })
 })

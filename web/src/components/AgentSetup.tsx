@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { AlertTriangle, FolderOpen, LoaderCircle, Play } from 'lucide-react'
+import { ModelPicker } from '@/components/ModelPicker'
 import type { AgentBackendInfo, AgentSelection } from '@/types/agent'
 
 interface AgentSetupProps {
@@ -10,25 +12,40 @@ interface AgentSetupProps {
   onPickFolder: () => void
   onStart: () => void
   connected: boolean
+  /** Shown while a session runs: return to it without restarting. */
+  onBack?: () => void
 }
 
-const SEPARATOR = '::'
 const STATUS_COLOR = { not_configured: 'var(--warn)', unreachable: 'var(--danger)' } as const
 
-const toValue = (selection: AgentSelection) => `${selection.backend}${SEPARATOR}${selection.model}`
+/** Splits a path into its parent and the folder's own name, which carries the emphasis. */
+function splitPath(path: string): { parent: string; name: string } {
+  const trimmed = path.replace(/[\\/]+$/, '')
+  const at = Math.max(trimmed.lastIndexOf('\\'), trimmed.lastIndexOf('/'))
+  return at < 0 ? { parent: '', name: trimmed } : { parent: trimmed.slice(0, at + 1), name: trimmed.slice(at + 1) }
+}
 
-function fromValue(value: string): AgentSelection {
-  const at = value.indexOf(SEPARATOR)
-  return { backend: value.slice(0, at), model: value.slice(at + SEPARATOR.length) }
+function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
+  return (
+    <section className="grid grid-cols-[3ch_minmax(0,1fr)] gap-x-[1ch] gap-y-2">
+      <span aria-hidden="true" className="t-small pt-px tabular-nums" style={{ color: 'var(--label-3)' }}>
+        {n}.
+      </span>
+      <h3 className="t-small m-0 font-normal" style={{ color: 'var(--label-2)' }}>
+        {title}
+      </h3>
+      <div className="col-start-2 min-w-0">{children}</div>
+    </section>
+  )
 }
 
 export function AgentSetup({
-  backends, selection, onSelectionChange, folder, pickingFolder, onPickFolder, onStart, connected,
+  backends, selection, onSelectionChange, folder, pickingFolder, onPickFolder, onStart, connected, onBack,
 }: AgentSetupProps) {
   const backend = backends.find((candidate) => candidate.id === selection?.backend)
   const status = backend?.status
-  const blocked = status && status.state !== 'ready' ? status : null
   const canStart = connected && !!selection && status?.state === 'ready' && !!folder
+  const path = folder ? splitPath(folder) : null
 
   const hint = !connected
     ? 'Waiting for the Socra server…'
@@ -37,96 +54,78 @@ export function AgentSetup({
       : null
 
   return (
-    <section className="materialize mx-auto flex w-full max-w-xl shrink-0 flex-col gap-6" aria-labelledby="agent-setup-title">
-      <div className="flex flex-col gap-2 text-center">
-        <h2 id="agent-setup-title" className="t-display">Work on a folder, by voice</h2>
-        <p className="t-body" style={{ color: 'var(--label-2)' }}>
+    <section className="mx-auto flex w-full max-w-[60ch] flex-col gap-6" aria-labelledby="agent-setup-title">
+      <div className="flex flex-col gap-1">
+        <h2 id="agent-setup-title" className="m-0 text-[1.375rem] leading-tight font-semibold tracking-[-0.01em]" style={{ color: 'var(--label)' }}>
+          Work on a folder, by voice
+        </h2>
+        <p className="t-ui m-0" style={{ color: 'var(--label-2)' }}>
           The agent reads and changes files in the folder you choose.
         </p>
       </div>
 
-      <div className="surface flex flex-col gap-5 rounded-[1.75rem] p-5 sm:p-6">
+      <Step n={1} title="agent and model">
         <div className="flex flex-col gap-2">
-          <label htmlFor="agent-select" className="t-caption" style={{ color: 'var(--label-2)' }}>
-            Agent and model
-          </label>
-          <select
-            id="agent-select"
-            data-testid="agent-select"
-            className="press glass-chip min-h-11 w-full rounded-2xl px-4 t-body text-[var(--label)] disabled:opacity-60"
-            value={selection ? toValue(selection) : ''}
-            disabled={backends.length === 0}
-            onChange={(event) => onSelectionChange(fromValue(event.target.value))}
-          >
-            {backends.length === 0 ? (
-              <option value="">Looking for agents…</option>
-            ) : (
-              backends.map((candidate) => (
-                <optgroup key={candidate.id} label={candidate.label}>
-                  {candidate.models.map((model) => (
-                    <option key={model.id} value={toValue({ backend: candidate.id, model: model.id })}>
-                      {model.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))
-            )}
-          </select>
-          {blocked && (
+          <ModelPicker backends={backends} selection={selection} onChange={onSelectionChange} />
+          {backend && status && status.state !== 'ready' && (
             <p
               data-testid="backend-status"
               role="status"
-              className="flex items-start gap-2 t-caption [overflow-wrap:anywhere]"
-              style={{ color: STATUS_COLOR[blocked.state as keyof typeof STATUS_COLOR] }}
+              className="t-small m-0 flex items-start gap-2 [overflow-wrap:anywhere]"
+              style={{ color: STATUS_COLOR[status.state as keyof typeof STATUS_COLOR] }}
             >
-              <AlertTriangle aria-hidden="true" className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-              {blocked.message || `${backend?.label} is not available.`}
+              <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+              {status.message || `${backend.label} is not available.`}
             </p>
           )}
         </div>
+      </Step>
 
-        <div className="flex flex-col gap-2">
-          <span className="t-caption" style={{ color: 'var(--label-2)' }}>Folder</span>
-          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
-            <span
-              data-testid="folder-path"
-              title={folder ?? undefined}
-              className="min-w-0 flex-1 truncate font-mono text-[0.8125rem] leading-5 select-text"
-              style={{ color: folder ? 'var(--label)' : 'var(--label-3)' }}
-            >
-              {folder ?? 'No folder chosen'}
-            </span>
-            <button
-              type="button"
-              onClick={onPickFolder}
-              disabled={pickingFolder || !connected}
-              className="press glass-chip inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-4 t-caption text-white/85 hover:text-white disabled:opacity-60"
-            >
-              {pickingFolder ? (
-                <LoaderCircle aria-hidden="true" className="h-4 w-4 motion-safe:animate-spin" strokeWidth={2} />
-              ) : (
-                <FolderOpen aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
-              )}
-              {pickingFolder ? 'Waiting for the folder dialog…' : folder ? 'Choose another folder' : 'Choose folder'}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-stretch gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onStart}
-            disabled={!canStart}
-            className="press inline-flex items-center justify-center gap-2 rounded-full px-5 t-title text-[#0b0b14] disabled:cursor-not-allowed disabled:opacity-40"
-            style={{ background: 'var(--accent)' }}
+      <Step n={2} title="folder">
+        <div
+          className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-[3px] border px-3 py-2.5"
+          style={{ borderColor: folder ? 'var(--seam-strong)' : 'var(--seam)', borderStyle: folder ? 'solid' : 'dashed', background: 'var(--panel)' }}
+        >
+          <FolderOpen aria-hidden="true" className="h-4 w-4 shrink-0" style={{ color: folder ? 'var(--warn)' : 'var(--label-3)' }} strokeWidth={2} />
+          <span
+            data-testid="folder-path"
+            title={folder ?? undefined}
+            className="t-ui flex min-w-0 flex-1 select-text"
+            style={{ color: folder ? 'var(--label)' : 'var(--label-2)' }}
           >
-            <Play aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
-            Start agent
+            {path ? (
+              <>
+                <span className="min-w-0 truncate" style={{ color: 'var(--label-2)', direction: 'rtl', textAlign: 'left' }}>
+                  <bdi>{path.parent}</bdi>
+                </span>
+                <span className="shrink-0 font-semibold">{path.name}</span>
+              </>
+            ) : (
+              'No folder chosen'
+            )}
+          </span>
+          <button type="button" onClick={onPickFolder} disabled={pickingFolder || !connected} className="key shrink-0">
+            {pickingFolder && <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 motion-safe:animate-spin" strokeWidth={2} />}
+            {pickingFolder ? 'Waiting for the folder dialog…' : folder ? 'Choose another folder' : 'Choose folder'}
           </button>
-          {hint && (
-            <p className="text-center t-caption" style={{ color: 'var(--label-2)' }}>{hint}</p>
-          )}
         </div>
+      </Step>
+
+      <div className="flex flex-wrap items-center gap-3 pl-[4ch]">
+        <button type="button" onClick={onStart} disabled={!canStart} className="key" data-tone="primary">
+          <Play aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />
+          Start agent
+        </button>
+        {onBack && (
+          <button type="button" onClick={onBack} className="key">
+            Back to the conversation
+          </button>
+        )}
+        {hint && (
+          <p className="t-small m-0" style={{ color: 'var(--label-2)' }}>
+            {hint}
+          </p>
+        )}
       </div>
     </section>
   )

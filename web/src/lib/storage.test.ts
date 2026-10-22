@@ -9,6 +9,12 @@ import {
   getStoredVisualizer,
   setStoredVisualizer,
   STORAGE_KEY_VISUALIZER,
+  getStoredShape,
+  setStoredShape,
+  STORAGE_KEY_SHAPE,
+  getStoredVoice,
+  setStoredVoice,
+  STORAGE_KEY_VOICE,
 } from './storage'
 
 describe('storage (turn mode persistence)', () => {
@@ -80,8 +86,18 @@ describe('storage (visualizer choice)', () => {
     vi.restoreAllMocks()
   })
 
-  it('defaults to the orb when nothing is stored', () => {
-    expect(getStoredVisualizer()).toBe('orb')
+  it('defaults to the lines when nothing is stored', () => {
+    expect(getStoredVisualizer()).toBe('particle-lines')
+  })
+
+  it('falls back to the lines for the retired orb', () => {
+    window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'orb')
+    expect(getStoredVisualizer()).toBe('particle-lines')
+  })
+
+  it('persists the letters on a grid', () => {
+    setStoredVisualizer('particle-grid')
+    expect(getStoredVisualizer()).toBe('particle-grid')
   })
 
   it('persists a particle visualizer and reads it back', () => {
@@ -92,6 +108,53 @@ describe('storage (visualizer choice)', () => {
 
   it('ignores an unknown stored value', () => {
     window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'hologram')
-    expect(getStoredVisualizer()).toBe('orb')
+    expect(getStoredVisualizer()).toBe('particle-lines')
   })
 })
+
+describe('storage (particle shape)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('defaults to the sphere when nothing is stored', () => {
+    expect(getStoredShape()).toBe('sphere')
+  })
+
+  it('persists the sound wave and reads it back', () => {
+    setStoredShape('wave')
+    expect(window.localStorage.getItem(STORAGE_KEY_SHAPE)).toBe('wave')
+    expect(getStoredShape()).toBe('wave')
+  })
+
+  it('ignores an unknown stored value', () => {
+    window.localStorage.setItem(STORAGE_KEY_SHAPE, 'cube')
+    expect(getStoredShape()).toBe('sphere')
+  })
+})
+
+describe('storage (voice selection)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('defaults to null when nothing is stored', () => {
+    expect(getStoredVoice()).toBeNull()
+  })
+
+  it('persists the voice and reads it back', () => {
+    setStoredVoice('alex-dora')
+    expect(window.localStorage.getItem(STORAGE_KEY_VOICE)).toBe('alex-dora')
+    expect(getStoredVoice()).toBe('alex-dora')
+  })
+
+  it('does not throw when localStorage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked') })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked') })
+    expect(() => setStoredVoice('alex-dora')).not.toThrow()
+    expect(getStoredVoice()).toBeNull()
+  })
+})
+

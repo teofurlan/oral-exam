@@ -87,6 +87,185 @@ describe('ParticleField', () => {
     }
   })
 
+  it('adds light on a dark page and paints normally on a light one', () => {
+    const modes = (light: boolean) => {
+      const field = new ParticleField({ count: 20, style: 'lines', random: seeded(2) })
+      field.resize(BASE.width, BASE.height)
+      field.setLightBackground(light)
+      const seen: string[] = []
+      const ctx = {
+        setTransform: () => {},
+        clearRect: () => {},
+        beginPath: () => {},
+        moveTo: () => {},
+        lineTo: () => {},
+        stroke(this: { globalCompositeOperation: string }) {
+          seen.push(this.globalCompositeOperation)
+        },
+        globalCompositeOperation: 'source-over',
+      } as unknown as CanvasRenderingContext2D
+      field.draw(ctx, 1)
+      return new Set(seen)
+    }
+    expect(modes(false)).toEqual(new Set(['lighter']))
+    expect(modes(true)).toEqual(new Set(['source-over']))
+  })
+
+  it('starts scattered over the first screen size instead of piled in the corner', () => {
+    const field = new ParticleField({ count: 300, style: 'lines', random: seeded(3) })
+    field.resize(BASE.width, BASE.height)
+
+    const xs = field.particles.map((p) => p.x)
+    const ys = field.particles.map((p) => p.y)
+    expect(Math.max(...xs)).toBeGreaterThan(BASE.width * 0.8)
+    expect(Math.max(...ys)).toBeGreaterThan(BASE.height * 0.8)
+  })
+
+  it('draws free letters off the grid and grid letters on it', () => {
+    const at = (style: 'letters' | 'grid') => {
+      const field = new ParticleField({ count: 60, style, random: seeded(5) })
+      field.resize(BASE.width, BASE.height)
+      run(field, 'speaking', 1, 0)
+      const spots: [number, number][] = []
+      const ctx = {
+        setTransform: (_a: number, _b: number, _c: number, _d: number, e: number, f: number) => spots.push([e, f]),
+        clearRect: () => {},
+        fillText: (_t: string, x: number, y: number) => spots.push([x, y]),
+        beginPath: () => {},
+        moveTo: () => {},
+        lineTo: () => {},
+        stroke: () => {},
+      } as unknown as CanvasRenderingContext2D
+      field.draw(ctx, 1)
+      return { field, spots }
+    }
+    const onGrid = (x: number, y: number) =>
+      Math.abs(x / 7.4 - Math.round(x / 7.4)) < 1e-6 && Math.abs(y / 12 - Math.round(y / 12)) < 1e-6
+
+    const grid = at('grid')
+    const gridText = grid.spots.filter(([x, y]) => x !== 0 || y !== 0)
+    expect(gridText.length).toBeGreaterThan(0)
+    expect(gridText.every(([x, y]) => onGrid(x, y))).toBe(true)
+
+    const free = at('letters')
+    const freeText = free.spots.filter(([x, y]) => x !== 0 || y !== 0)
+    expect(freeText.some(([x, y]) => !onGrid(x, y))).toBe(true)
+  })
+
+  it('gathers into a wide band of strands for the sound wave, the sphere staying round', () => {
+    const spread = (shape: 'sphere' | 'wave') => {
+      const field = new ParticleField({ count: 400, style: 'lines', shape, random: seeded(9) })
+      field.resize(BASE.width, BASE.height)
+      run(field, 'speaking', 4, 0)
+      const dx = field.particles.map((p) => Math.abs(p.x - BASE.cx))
+      const dy = field.particles.map((p) => Math.abs(p.y - BASE.cy))
+      return { field, dx, dy, w: Math.max(...dx), h: Math.max(...dy) }
+    }
+
+    const sphere = spread('sphere')
+    expect(sphere.w).toBeLessThan(BASE.radius * 1.5)
+    expect(sphere.h).toBeLessThan(BASE.radius * 1.5)
+
+    const wave = spread('wave')
+    expect(wave.w).toBeGreaterThan(BASE.radius * 1.8)
+    expect(wave.h).toBeLessThan(BASE.radius * 0.9)
+    // The strands cross and pinch together at both ends of the wave.
+    const ends = wave.field.particles.filter((p) => Math.abs(p.x - BASE.cx) > BASE.radius * 2)
+    expect(ends.length).toBeGreaterThan(0)
+    for (const p of ends) expect(Math.abs(p.y - BASE.cy)).toBeLessThan(BASE.radius * 0.3)
+  })
+
+  it('keeps the wave strands apart while the voice is quiet', () => {
+    const field = new ParticleField({ count: 400, style: 'lines', shape: 'wave', random: seeded(8) })
+    field.resize(BASE.width, BASE.height)
+    let time = 0
+    for (let i = 0; i < 4 * 60; i++) {
+      time += BASE.dt
+      field.step({ ...BASE, state: 'speaking', volume: 0, time })
+    }
+    expect(Math.max(...field.particles.map((p) => Math.abs(p.y - BASE.cy)))).toBeGreaterThan(BASE.radius * 0.12)
+  })
+
+  it('places every wave particle on one of five strands', () => {
+    const field = new ParticleField({ count: 400, style: 'lines', shape: 'wave', random: seeded(4) })
+    const strands = new Set(field.particles.map((p) => p.strand))
+    expect(strands).toEqual(new Set([0, 1, 2, 3, 4]))
+    for (const p of field.particles) {
+      expect(p.u).toBeGreaterThanOrEqual(-1)
+      expect(p.u).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('switches between the sphere and the wave without rebuilding the particles', () => {
+    const field = new ParticleField({ count: 300, style: 'lines', random: seeded(6) })
+    field.resize(BASE.width, BASE.height)
+    expect(field.shape).toBe('sphere')
+    const before = field.particles
+    let t = run(field, 'speaking', 4, 0)
+
+    field.setShape('wave')
+    expect(field.particles).toBe(before)
+    t = run(field, 'speaking', 3, t)
+    expect(Math.max(...field.particles.map((p) => Math.abs(p.x - BASE.cx)))).toBeGreaterThan(BASE.radius * 1.8)
+
+    field.setShape('sphere')
+    run(field, 'speaking', 3, t)
+    expect(Math.max(...field.particles.map((p) => Math.abs(p.x - BASE.cx)))).toBeLessThan(BASE.radius * 1.5)
+  })
+
+  it('gathers into a small calm formation at rest while idle, in either shape', () => {
+    for (const shape of ['sphere', 'wave'] as const) {
+      const spoken = new ParticleField({ count: 400, style: 'lines', shape, random: seeded(12) })
+      spoken.resize(BASE.width, BASE.height)
+      run(spoken, 'speaking', 4, 0)
+
+      const resting = new ParticleField({ count: 400, style: 'lines', shape, random: seeded(12) })
+      resting.resize(BASE.width, BASE.height)
+      let time = 0
+      for (let i = 0; i < 4 * 60; i++) {
+        time += BASE.dt
+        resting.step({ ...BASE, state: 'idle', volume: 0, time, rest: true })
+      }
+      // Every particle joins the formation, none left loose over the screen.
+      const far = shape === 'sphere' ? BASE.radius * 1.2 : BASE.radius * 2.6
+      expect(resting.particles.every((p) => Math.hypot(p.x - BASE.cx, p.y - BASE.cy) < far)).toBe(true)
+      expect(meanDistance(resting)).toBeLessThan(meanDistance(spoken))
+      // Quieter than a voice: dimmer, and leaning to the first (grey) colour of the idle pair.
+      const mean = (f: ParticleField, k: 'alpha' | 'tint') => f.particles.reduce((s, p) => s + p[k], 0) / f.particles.length
+      expect(mean(resting, 'alpha')).toBeLessThan(mean(spoken, 'alpha') * 0.75)
+      expect(mean(resting, 'tint')).toBeLessThan(0.3)
+    }
+  })
+
+  it('keeps the rest formation visible on a light ground, where paint does not add up', () => {
+    const restingAlpha = (light: boolean) => {
+      const field = new ParticleField({ count: 300, style: 'lines', random: seeded(14) })
+      field.resize(BASE.width, BASE.height)
+      field.setLightBackground(light)
+      let time = 0
+      for (let i = 0; i < 4 * 60; i++) {
+        time += BASE.dt
+        field.step({ ...BASE, state: 'idle', volume: 0, time, rest: true })
+      }
+      return field.particles.reduce((s, p) => s + p.alpha, 0) / field.particles.length
+    }
+    expect(restingAlpha(true)).toBeGreaterThan(restingAlpha(false) * 1.3)
+  })
+
+  it('ignores the rest formation once the conversation has a voice', () => {
+    const positions = (rest: boolean) => {
+      const field = new ParticleField({ count: 200, style: 'lines', random: seeded(13) })
+      field.resize(BASE.width, BASE.height)
+      let time = 0
+      for (let i = 0; i < 2 * 60; i++) {
+        time += BASE.dt
+        field.step({ ...BASE, state: 'speaking', volume: 0.5, time, rest })
+      }
+      return field.particles.map((p) => [p.x, p.y])
+    }
+    expect(positions(true)).toEqual(positions(false))
+  })
+
   it('keeps every particle position finite', () => {
     const field = new ParticleField({ count: 200, style: 'lines', random: seeded(11) })
     field.resize(BASE.width, BASE.height)

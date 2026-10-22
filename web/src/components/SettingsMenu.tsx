@@ -1,10 +1,19 @@
-import React, { useEffect, useId, useRef, useState } from 'react'
-import { Mic, Settings, Timer } from 'lucide-react'
+import React, { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Ellipsis } from 'lucide-react'
+import { ChoiceList } from '@/components/ChoiceList'
 import { ModeToggle } from '@/components/ModeToggle'
-import { ORB_PALETTES } from '@/components/orbPalettes'
-import { VISUALIZERS, type VisualizerId } from '@/components/visualizers'
+import { ORB_PALETTES, STATE_PALETTES } from '@/components/orbPalettes'
+import {
+  DEFAULT_SHAPE,
+  DEFAULT_VISUALIZER,
+  SHAPES,
+  VISUALIZERS,
+  type ShapeId,
+  type VisualizerId,
+} from '@/components/visualizers'
 import type { Microphone } from '@/hooks/useAudioInputs'
 import { MIN_SILENCE_TIMEOUT_MS, MAX_SILENCE_TIMEOUT_MS } from '@/lib/storage'
+import { THEME_PREFS, type ThemePref } from '@/lib/theme'
 import type { TurnMode } from '@/types/exam'
 
 export interface SettingsMenuProps {
@@ -17,20 +26,33 @@ export interface SettingsMenuProps {
   /** Omit onVisualizerChange to hide the visualizer choice. */
   visualizer?: VisualizerId
   onVisualizerChange?: (id: VisualizerId) => void
+  /** Omit onShapeChange to hide the shape choice. */
+  shape?: ShapeId
+  onShapeChange?: (id: ShapeId) => void
   microphones: Microphone[]
   /** '' = system default. */
   micDeviceId: string
   onMicChange: (deviceId: string) => void
   /** Capture is using the system default because the selected microphone failed. */
   micFallback: boolean
-  /** Called each time the popover opens, to refresh the device list. */
+  /** Called each time the menu opens, to refresh the device list. */
   onOpen?: () => void
+  themePref: ThemePref
+  onThemeChange: (pref: ThemePref) => void
+  /** Omit to hide the voice choice. */
+  voicePicker?: ReactNode
 }
 
-const swatch = (colors: [string, string]) =>
-  `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`
+function Section({ title, children, testId }: { title: ReactNode; children: ReactNode; testId?: string }) {
+  return (
+    <section className="flex flex-col gap-2" data-testid={testId}>
+      <h2 className="t-head m-0">{title}</h2>
+      {children}
+    </section>
+  )
+}
 
-/** Gear button top-right; every setting lives in the popover behind it. */
+/** A "…" button at the end of the top bar; every setting lives in the panel below it. */
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   mode,
   onModeChange,
@@ -38,13 +60,18 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onSilenceChange,
   paletteId,
   onPaletteChange,
-  visualizer = 'orb',
+  visualizer = DEFAULT_VISUALIZER,
   onVisualizerChange,
+  shape = DEFAULT_SHAPE,
+  onShapeChange,
   microphones,
   micDeviceId,
   onMicChange,
   micFallback,
   onOpen,
+  themePref,
+  onThemeChange,
+  voicePicker,
 }) => {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -70,8 +97,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
     }
   }, [open])
 
-  const options: { id: string; name: string; colors: [string, string] }[] = [
-    { id: 'state', name: 'By state', colors: ['#818cf8', '#f472b6'] },
+  const palettes: { id: string; name: string; colors: [string, string] }[] = [
+    { id: 'state', name: 'By state', colors: [STATE_PALETTES.listening[0], STATE_PALETTES.speaking[0]] },
     ...ORB_PALETTES,
   ]
 
@@ -89,20 +116,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={panelId}
+        title="Settings"
         onClick={() => {
           if (!open) onOpen?.()
           setOpen(!open)
         }}
-        className="press glass-chip grid h-10 w-10 place-items-center rounded-full text-white/80 hover:text-white"
+        className="grid h-8 w-8 place-items-center rounded-md border hover:bg-[var(--raise)] hover:text-[var(--label)]"
+        style={{
+          borderColor: open ? 'var(--seam-strong)' : 'transparent',
+          background: open ? 'var(--raise)' : undefined,
+          color: open ? 'var(--label)' : 'var(--label-2)',
+        }}
       >
-        <Settings
-          className="h-[18px] w-[18px]"
-          strokeWidth={2}
-          style={{
-            transform: open ? 'rotate(60deg)' : undefined,
-            transition: 'transform 0.6s var(--spring)',
-          }}
-        />
+        <Ellipsis aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
       </button>
 
       {open && (
@@ -111,105 +137,127 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
           role="dialog"
           aria-label="Settings"
           data-testid="settings-panel"
-          className="materialize glass absolute right-0 top-12 z-30 flex w-[min(20rem,calc(100vw-2.5rem))] origin-top-right flex-col gap-5 rounded-3xl p-5"
+          className="absolute top-[calc(100%+8px)] right-0 z-30 flex max-h-[calc(100dvh-4.5rem)] w-[min(22rem,calc(100vw-1rem))] flex-col gap-5 overflow-y-auto rounded-lg border p-4"
+          style={{ background: 'var(--panel)', borderColor: 'var(--seam-strong)', boxShadow: '0 16px 40px -16px rgba(0,0,0,0.45)' }}
         >
-          <section className="flex flex-col gap-2.5" data-testid="mic-control">
-            <label htmlFor={`${panelId}-mic`} className="t-title inline-flex items-center gap-2">
-              <Mic className="h-3.5 w-3.5" strokeWidth={2} />
-              Microphone
-            </label>
-            <select
-              id={`${panelId}-mic`}
-              value={micDeviceId}
-              onChange={(e) => onMicChange(e.target.value)}
-              className="glass-chip w-full truncate rounded-xl px-3 py-2 t-caption"
-              style={{ color: 'var(--label)', colorScheme: 'dark' }}
-            >
-              <option value="">System default</option>
-              {microphones.map((m) => (
-                <option key={m.deviceId} value={m.deviceId}>{m.label}</option>
+          <Section title="Theme">
+            <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-1">
+              {THEME_PREFS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={themePref === t.id}
+                  data-testid={`theme-${t.id}`}
+                  onClick={() => onThemeChange(t.id)}
+                  className="key t-small min-h-8"
+                >
+                  {t.name}
+                </button>
               ))}
-              {micMissing && <option value={micDeviceId} disabled>Disconnected microphone</option>}
-            </select>
+            </div>
+          </Section>
+
+          <Section title="Microphone" testId="mic-control">
+            <ChoiceList
+              label="Microphone"
+              value={micDeviceId}
+              onChange={onMicChange}
+              groups={[
+                {
+                  choices: [
+                    { value: '', label: 'System default' },
+                    ...microphones.map((m) => ({ value: m.deviceId, label: m.label })),
+                    ...(micMissing ? [{ value: micDeviceId, label: 'Disconnected microphone', note: 'unplugged', disabled: true }] : []),
+                  ],
+                },
+              ]}
+            />
             {(micMissing || micFallback) && (
-              <p data-testid="mic-fallback-note" className="t-caption" style={{ color: 'var(--warn)' }}>
+              <p data-testid="mic-fallback-note" className="t-small m-0" style={{ color: 'var(--warn)' }}>
                 The selected microphone is not available. Using the system default.
               </p>
             )}
             {microphones.length === 0 && (
-              <p className="t-caption" style={{ color: 'var(--label-2)' }}>
+              <p className="t-small m-0" style={{ color: 'var(--label-2)' }}>
                 Allow microphone access to see device names.
               </p>
             )}
-          </section>
+          </Section>
 
-          <section className="flex flex-col gap-2.5">
-            <h2 className="t-title">Turn mode</h2>
+          {voicePicker && <Section title="Voice" testId="voice-control">{voicePicker}</Section>}
+
+          <Section title="Turns">
             <ModeToggle mode={mode} onChange={onModeChange} />
-          </section>
-
-          {mode === 'auto' && (
-            <section className="flex flex-col gap-2.5" data-testid="silence-timeout-control">
-              <label htmlFor={`${panelId}-silence`} className="t-title inline-flex items-center gap-2">
-                <Timer className="h-3.5 w-3.5" strokeWidth={2} />
-                Silence before sending
-                <span className="ml-auto tabular-nums" style={{ color: 'var(--label-2)' }}>
-                  {(silenceTimeoutMs / 1000).toFixed(1)}s
-                </span>
-              </label>
-              <input
-                id={`${panelId}-silence`}
-                type="range"
-                className="slim w-full"
-                min={MIN_SILENCE_TIMEOUT_MS}
-                max={MAX_SILENCE_TIMEOUT_MS}
-                step={500}
-                value={silenceTimeoutMs}
-                onChange={(e) => onSilenceChange(Number(e.target.value))}
-                aria-label="End-of-answer silence duration"
-              />
-            </section>
-          )}
+            {mode === 'auto' && (
+              <div className="flex flex-col" data-testid="silence-timeout-control">
+                <label htmlFor={`${panelId}-silence`} className="t-small flex items-center gap-2" style={{ color: 'var(--label-2)' }}>
+                  Silence before sending
+                  <span className="ml-auto tabular-nums" style={{ color: 'var(--label)' }}>
+                    {(silenceTimeoutMs / 1000).toFixed(1)}s
+                  </span>
+                </label>
+                <input
+                  id={`${panelId}-silence`}
+                  type="range"
+                  className="slim w-full"
+                  min={MIN_SILENCE_TIMEOUT_MS}
+                  max={MAX_SILENCE_TIMEOUT_MS}
+                  step={500}
+                  value={silenceTimeoutMs}
+                  onChange={(e) => onSilenceChange(Number(e.target.value))}
+                  aria-label="End-of-answer silence duration"
+                />
+              </div>
+            )}
+          </Section>
 
           {onVisualizerChange && (
-            <section className="flex flex-col gap-2.5">
-              <h2 className="t-title">Visualizer</h2>
-              <div
-                role="radiogroup"
-                aria-label="Visualizer"
-                className="glass-chip relative grid grid-cols-3 rounded-full p-[3px]"
-              >
-                <span
-                  aria-hidden
-                  className="absolute top-[3px] bottom-[3px] left-[3px] rounded-full bg-white/[0.14] shadow-[0_1px_3px_rgba(0,0,0,0.4)]"
-                  style={{
-                    width: 'calc((100% - 6px) / 3)',
-                    transform: `translateX(${VISUALIZERS.findIndex((v) => v.id === visualizer) * 100}%)`,
-                    transition: 'transform 0.5s var(--spring)',
-                  }}
-                />
-                {VISUALIZERS.map((v) => (
+            <Section title="Visualizer">
+              <div role="radiogroup" aria-label="Visualizer" className="grid grid-cols-3 gap-1">
+                {VISUALIZERS.map((v) => {
+                  const active = visualizer === v.id
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      data-testid={`visualizer-${v.id}`}
+                      onClick={() => onVisualizerChange(v.id)}
+                      className="key t-small min-h-8"
+                    >
+                      {v.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </Section>
+          )}
+
+          {onShapeChange && (
+            <Section title="Shape">
+              <div role="radiogroup" aria-label="Shape" className="grid grid-cols-2 gap-1">
+                {SHAPES.map((s) => (
                   <button
-                    key={v.id}
+                    key={s.id}
                     type="button"
                     role="radio"
-                    aria-checked={visualizer === v.id}
-                    data-testid={`visualizer-${v.id}`}
-                    onClick={() => onVisualizerChange(v.id)}
-                    className="press relative z-10 rounded-full px-3 py-2 t-caption whitespace-nowrap"
-                    style={{ color: visualizer === v.id ? 'var(--label)' : 'var(--label-2)' }}
+                    aria-checked={shape === s.id}
+                    data-testid={`shape-${s.id}`}
+                    onClick={() => onShapeChange(s.id)}
+                    className="key t-small min-h-8"
                   >
-                    {v.name}
+                    {s.name}
                   </button>
                 ))}
               </div>
-            </section>
+            </Section>
           )}
 
-          <section className="flex flex-col gap-2.5">
-            <h2 className="t-title">Orb colors</h2>
-            <div role="radiogroup" aria-label="Orb colors" className="grid grid-cols-4 gap-2">
-              {options.map((o) => {
+          <Section title="Particle colors">
+            <div role="radiogroup" aria-label="Particle colors" className="grid grid-cols-2 gap-1">
+              {palettes.map((o) => {
                 const active = paletteId === o.id
                 return (
                   <button
@@ -219,29 +267,20 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                     aria-checked={active}
                     data-testid={`palette-${o.id}`}
                     onClick={() => onPaletteChange(o.id)}
-                    className="press flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2 t-caption"
-                    style={{
-                      color: active ? 'var(--label)' : 'var(--label-2)',
-                      background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    }}
+                    className="t-small flex min-h-8 items-center gap-[1.25ch] rounded-[3px] px-[1ch] text-left hover:bg-[var(--raise)]"
+                    style={{ color: active ? 'var(--label)' : 'var(--label-2)', background: active ? 'var(--raise)' : undefined }}
                   >
-                    <span
-                      aria-hidden
-                      className="h-8 w-8 rounded-full"
-                      style={{
-                        background: swatch(o.colors),
-                        boxShadow: active
-                          ? '0 0 0 2px var(--bg), 0 0 0 4px rgba(255,255,255,0.85)'
-                          : '0 1px 3px rgba(0,0,0,0.5)',
-                        transition: 'box-shadow 0.3s var(--ease-settle)',
-                      }}
-                    />
+                    <span aria-hidden="true" className="flex shrink-0">
+                      <span className="h-3 w-2" style={{ background: o.colors[0] }} />
+                      <span className="h-3 w-2" style={{ background: o.colors[1] }} />
+                    </span>
                     {o.name}
+                    {active && <span aria-hidden="true" className="ml-auto h-[5px] w-[5px] rounded-full" style={{ background: 'var(--accent)' }} />}
                   </button>
                 )
               })}
             </div>
-          </section>
+          </Section>
         </div>
       )}
     </div>

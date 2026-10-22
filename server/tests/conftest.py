@@ -13,6 +13,7 @@ import pytest_asyncio
 from socra_server.app import ExamApp, ModelLoader, PageChannel
 from socra_server.adapters.kokoro_tts import KokoroTTS
 from socra_server.adapters.whisper_stt import WhisperSTT
+from socra_server.domain.voices import DEFAULT_VOICE_ID, get_voice
 
 
 # ---------------------------------------------------------------------------
@@ -36,6 +37,20 @@ def make_wav_bytes(num_samples: int = 160, sample_rate: int = 16000) -> bytes:
 
 class FakeTTS:
     """Fake Kokoro TTS: returns a minimal WAV for any text."""
+
+    def __init__(self) -> None:
+        self._voice_id: str = DEFAULT_VOICE_ID
+
+    @property
+    def voice_id(self) -> str:
+        return self._voice_id
+
+    def set_voice(self, voice_id: object) -> bool:
+        voice = get_voice(voice_id)
+        if voice is None:
+            return False
+        self._voice_id = voice.id
+        return True
 
     def synthesize(self, text: str) -> bytes:
         return make_wav_bytes()

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AgentTimeline } from './AgentTimeline'
 import { PermissionPromptCard } from './PermissionPromptCard'
-import { AgentComposer } from './AgentComposer'
+import { PromptLine } from './shell/PromptLine'
 import type { TimelineEntry } from '@/types/agent'
 
 describe('AgentTimeline', () => {
@@ -22,6 +22,65 @@ describe('AgentTimeline', () => {
     expect(items[2]).toHaveTextContent('Read')
     expect(items[2]).toHaveTextContent('src/app.py')
     expect(items[4]).toHaveTextContent('Rate limited')
+  })
+
+  it('shows inline code and tool paths in mono, without the backticks', () => {
+    const entries: TimelineEntry[] = [
+      { id: 1, kind: 'tool', text: 'web/src/lib/retry.ts', tool: 'Read' },
+      { id: 2, kind: 'reply', text: 'Apply it to `web/src/lib/retry.ts` now?' },
+    ]
+    render(<AgentTimeline entries={entries} protocolState="speaking" />)
+
+    const items = screen.getAllByRole('listitem')
+    expect(items[0].querySelector('.t-mono')).toHaveTextContent('web/src/lib/retry.ts')
+    const code = items[1].querySelector('code')
+    expect(code).toHaveTextContent('web/src/lib/retry.ts')
+    expect(items[1]).toHaveTextContent('Apply it to web/src/lib/retry.ts now?')
+    expect(items[1].textContent).not.toContain('`')
+  })
+
+  it('points to the code panel where the code was, between the paragraphs around it', () => {
+    const reply = 'Cap the delay instead:\n\n```ts\nconst a = 1\nconst b = 2\n```\n\nWant me to apply it?'
+    render(<AgentTimeline entries={[{ id: 1, kind: 'reply', text: reply }]} protocolState="speaking" />)
+
+    const text = screen.getByRole('listitem').textContent ?? ''
+    const pointer = screen.getByTestId('code-pointer')
+    expect(pointer).toHaveTextContent('code panel · ts · 2 lines')
+    expect(text.indexOf('instead:')).toBeLessThan(text.indexOf('code panel'))
+    expect(text.indexOf('code panel')).toBeLessThan(text.indexOf('Want me'))
+    expect(text).not.toContain('const a')
+    expect(screen.getAllByTestId('code-pointer')).toHaveLength(1)
+  })
+
+  it('stays at the newest entry when the conversation is resized', () => {
+    let onResize = () => {}
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          onResize = cb
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    // The page opens with an empty conversation; the first reply arrives later.
+    const { rerender } = render(
+      <div className="shell-scroll">
+        <AgentTimeline entries={[]} protocolState="idle" />
+      </div>,
+    )
+    rerender(
+      <div className="shell-scroll">
+        <AgentTimeline entries={[{ id: 1, kind: 'reply', text: 'Done.' }]} protocolState="idle" />
+      </div>,
+    )
+    scrolled.mockClear()
+    onResize()
+    expect(scrolled).toHaveBeenCalledWith({ block: 'end' })
+    vi.unstubAllGlobals()
   })
 
   it('invites the first turn when empty', () => {
@@ -60,11 +119,11 @@ describe('PermissionPromptCard', () => {
   })
 })
 
-describe('AgentComposer', () => {
+describe('PromptLine', () => {
   it('sends a typed turn and clears the field', async () => {
     const user = userEvent.setup()
     const onSend = vi.fn()
-    render(<AgentComposer disabled={false} busy={false} onSend={onSend} onStop={vi.fn()} />)
+    render(<PromptLine label="Message the agent" placeholder="Type" disabled={false} busy={false} onSend={onSend} onStop={vi.fn()} />)
 
     const field = screen.getByLabelText('Message the agent')
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
@@ -77,7 +136,7 @@ describe('AgentComposer', () => {
   it('offers Stop while the agent works and blocks sending', async () => {
     const user = userEvent.setup()
     const onStop = vi.fn()
-    render(<AgentComposer disabled={false} busy onSend={vi.fn()} onStop={onStop} />)
+    render(<PromptLine label="Message the agent" placeholder="Type" disabled={false} busy onSend={vi.fn()} onStop={onStop} />)
 
     await user.type(screen.getByLabelText('Message the agent'), 'more')
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
@@ -87,7 +146,7 @@ describe('AgentComposer', () => {
   })
 
   it('has no Stop button when idle', () => {
-    render(<AgentComposer disabled={false} busy={false} onSend={vi.fn()} onStop={vi.fn()} />)
+    render(<PromptLine label="Message the agent" placeholder="Type" disabled={false} busy={false} onSend={vi.fn()} onStop={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
   })

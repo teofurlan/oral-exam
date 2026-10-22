@@ -1,0 +1,915 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-22T11:54:25.796Z",
+  "title": "Design System: Socra",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Graphite Ground (dark)",
+        "canonical": "#16181b",
+        "oklch": "oklch(20.8% 0.007 258.4)",
+        "cssVar": "--bg",
+        "tonalRamp": [
+          "oklch(15% 0.007 258.4)",
+          "oklch(26.4% 0.007 258.4)",
+          "oklch(37.9% 0.007 258.4)",
+          "oklch(49.3% 0.007 258.4)",
+          "oklch(60.7% 0.007 258.4)",
+          "oklch(72.1% 0.007 258.4)",
+          "oklch(83.6% 0.007 258.4)",
+          "oklch(95% 0.007 258.4)"
+        ]
+      },
+      "light-ground": {
+        "role": "neutral",
+        "displayName": "Graphite Ground (light)",
+        "canonical": "#eef0f3",
+        "oklch": "oklch(95.4% 0.005 258.3)",
+        "cssVar": "--bg",
+        "tonalRamp": [
+          "oklch(15% 0.005 258.3)",
+          "oklch(26.4% 0.005 258.3)",
+          "oklch(37.9% 0.005 258.3)",
+          "oklch(49.3% 0.005 258.3)",
+          "oklch(60.7% 0.005 258.3)",
+          "oklch(72.1% 0.005 258.3)",
+          "oklch(83.6% 0.005 258.3)",
+          "oklch(95% 0.005 258.3)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Graphite Panel (dark)",
+        "canonical": "#1b1e22",
+        "oklch": "oklch(23.4% 0.009 255.6)",
+        "cssVar": "--panel",
+        "tonalRamp": [
+          "oklch(15% 0.009 255.6)",
+          "oklch(26.4% 0.009 255.6)",
+          "oklch(37.9% 0.009 255.6)",
+          "oklch(49.3% 0.009 255.6)",
+          "oklch(60.7% 0.009 255.6)",
+          "oklch(72.1% 0.009 255.6)",
+          "oklch(83.6% 0.009 255.6)",
+          "oklch(95% 0.009 255.6)"
+        ]
+      },
+      "light-panel": {
+        "role": "neutral",
+        "displayName": "Graphite Panel (light)",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100% 0 89.9)",
+        "cssVar": "--panel",
+        "tonalRamp": [
+          "oklch(15% 0 89.9)",
+          "oklch(26.4% 0 89.9)",
+          "oklch(37.9% 0 89.9)",
+          "oklch(49.3% 0 89.9)",
+          "oklch(60.7% 0 89.9)",
+          "oklch(72.1% 0 89.9)",
+          "oklch(83.6% 0 89.9)",
+          "oklch(95% 0 89.9)"
+        ]
+      },
+      "raise": {
+        "role": "neutral",
+        "displayName": "Raised Graphite (dark)",
+        "canonical": "#23272c",
+        "oklch": "oklch(27.1% 0.011 254)",
+        "cssVar": "--raise",
+        "tonalRamp": [
+          "oklch(15% 0.011 254)",
+          "oklch(26.4% 0.011 254)",
+          "oklch(37.9% 0.011 254)",
+          "oklch(49.3% 0.011 254)",
+          "oklch(60.7% 0.011 254)",
+          "oklch(72.1% 0.011 254)",
+          "oklch(83.6% 0.011 254)",
+          "oklch(95% 0.011 254)"
+        ]
+      },
+      "light-raise": {
+        "role": "neutral",
+        "displayName": "Raised Graphite (light)",
+        "canonical": "#e9ecf0",
+        "oklch": "oklch(94.2% 0.006 255.5)",
+        "cssVar": "--raise",
+        "tonalRamp": [
+          "oklch(15% 0.006 255.5)",
+          "oklch(26.4% 0.006 255.5)",
+          "oklch(37.9% 0.006 255.5)",
+          "oklch(49.3% 0.006 255.5)",
+          "oklch(60.7% 0.006 255.5)",
+          "oklch(72.1% 0.006 255.5)",
+          "oklch(83.6% 0.006 255.5)",
+          "oklch(95% 0.006 255.5)"
+        ]
+      },
+      "seam": {
+        "role": "neutral",
+        "displayName": "Seam (dark)",
+        "canonical": "#2b2f35",
+        "oklch": "oklch(30.4% 0.012 258.4)",
+        "cssVar": "--seam",
+        "tonalRamp": [
+          "oklch(15% 0.012 258.4)",
+          "oklch(26.4% 0.012 258.4)",
+          "oklch(37.9% 0.012 258.4)",
+          "oklch(49.3% 0.012 258.4)",
+          "oklch(60.7% 0.012 258.4)",
+          "oklch(72.1% 0.012 258.4)",
+          "oklch(83.6% 0.012 258.4)",
+          "oklch(95% 0.012 258.4)"
+        ]
+      },
+      "light-seam": {
+        "role": "neutral",
+        "displayName": "Seam (light)",
+        "canonical": "#d9dde3",
+        "oklch": "oklch(89.6% 0.009 258.3)",
+        "cssVar": "--seam",
+        "tonalRamp": [
+          "oklch(15% 0.009 258.3)",
+          "oklch(26.4% 0.009 258.3)",
+          "oklch(37.9% 0.009 258.3)",
+          "oklch(49.3% 0.009 258.3)",
+          "oklch(60.7% 0.009 258.3)",
+          "oklch(72.1% 0.009 258.3)",
+          "oklch(83.6% 0.009 258.3)",
+          "oklch(95% 0.009 258.3)"
+        ]
+      },
+      "seam-strong": {
+        "role": "neutral",
+        "displayName": "Strong Seam (dark)",
+        "canonical": "#3a3f47",
+        "oklch": "oklch(36.6% 0.015 259.8)",
+        "cssVar": "--seam-strong",
+        "tonalRamp": [
+          "oklch(15% 0.015 259.8)",
+          "oklch(26.4% 0.015 259.8)",
+          "oklch(37.9% 0.015 259.8)",
+          "oklch(49.3% 0.015 259.8)",
+          "oklch(60.7% 0.015 259.8)",
+          "oklch(72.1% 0.015 259.8)",
+          "oklch(83.6% 0.015 259.8)",
+          "oklch(95% 0.015 259.8)"
+        ]
+      },
+      "light-seam-strong": {
+        "role": "neutral",
+        "displayName": "Strong Seam (light)",
+        "canonical": "#c3c9d1",
+        "oklch": "oklch(83.4% 0.013 255.5)",
+        "cssVar": "--seam-strong",
+        "tonalRamp": [
+          "oklch(15% 0.013 255.5)",
+          "oklch(26.4% 0.013 255.5)",
+          "oklch(37.9% 0.013 255.5)",
+          "oklch(49.3% 0.013 255.5)",
+          "oklch(60.7% 0.013 255.5)",
+          "oklch(72.1% 0.013 255.5)",
+          "oklch(83.6% 0.013 255.5)",
+          "oklch(95% 0.013 255.5)"
+        ]
+      },
+      "label": {
+        "role": "neutral",
+        "displayName": "Label (dark)",
+        "canonical": "#e6e8eb",
+        "oklch": "oklch(93% 0.005 258.3)",
+        "cssVar": "--label",
+        "tonalRamp": [
+          "oklch(15% 0.005 258.3)",
+          "oklch(26.4% 0.005 258.3)",
+          "oklch(37.9% 0.005 258.3)",
+          "oklch(49.3% 0.005 258.3)",
+          "oklch(60.7% 0.005 258.3)",
+          "oklch(72.1% 0.005 258.3)",
+          "oklch(83.6% 0.005 258.3)",
+          "oklch(95% 0.005 258.3)"
+        ]
+      },
+      "light-label": {
+        "role": "neutral",
+        "displayName": "Label (light)",
+        "canonical": "#1b1e22",
+        "oklch": "oklch(23.4% 0.009 255.6)",
+        "cssVar": "--label",
+        "tonalRamp": [
+          "oklch(15% 0.009 255.6)",
+          "oklch(26.4% 0.009 255.6)",
+          "oklch(37.9% 0.009 255.6)",
+          "oklch(49.3% 0.009 255.6)",
+          "oklch(60.7% 0.009 255.6)",
+          "oklch(72.1% 0.009 255.6)",
+          "oklch(83.6% 0.009 255.6)",
+          "oklch(95% 0.009 255.6)"
+        ]
+      },
+      "label-2": {
+        "role": "neutral",
+        "displayName": "Label 2 (dark)",
+        "canonical": "#a2a9b2",
+        "oklch": "oklch(73.2% 0.015 254.6)",
+        "cssVar": "--label-2",
+        "tonalRamp": [
+          "oklch(15% 0.015 254.6)",
+          "oklch(26.4% 0.015 254.6)",
+          "oklch(37.9% 0.015 254.6)",
+          "oklch(49.3% 0.015 254.6)",
+          "oklch(60.7% 0.015 254.6)",
+          "oklch(72.1% 0.015 254.6)",
+          "oklch(83.6% 0.015 254.6)",
+          "oklch(95% 0.015 254.6)"
+        ]
+      },
+      "light-label-2": {
+        "role": "neutral",
+        "displayName": "Label 2 (light)",
+        "canonical": "#535a64",
+        "oklch": "oklch(46.5% 0.018 257.2)",
+        "cssVar": "--label-2",
+        "tonalRamp": [
+          "oklch(15% 0.018 257.2)",
+          "oklch(26.4% 0.018 257.2)",
+          "oklch(37.9% 0.018 257.2)",
+          "oklch(49.3% 0.018 257.2)",
+          "oklch(60.7% 0.018 257.2)",
+          "oklch(72.1% 0.018 257.2)",
+          "oklch(83.6% 0.018 257.2)",
+          "oklch(95% 0.018 257.2)"
+        ]
+      },
+      "label-3": {
+        "role": "neutral",
+        "displayName": "Label 3 (dark)",
+        "canonical": "#6b727c",
+        "oklch": "oklch(55% 0.018 257.2)",
+        "cssVar": "--label-3",
+        "tonalRamp": [
+          "oklch(15% 0.018 257.2)",
+          "oklch(26.4% 0.018 257.2)",
+          "oklch(37.9% 0.018 257.2)",
+          "oklch(49.3% 0.018 257.2)",
+          "oklch(60.7% 0.018 257.2)",
+          "oklch(72.1% 0.018 257.2)",
+          "oklch(83.6% 0.018 257.2)",
+          "oklch(95% 0.018 257.2)"
+        ]
+      },
+      "light-label-3": {
+        "role": "neutral",
+        "displayName": "Label 3 (light)",
+        "canonical": "#858c96",
+        "oklch": "oklch(63.8% 0.017 257.2)",
+        "cssVar": "--label-3",
+        "tonalRamp": [
+          "oklch(15% 0.017 257.2)",
+          "oklch(26.4% 0.017 257.2)",
+          "oklch(37.9% 0.017 257.2)",
+          "oklch(49.3% 0.017 257.2)",
+          "oklch(60.7% 0.017 257.2)",
+          "oklch(72.1% 0.017 257.2)",
+          "oklch(83.6% 0.017 257.2)",
+          "oklch(95% 0.017 257.2)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Console Blue (dark)",
+        "canonical": "#5aa9e6",
+        "oklch": "oklch(71% 0.119 243.9)",
+        "cssVar": "--accent",
+        "tonalRamp": [
+          "oklch(15% 0.119 243.9)",
+          "oklch(26.4% 0.119 243.9)",
+          "oklch(37.9% 0.119 243.9)",
+          "oklch(49.3% 0.119 243.9)",
+          "oklch(60.7% 0.119 243.9)",
+          "oklch(72.1% 0.119 243.9)",
+          "oklch(83.6% 0.119 243.9)",
+          "oklch(95% 0.119 243.9)"
+        ]
+      },
+      "light-accent": {
+        "role": "primary",
+        "displayName": "Console Blue (light)",
+        "canonical": "#1f78c1",
+        "oklch": "oklch(55.9% 0.139 248.7)",
+        "cssVar": "--accent",
+        "tonalRamp": [
+          "oklch(15% 0.139 248.7)",
+          "oklch(26.4% 0.139 248.7)",
+          "oklch(37.9% 0.139 248.7)",
+          "oklch(49.3% 0.139 248.7)",
+          "oklch(60.7% 0.139 248.7)",
+          "oklch(72.1% 0.139 248.7)",
+          "oklch(83.6% 0.139 248.7)",
+          "oklch(95% 0.139 248.7)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Console Blue Hover (dark)",
+        "canonical": "#74b8ec",
+        "oklch": "oklch(75.7% 0.102 242.7)",
+        "cssVar": "--accent-hover",
+        "tonalRamp": [
+          "oklch(15% 0.102 242.7)",
+          "oklch(26.4% 0.102 242.7)",
+          "oklch(37.9% 0.102 242.7)",
+          "oklch(49.3% 0.102 242.7)",
+          "oklch(60.7% 0.102 242.7)",
+          "oklch(72.1% 0.102 242.7)",
+          "oklch(83.6% 0.102 242.7)",
+          "oklch(95% 0.102 242.7)"
+        ]
+      },
+      "light-accent-hover": {
+        "role": "primary",
+        "displayName": "Console Blue Hover (light)",
+        "canonical": "#1a68a8",
+        "oklch": "oklch(50.5% 0.125 248.7)",
+        "cssVar": "--accent-hover",
+        "tonalRamp": [
+          "oklch(15% 0.125 248.7)",
+          "oklch(26.4% 0.125 248.7)",
+          "oklch(37.9% 0.125 248.7)",
+          "oklch(49.3% 0.125 248.7)",
+          "oklch(60.7% 0.125 248.7)",
+          "oklch(72.1% 0.125 248.7)",
+          "oklch(83.6% 0.125 248.7)",
+          "oklch(95% 0.125 248.7)"
+        ]
+      },
+      "on-accent": {
+        "role": "primary",
+        "displayName": "On Console Blue (dark)",
+        "canonical": "#0b1a26",
+        "oklch": "oklch(21.1% 0.032 244.2)",
+        "cssVar": "--on-accent",
+        "tonalRamp": [
+          "oklch(15% 0.032 244.2)",
+          "oklch(26.4% 0.032 244.2)",
+          "oklch(37.9% 0.032 244.2)",
+          "oklch(49.3% 0.032 244.2)",
+          "oklch(60.7% 0.032 244.2)",
+          "oklch(72.1% 0.032 244.2)",
+          "oklch(83.6% 0.032 244.2)",
+          "oklch(95% 0.032 244.2)"
+        ]
+      },
+      "light-on-accent": {
+        "role": "primary",
+        "displayName": "On Console Blue (light)",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100% 0 89.9)",
+        "cssVar": "--on-accent",
+        "tonalRamp": [
+          "oklch(15% 0 89.9)",
+          "oklch(26.4% 0 89.9)",
+          "oklch(37.9% 0 89.9)",
+          "oklch(49.3% 0 89.9)",
+          "oklch(60.7% 0 89.9)",
+          "oklch(72.1% 0 89.9)",
+          "oklch(83.6% 0 89.9)",
+          "oklch(95% 0 89.9)"
+        ]
+      },
+      "live": {
+        "role": "secondary",
+        "displayName": "Live Green (dark)",
+        "canonical": "#98c379",
+        "oklch": "oklch(76.8% 0.11 133)",
+        "cssVar": "--live",
+        "tonalRamp": [
+          "oklch(15% 0.11 133)",
+          "oklch(26.4% 0.11 133)",
+          "oklch(37.9% 0.11 133)",
+          "oklch(49.3% 0.11 133)",
+          "oklch(60.7% 0.11 133)",
+          "oklch(72.1% 0.11 133)",
+          "oklch(83.6% 0.11 133)",
+          "oklch(95% 0.11 133)"
+        ]
+      },
+      "light-live": {
+        "role": "secondary",
+        "displayName": "Live Green (light)",
+        "canonical": "#3f7d26",
+        "oklch": "oklch(52.9% 0.136 138.1)",
+        "cssVar": "--live",
+        "tonalRamp": [
+          "oklch(15% 0.136 138.1)",
+          "oklch(26.4% 0.136 138.1)",
+          "oklch(37.9% 0.136 138.1)",
+          "oklch(49.3% 0.136 138.1)",
+          "oklch(60.7% 0.136 138.1)",
+          "oklch(72.1% 0.136 138.1)",
+          "oklch(83.6% 0.136 138.1)",
+          "oklch(95% 0.136 138.1)"
+        ]
+      },
+      "listen": {
+        "role": "secondary",
+        "displayName": "Prompt Red (dark)",
+        "canonical": "#e06c75",
+        "oklch": "oklch(67.1% 0.145 17)",
+        "cssVar": "--listen",
+        "tonalRamp": [
+          "oklch(15% 0.145 17)",
+          "oklch(26.4% 0.145 17)",
+          "oklch(37.9% 0.145 17)",
+          "oklch(49.3% 0.145 17)",
+          "oklch(60.7% 0.145 17)",
+          "oklch(72.1% 0.145 17)",
+          "oklch(83.6% 0.145 17)",
+          "oklch(95% 0.145 17)"
+        ]
+      },
+      "light-listen": {
+        "role": "secondary",
+        "displayName": "Prompt Red (light)",
+        "canonical": "#c43d4b",
+        "oklch": "oklch(55.9% 0.171 18.8)",
+        "cssVar": "--listen",
+        "tonalRamp": [
+          "oklch(15% 0.171 18.8)",
+          "oklch(26.4% 0.171 18.8)",
+          "oklch(37.9% 0.171 18.8)",
+          "oklch(49.3% 0.171 18.8)",
+          "oklch(60.7% 0.171 18.8)",
+          "oklch(72.1% 0.171 18.8)",
+          "oklch(83.6% 0.171 18.8)",
+          "oklch(95% 0.171 18.8)"
+        ]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Build Gold (dark)",
+        "canonical": "#e5c07b",
+        "oklch": "oklch(82.5% 0.097 82.3)",
+        "cssVar": "--warn",
+        "tonalRamp": [
+          "oklch(15% 0.097 82.3)",
+          "oklch(26.4% 0.097 82.3)",
+          "oklch(37.9% 0.097 82.3)",
+          "oklch(49.3% 0.097 82.3)",
+          "oklch(60.7% 0.097 82.3)",
+          "oklch(72.1% 0.097 82.3)",
+          "oklch(83.6% 0.097 82.3)",
+          "oklch(95% 0.097 82.3)"
+        ]
+      },
+      "light-warn": {
+        "role": "secondary",
+        "displayName": "Build Gold (light)",
+        "canonical": "#8a5d0c",
+        "oklch": "oklch(51.4% 0.105 74.7)",
+        "cssVar": "--warn",
+        "tonalRamp": [
+          "oklch(15% 0.105 74.7)",
+          "oklch(26.4% 0.105 74.7)",
+          "oklch(37.9% 0.105 74.7)",
+          "oklch(49.3% 0.105 74.7)",
+          "oklch(60.7% 0.105 74.7)",
+          "oklch(72.1% 0.105 74.7)",
+          "oklch(83.6% 0.105 74.7)",
+          "oklch(95% 0.105 74.7)"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Fault Red (dark)",
+        "canonical": "#e06c75",
+        "oklch": "oklch(67.1% 0.145 17)",
+        "cssVar": "--danger",
+        "tonalRamp": [
+          "oklch(15% 0.145 17)",
+          "oklch(26.4% 0.145 17)",
+          "oklch(37.9% 0.145 17)",
+          "oklch(49.3% 0.145 17)",
+          "oklch(60.7% 0.145 17)",
+          "oklch(72.1% 0.145 17)",
+          "oklch(83.6% 0.145 17)",
+          "oklch(95% 0.145 17)"
+        ]
+      },
+      "light-danger": {
+        "role": "tertiary",
+        "displayName": "Fault Red (light)",
+        "canonical": "#c43d4b",
+        "oklch": "oklch(55.9% 0.171 18.8)",
+        "cssVar": "--danger",
+        "tonalRamp": [
+          "oklch(15% 0.171 18.8)",
+          "oklch(26.4% 0.171 18.8)",
+          "oklch(37.9% 0.171 18.8)",
+          "oklch(49.3% 0.171 18.8)",
+          "oklch(60.7% 0.171 18.8)",
+          "oklch(72.1% 0.171 18.8)",
+          "oklch(83.6% 0.171 18.8)",
+          "oklch(95% 0.171 18.8)"
+        ]
+      },
+      "violet": {
+        "role": "tertiary",
+        "displayName": "Keyword Violet (dark)",
+        "canonical": "#c678dd",
+        "oklch": "oklch(69.4% 0.164 318.2)",
+        "cssVar": "--violet",
+        "tonalRamp": [
+          "oklch(15% 0.164 318.2)",
+          "oklch(26.4% 0.164 318.2)",
+          "oklch(37.9% 0.164 318.2)",
+          "oklch(49.3% 0.164 318.2)",
+          "oklch(60.7% 0.164 318.2)",
+          "oklch(72.1% 0.164 318.2)",
+          "oklch(83.6% 0.164 318.2)",
+          "oklch(95% 0.164 318.2)"
+        ]
+      },
+      "light-violet": {
+        "role": "tertiary",
+        "displayName": "Keyword Violet (light)",
+        "canonical": "#8e3aa8",
+        "oklch": "oklch(51% 0.18 317.3)",
+        "cssVar": "--violet",
+        "tonalRamp": [
+          "oklch(15% 0.18 317.3)",
+          "oklch(26.4% 0.18 317.3)",
+          "oklch(37.9% 0.18 317.3)",
+          "oklch(49.3% 0.18 317.3)",
+          "oklch(60.7% 0.18 317.3)",
+          "oklch(72.1% 0.18 317.3)",
+          "oklch(83.6% 0.18 317.3)",
+          "oklch(95% 0.18 317.3)"
+        ]
+      },
+      "orange": {
+        "role": "tertiary",
+        "displayName": "Number Orange (dark)",
+        "canonical": "#d19a66",
+        "oklch": "oklch(72.7% 0.095 63.8)",
+        "cssVar": "--orange",
+        "tonalRamp": [
+          "oklch(15% 0.095 63.8)",
+          "oklch(26.4% 0.095 63.8)",
+          "oklch(37.9% 0.095 63.8)",
+          "oklch(49.3% 0.095 63.8)",
+          "oklch(60.7% 0.095 63.8)",
+          "oklch(72.1% 0.095 63.8)",
+          "oklch(83.6% 0.095 63.8)",
+          "oklch(95% 0.095 63.8)"
+        ]
+      },
+      "light-orange": {
+        "role": "tertiary",
+        "displayName": "Number Orange (light)",
+        "canonical": "#a65f22",
+        "oklch": "oklch(55.6% 0.118 56.9)",
+        "cssVar": "--orange",
+        "tonalRamp": [
+          "oklch(15% 0.118 56.9)",
+          "oklch(26.4% 0.118 56.9)",
+          "oklch(37.9% 0.118 56.9)",
+          "oklch(49.3% 0.118 56.9)",
+          "oklch(60.7% 0.118 56.9)",
+          "oklch(72.1% 0.118 56.9)",
+          "oklch(83.6% 0.118 56.9)",
+          "oklch(95% 0.118 56.9)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "\"Socra\" in the top bar only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The single title on the agent setup screen."
+      },
+      "question": {
+        "displayName": "Question",
+        "purpose": "The exam question; the largest running text."
+      },
+      "read": {
+        "displayName": "Read",
+        "purpose": "Conversation log and transcript, max 72ch.",
+        "cssClass": "t-read"
+      },
+      "ui": {
+        "displayName": "UI",
+        "purpose": "Controls, composer, state line, menu rows.",
+        "cssClass": "t-ui"
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Speaker labels, chips, tabs, notes, code pointers.",
+        "cssClass": "t-small"
+      },
+      "head": {
+        "displayName": "Head",
+        "purpose": "Panel header and settings section titles only; never an eyebrow.",
+        "cssClass": "t-head"
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Paths, tool arguments, inline code.",
+        "cssClass": "t-mono"
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "The code panel, in px so it stays at reading size against the 14px root.",
+        "cssClass": "t-code"
+      },
+      "kbd": {
+        "displayName": "Key cap",
+        "purpose": "Keyboard hints such as R for re-answer."
+      }
+    },
+    "shadows": [
+      {
+        "name": "dock",
+        "value": "0 12px 32px -18px rgb(0 0 0 / 0.55)",
+        "purpose": "The floating composer."
+      },
+      {
+        "name": "popover",
+        "value": "0 16px 40px -16px rgba(0,0,0,0.45)",
+        "purpose": "The settings menu."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Every transition in the console (CSS var --ease-out)."
+      },
+      {
+        "name": "split",
+        "value": "520ms",
+        "purpose": "The code panel opening or closing; 0ms under reduced motion (CSS var --split)."
+      },
+      {
+        "name": "state",
+        "value": "150ms",
+        "purpose": "Colour, background, and border transitions on controls."
+      },
+      {
+        "name": "blink",
+        "value": "1.1s ease-in-out infinite",
+        "purpose": "The listening lamp, pending connection lamp, and transcript caret; off under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Top bar side padding grows from 12px to 16px."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Below: panels stack vertically and context chips hide."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Below: the composer spans the panel with a 12px edge gap."
+      }
+    ],
+    "particlePalettes": {
+      "source": "web/src/components/orbPalettes.ts",
+      "byStateDark": {
+        "idle": [
+          "#6b727c",
+          "#5aa9e6"
+        ],
+        "speaking": [
+          "#5aa9e6",
+          "#56b6c2"
+        ],
+        "listening": [
+          "#e06c75",
+          "#d19a66"
+        ],
+        "thinking": [
+          "#e5c07b",
+          "#d19a66"
+        ]
+      },
+      "byStateLight": {
+        "idle": [
+          "#8a919b",
+          "#1f78c1"
+        ],
+        "speaking": [
+          "#1f78c1",
+          "#1b8a96"
+        ],
+        "listening": [
+          "#c43d4b",
+          "#b36a2c"
+        ],
+        "thinking": [
+          "#a87412",
+          "#b36a2c"
+        ]
+      },
+      "fixed": {
+        "iris": [
+          "#5aa9e6",
+          "#c678dd"
+        ],
+        "aurora": [
+          "#98c379",
+          "#56b6c2"
+        ],
+        "ember": [
+          "#d19a66",
+          "#e06c75"
+        ],
+        "glacier": [
+          "#9fc4e8",
+          "#56b6c2"
+        ],
+        "graphite": [
+          "#6b727c",
+          "#c5cad1"
+        ],
+        "orchid": [
+          "#e06c75",
+          "#c678dd"
+        ]
+      }
+    },
+    "themes": {
+      "default": "dark",
+      "lightSelector": ":root[data-theme=\"light\"]",
+      "storageKey": "socra_theme",
+      "choices": [
+        "System",
+        "Light",
+        "Dark"
+      ],
+      "tokenSource": "web/src/index.css"
+    }
+  },
+  "components": [
+    {
+      "name": "Key (default button)",
+      "kind": "button",
+      "refersTo": "button-key",
+      "description": "The flat outlined button used for every secondary action.",
+      "html": "<button class=\"ds-key\">Change</button>",
+      "css": ".ds-key { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid var(--seam); border-radius: 6px; background: transparent; color: var(--label-2); font-family: var(--sans); font-size: 0.875rem; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-key:hover:not(:disabled) { background: var(--raise); color: var(--label); } .ds-key:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 80%, white); outline-offset: 2px; } .ds-key:disabled { cursor: not-allowed; color: var(--label-3); }"
+    },
+    {
+      "name": "Primary Key",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled action per view: Send, Start, Allow.",
+      "html": "<button class=\"ds-key ds-key-primary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"9 10 4 15 9 20\"/><path d=\"M20 4v7a4 4 0 0 1-4 4H4\"/></svg>Send</button>",
+      "css": ".ds-key { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid var(--seam); border-radius: 6px; background: transparent; color: var(--label-2); font-family: var(--sans); font-size: 0.875rem; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-key:hover:not(:disabled) { background: var(--raise); color: var(--label); } .ds-key:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 80%, white); outline-offset: 2px; } .ds-key:disabled { cursor: not-allowed; color: var(--label-3); } .ds-key-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; } .ds-key-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); } .ds-key-primary:disabled { background: transparent; border-color: var(--seam); color: var(--label-3); font-weight: 500; }"
+    },
+    {
+      "name": "Danger Key",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive actions stay outlined and set apart: Stop.",
+      "html": "<button class=\"ds-key ds-key-danger\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" fill=\"currentColor\"/></svg>Stop</button>",
+      "css": ".ds-key { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid var(--seam); border-radius: 6px; background: transparent; color: var(--label-2); font-family: var(--sans); font-size: 0.875rem; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-key:hover:not(:disabled) { background: var(--raise); color: var(--label); } .ds-key:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 80%, white); outline-offset: 2px; } .ds-key:disabled { cursor: not-allowed; color: var(--label-3); } .ds-key-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); } .ds-key-danger:hover:not(:disabled) { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }"
+    },
+    {
+      "name": "Connection Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A bordered fact in the top bar; status chips carry a lamp beside the word.",
+      "html": "<span class=\"ds-chip\"><span class=\"ds-lamp\"></span>Connected</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--seam); border-radius: 6px; color: var(--label-2); font-family: var(--sans); font-size: 0.8125rem; white-space: nowrap; } .ds-lamp { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }"
+    },
+    {
+      "name": "Mode Tabs",
+      "kind": "nav",
+      "refersTo": "top-bar",
+      "description": "Exam and Agent in the 44px top bar; the current tab sits on the raised step.",
+      "html": "<nav class=\"ds-tabs\"><strong class=\"ds-wordmark\">Socra</strong><a href=\"#\" class=\"ds-tab\">Exam</a><a href=\"#\" class=\"ds-tab\" aria-current=\"page\">Agent</a></nav>",
+      "css": ".ds-tabs { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 16px; background: var(--bg); border-bottom: 1px solid var(--seam); font-family: var(--sans); } .ds-wordmark { font-size: 0.9375rem; font-weight: 600; letter-spacing: -0.01em; color: var(--label); margin-right: 8px; } .ds-tab { font-size: 0.8125rem; padding: 4px 10px; border-radius: 6px; color: var(--label-2); text-decoration: none; } .ds-tab:hover { color: var(--label); } .ds-tab:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 80%, white); outline-offset: 2px; } .ds-tab[aria-current=\"page\"] { color: var(--label); background: var(--raise); font-weight: 600; }"
+    },
+    {
+      "name": "Composer",
+      "kind": "input",
+      "refersTo": "composer",
+      "description": "The floating single-line field with Send; its outline turns blue on focus.",
+      "html": "<form class=\"ds-composer\" onsubmit=\"return false\"><input class=\"ds-composer-input\" placeholder=\"Type your answer\" aria-label=\"Answer\"><button class=\"ds-key ds-key-primary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"9 10 4 15 9 20\"/><path d=\"M20 4v7a4 4 0 0 1-4 4H4\"/></svg>Send</button></form>",
+      "css": ".ds-key { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid var(--seam); border-radius: 6px; background: transparent; color: var(--label-2); font-family: var(--sans); font-size: 0.875rem; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-key:hover:not(:disabled) { background: var(--raise); color: var(--label); } .ds-key:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 80%, white); outline-offset: 2px; } .ds-key:disabled { cursor: not-allowed; color: var(--label-3); } .ds-key-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; } .ds-key-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); } .ds-key-primary:disabled { background: transparent; border-color: var(--seam); color: var(--label-3); font-weight: 500; } .ds-composer .ds-key { min-height: 40px; } .ds-composer { display: flex; align-items: center; gap: 8px; width: min(100%, 520px); padding: 7px; border: 1px solid var(--seam-strong); border-radius: 12px; background: var(--panel); box-shadow: 0 12px 32px -18px rgb(0 0 0 / 0.55); transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-composer:focus-within { border-color: var(--accent); } .ds-composer-input { flex: 1; min-height: 40px; padding: 0 10px; border: 0; outline: none; background: transparent; color: var(--label); font-family: var(--sans); font-size: 0.875rem; caret-color: var(--accent); } .ds-composer-input::placeholder { color: var(--label-2); }"
+    },
+    {
+      "name": "Choice List",
+      "kind": "custom",
+      "refersTo": "choice-row-selected",
+      "description": "Replaces native selects: every option visible, the chosen one filled and bulleted.",
+      "html": "<div class=\"ds-choices\" role=\"radiogroup\" aria-label=\"Microphone\"><button class=\"ds-choice\" role=\"radio\" aria-checked=\"true\"><span class=\"ds-ring\"><span class=\"ds-dot\"></span></span>System default</button><button class=\"ds-choice\" role=\"radio\" aria-checked=\"false\"><span class=\"ds-ring\"></span>USB microphone<span class=\"ds-note\">disconnected</span></button></div>",
+      "css": ".ds-choices { display: flex; flex-direction: column; gap: 4px; width: 20rem; } .ds-choice { display: flex; align-items: center; gap: 1.5ch; min-height: 36px; width: 100%; padding: 0 1ch; border: 0; border-radius: 3px; background: transparent; color: var(--label-2); font-family: var(--sans); font-size: 0.875rem; text-align: left; cursor: pointer; } .ds-choice:hover { background: var(--raise); } .ds-choice:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 80%, white); outline-offset: 2px; } .ds-choice[aria-checked=\"true\"] { background: var(--raise); color: var(--label); font-weight: 600; } .ds-ring { display: grid; place-items: center; width: 11px; height: 11px; border: 1px solid var(--label-3); border-radius: 50%; flex-shrink: 0; } .ds-choice[aria-checked=\"true\"] .ds-ring { border-color: var(--accent); } .ds-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); } .ds-note { margin-left: auto; font-size: 0.8125rem; font-weight: 400; color: var(--label-3); }"
+    },
+    {
+      "name": "Panel Header",
+      "kind": "card",
+      "refersTo": "panel-head",
+      "description": "The 34px bar over every region: a small-caps title, facts and actions on the right.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-head\"><span class=\"ds-head\">Code</span><span class=\"ds-meta\">ts · 11 lines</span></header><div class=\"ds-panel-body\"></div></section>",
+      "css": ".ds-panel { display: flex; flex-direction: column; width: 24rem; background: var(--panel); border: 1px solid var(--seam); } .ds-panel-head { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 14px; border-bottom: 1px solid var(--seam); } .ds-head { font-family: var(--sans); font-size: 0.8125rem; font-weight: 600; font-variant: all-small-caps; letter-spacing: 0.06em; color: var(--label-2); } .ds-meta { margin-left: auto; font-family: var(--mono); font-size: 0.8125rem; font-variant-ligatures: none; color: var(--label-3); } .ds-panel-body { height: 64px; }"
+    },
+    {
+      "name": "Conversation Log",
+      "kind": "custom",
+      "refersTo": "inline-code",
+      "description": "Speaker labels in a 6ch prompt gutter; code leaves a pointer where it was.",
+      "html": "<ol class=\"ds-log\"><li><span class=\"ds-who\" style=\"color: var(--live)\">you</span><span style=\"color: var(--label-2)\">Why does the retry helper give up?</span></li><li><span class=\"ds-who\" style=\"color: var(--warn)\">tool</span><span style=\"color: var(--warn)\">Read <code class=\"ds-path\">web/src/lib/retry.ts</code></span></li><li><span class=\"ds-who\" style=\"color: var(--accent)\">socra</span><span>It retries five times. Apply it to <code class=\"ds-code\">retry.ts</code>?<span class=\"ds-pointer\">code panel · ts · 11 lines</span></span></li></ol>",
+      "css": ".ds-log { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; max-width: 72ch; font-family: var(--sans); font-size: 0.9375rem; line-height: 1.65; color: var(--label); } .ds-log li { display: grid; grid-template-columns: 6ch minmax(0, 1fr); column-gap: 1.5ch; } .ds-who { font-size: 0.8125rem; text-align: right; padding-top: 0.15em; } .ds-path { font-family: var(--mono); font-size: 0.8125rem; color: var(--label-2); font-variant-ligatures: none; } .ds-code { font-family: var(--mono); font-size: 0.8125rem; padding: 0 0.35ch; border-radius: 3px; background: var(--raise); color: var(--label); } .ds-pointer { display: block; font-size: 0.8125rem; color: var(--label-3); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Console",
+    "overview": "Socra in the browser is a dark developer console that a developer keeps open beside their editor through a long voice session. The frame never moves: a 44px top bar over full-bleed graphite panels separated by 1px seams. What changes is the content inside the panels: the particle field showing who has the floor, one state line, the conversation log at a reading measure, and, when code arrives, a second panel that slides open on the right. The world is calm, dense, and legible from across the desk; colour carries state, not decoration.\n\nThe palette is graphite with a single blue accent, and every other hue is borrowed from a code-editor syntax theme: red for the user's turn, blue for Socra speaking, gold for work, green for a live connection. The same hues colour the syntax in the code panel and the particle field, so state, code, and the visualizer read as one material. A light theme renders the same console on paper-white panels with every hue deepened for contrast; it is a full equal, chosen through System, Light, or Dark in settings and applied before first paint.\n\nThe browser console rejects the centred voice-assistant chat (speech bubbles, a pill-shaped composer floating on an empty page). It also leaves the terminal-multiplexer costume (box-drawing frames, monospace chrome, status-bar strips) to a future TUI client; the web borrows only the console's habits, such as speaker labels in a prompt-style gutter and a blinking caret, rendered in the sans.",
+    "keyCharacteristics": [
+      "A fixed console frame: top bar, panel headers, 1px seams; contents change, the layout stays put.",
+      "One accent (blue) for the primary action, selection, focus, and Socra's voice.",
+      "State colours drawn from a syntax palette, each paired with a word.",
+      "Geist for words; JetBrains Mono only for code, paths, and figures.",
+      "The particle field as the centrepiece and the only expressive element.",
+      "Flat panels; shadows only on the two floating layers (composer and menu).",
+      "Dark first, with an equal light theme."
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Blue is the only accent. It marks the primary action, the current selection, focus, and Socra's voice, and nothing else. A screen holds at most one filled blue button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lamp And Word Rule",
+        "body": "A state colour never stands alone: every lamp (a 7px dot) sits beside the word it means (\"Connected\", \"Agent speaking\"), so state reads without colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Palette Rule",
+        "body": "State, syntax, and particle colours come from the same hues. A new state or token kind takes an existing hue before a new one is introduced.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Faces Rule",
+        "body": "Geist sets words; JetBrains Mono sets only code, file paths, tool arguments, and figures, always with ligatures off. Mono never becomes the UI voice.",
+        "section": "typography"
+      },
+      {
+        "name": "The Reading Measure Rule",
+        "body": "Running conversation text is 15px at 1.65 and never wider than 72 characters.",
+        "section": "typography"
+      },
+      {
+        "name": "The Header Not Eyebrow Rule",
+        "body": "Small-caps Head type names a region (a panel header, a settings section). It is never placed as an eyebrow above a headline or a block of content.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fixed Frame Rule",
+        "body": "The top bar, panel headers, and seams never move or restyle with content. New content enters a panel; it does not rearrange the frame.",
+        "section": "layout"
+      },
+      {
+        "name": "The Split Rule",
+        "body": "Code opens by animating the grid template along one axis over 520ms with the console ease-out, and the particle canvas follows its slot every frame. Closing reverses it. Reduced motion makes it instant.",
+        "section": "layout"
+      },
+      {
+        "name": "The Seam Not Shadow Rule",
+        "body": "Depth between regions is a 1px seam plus one tonal step. A shadow is allowed only on an element that floats over the panels.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the frame fixed: a 44px top bar, 34px panel headers, and 1px seams; change content inside panels only.",
+      "Do use `accent` for exactly one filled action per view, plus selection, focus, and Socra's voice.",
+      "Do pair every state lamp with its word, and take state colours from the syntax palette.",
+      "Do set running conversation text at 15px, line height 1.65, within 72ch.",
+      "Do set code, paths, and tool arguments in JetBrains Mono with ligatures off, and everything else in Geist.",
+      "Do send code to the code panel and leave a pointer in the log where it was.",
+      "Do give every new colour a light-theme counterpart and check both themes.",
+      "Do honour reduced motion: the split becomes instant and lamps stop blinking."
+    ],
+    "donts": [
+      "Don't put shadows on panels; only the composer and the menu float.",
+      "Don't use chat bubbles, pill-shaped composers, or a centred chat column on an empty page.",
+      "Don't bring the terminal-multiplexer costume into the browser: no box-drawing frames, ASCII borders, status-bar strips, or monospace UI chrome. That look belongs to the future TUI.",
+      "Don't introduce a second accent or a gradient; colour is reserved for state and code.",
+      "Don't use small-caps Head type as an eyebrow or kicker above content; it names regions only.",
+      "Don't fill destructive buttons; they stay outlined and set apart from the primary.",
+      "Don't use native select menus; use the choice list."
+    ]
+  }
+}

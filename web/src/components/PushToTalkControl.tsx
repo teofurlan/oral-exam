@@ -73,7 +73,7 @@ export const PushToTalkControl: React.FC<PushToTalkControlProps> = ({
   }, [setTalking])
 
   return (
-    <div className="flex min-w-0 max-w-full flex-col items-center gap-2">
+    <div className="flex min-w-0 max-w-full items-center">
       <button
         type="button"
         data-testid="ptt-button"
@@ -91,19 +91,11 @@ export const PushToTalkControl: React.FC<PushToTalkControlProps> = ({
           setTalking(false)
         }}
         onTouchCancel={() => setTalking(false)}
-        className="press relative inline-flex min-h-11 min-w-11 max-w-full select-none items-center justify-center gap-2.5 rounded-full px-4 py-3.5 text-center t-body font-semibold sm:px-6"
-        style={{
-          background: isPressed ? 'var(--danger)' : 'rgba(255,255,255,0.92)',
-          color: isPressed ? '#fff' : '#0a0a0c',
-          transform: isPressed ? 'scale(0.96)' : undefined,
-          boxShadow: isPressed
-            ? '0 0 0 6px color-mix(in srgb, var(--danger) 28%, transparent)'
-            : '0 8px 24px -8px rgba(0,0,0,0.7)',
-          transition:
-            'transform 0.5s var(--spring), background-color 0.15s, box-shadow 0.25s var(--ease-settle), color 0.15s',
-        }}
+        className="key select-none"
+        data-tone={isPressed ? 'danger' : undefined}
+        style={isPressed ? { background: 'color-mix(in srgb, var(--danger) 16%, transparent)' } : undefined}
       >
-        <Mic className="h-4 w-4 shrink-0" strokeWidth={2.4} />
+        <Mic aria-hidden="true" className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
         <span>{isPressed ? 'Transcribing answer...' : 'Hold to speak (or Space)'}</span>
       </button>
     </div>

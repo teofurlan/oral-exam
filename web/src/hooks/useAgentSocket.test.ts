@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useAgentSocket, AGENT_SOCKET_URL } from './useAgentSocket'
 import { FakeAudioContext, FakeWebSocket } from '@/test/fakeSocket'
+import { STORAGE_KEY_VOICE } from '@/lib/storage'
 
 describe('useAgentSocket', () => {
   const originalWebSocket = globalThis.WebSocket
 
   beforeEach(() => {
+    window.localStorage.clear()
     FakeWebSocket.instances = []
     FakeAudioContext.instances = []
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
@@ -34,7 +36,7 @@ describe('useAgentSocket', () => {
     expect(ws.url).toBe(AGENT_SOCKET_URL)
     expect(AGENT_SOCKET_URL).toBe('ws://localhost:8766/ws/agent')
     expect(result.current.state.connectionStatus).toBe('connected')
-    expect(ws.sent()).toEqual([{ type: 'agent_hello' }])
+    expect(ws.sent()).toEqual([{ type: 'agent_hello' }, { type: 'voice' }])
   })
 
   it('sends every page action in the agent protocol', () => {
@@ -49,7 +51,7 @@ describe('useAgentSocket', () => {
       result.current.interrupt()
     })
 
-    expect(ws.sent().slice(1)).toEqual([
+    expect(ws.sent().slice(2)).toEqual([
       { type: 'pick_folder' },
       { type: 'start_agent', backend: 'claude-code', model: 'opus', cwd: 'C:\\work' },
       { type: 'turn_text', text: 'list the files' },
@@ -167,7 +169,18 @@ describe('useAgentSocket', () => {
 
     act(() => FakeWebSocket.latest().open())
     expect(result.current.state.connectionStatus).toBe('connected')
-    expect(FakeWebSocket.latest().sent()).toEqual([{ type: 'agent_hello' }])
+    expect(FakeWebSocket.latest().sent()).toEqual([{ type: 'agent_hello' }, { type: 'voice' }])
+  })
+
+  it('stays closed when a newer page takes over, instead of taking it back', () => {
+    const { result, ws } = connected()
+
+    act(() => ws.drop({ code: 1000, reason: 'Replaced by a new page' }))
+    expect(result.current.state.connectionStatus).toBe('replaced')
+
+    act(() => vi.advanceTimersByTime(30_000))
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    expect(result.current.state.connectionStatus).toBe('replaced')
   })
 
   it('stops reconnecting after unmount', () => {
@@ -180,4 +193,52 @@ describe('useAgentSocket', () => {
     expect(ws.close).toHaveBeenCalled()
     expect(FakeWebSocket.instances).toHaveLength(1)
   })
+
+  it('sends { type: "voice" } on open with nothing stored', () => {
+    const { ws } = connected()
+    expect(ws.sent()).toEqual([{ type: 'agent_hello' }, { type: 'voice' }])
+  })
+
+  it('sends { type: "voice", voice: "dora" } on open when dora is stored', () => {
+    window.localStorage.setItem(STORAGE_KEY_VOICE, 'dora')
+    const { ws } = connected()
+    expect(ws.sent()).toEqual([{ type: 'agent_hello' }, { type: 'voice', voice: 'dora' }])
+  })
+
+  it('updates voices when receiving a voices message', () => {
+    const { result, ws } = connected()
+    expect(result.current.voices).toEqual({ voices: [], current: null })
+
+    act(() => {
+      ws.receive({
+        type: 'voices',
+        voices: [
+          { id: 'alex-dora', label: 'Alex 75% + Dora 25%' },
+          { id: 'santa', label: 'Santa' },
+        ],
+        current: 'alex-dora',
+      })
+    })
+
+    expect(result.current.voices).toEqual({
+      voices: [
+        { id: 'alex-dora', label: 'Alex 75% + Dora 25%' },
+        { id: 'santa', label: 'Santa' },
+      ],
+      current: 'alex-dora',
+    })
+  })
+
+  it('setVoice stores in localStorage, sends voice message, and updates current optimistically', () => {
+    const { result, ws } = connected()
+
+    act(() => {
+      result.current.setVoice('santa')
+    })
+
+    expect(window.localStorage.getItem(STORAGE_KEY_VOICE)).toBe('santa')
+    expect(ws.sent()).toContainEqual({ type: 'voice', voice: 'santa' })
+    expect(result.current.voices.current).toBe('santa')
+  })
 })
+

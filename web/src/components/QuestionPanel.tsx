@@ -9,6 +9,7 @@ export interface QuestionPanelProps {
   onReanswer: () => void
 }
 
+/** The question at reading size, then the answer as it is heard. Code lives in the code pane. */
 export const QuestionPanel: React.FC<QuestionPanelProps> = ({
   question,
   transcript,
@@ -28,82 +29,83 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
   }, [onReanswer])
 
   return (
-    <div
-      data-testid="question-panel"
-      className="mx-auto flex min-w-0 w-full max-w-2xl shrink-0 flex-col gap-5 text-left"
-    >
-      {/* Question: type is the hero, no card. */}
-      <section key={question?.index ?? 'none'} className="materialize flex flex-col gap-3">
-        <span
-          data-testid="question-index"
-          className="t-caption tabular-nums"
-          style={{ color: 'var(--label-2)' }}
-        >
-          {question
-            ? `Question ${question.index}/${question.total}`
-            : 'Waiting for exam question'}
-        </span>
-
-        <p data-testid="question-text" className="t-display min-h-[2.4em] [overflow-wrap:anywhere] select-text">
-          {question?.text || 'Connecting to examiner server...'}
-        </p>
-
-        {question?.code !== undefined && (
-          <pre
-            role="region"
-            aria-label="Question code"
-            tabIndex={0}
-            className="glass-chip min-w-0 max-w-full overflow-x-auto rounded-2xl p-4 font-mono text-[0.8125rem] leading-relaxed text-white/85 select-text"
-          >
-            <code>{question.code}</code>
-          </pre>
-        )}
-      </section>
-
-      {/* Transcript: a floating translucent sheet. */}
-      <section className="surface flex flex-col gap-2 rounded-[1.75rem] p-4 pl-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-2 t-caption" style={{ color: 'var(--label-2)' }}>
-            {transcript.text && !transcript.final ? (
-              <>
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--listen)]" />
-                Transcribing
-              </>
-            ) : null}
+    <div data-testid="question-panel" className="flex w-full min-w-0 max-w-[72ch] flex-col gap-5">
+      <section key={question?.index ?? 'none'} className="grid grid-cols-[6ch_minmax(0,1fr)] gap-x-[1.5ch] gap-y-1">
+        <span className="t-small flex flex-col items-end pt-[0.2em]">
+          <span style={{ color: 'var(--accent)' }} aria-hidden="true">
+            socra
           </span>
-
-          <button
-            type="button"
-            data-testid="reanswer-button"
-            onClick={onReanswer}
-            title="Re-answer the current question (R)"
-            aria-keyshortcuts="R"
-            className="press glass-chip inline-flex items-center gap-1.5 rounded-full px-3 py-2 t-caption text-white/80 hover:text-white"
-          >
-            <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
-            Re-answer
-            <kbd className="rounded-md bg-white/10 px-1.5 py-px font-sans text-[0.6875rem] leading-4 text-white/60">
-              R
-            </kbd>
-          </button>
-        </div>
-
-        <div
-          data-testid="transcript-text"
-          className="scroll-fade max-h-48 min-h-[3rem] overflow-y-auto [overflow-wrap:anywhere] t-body select-text"
-        >
-          {transcript.text ? (
-            <span style={{ color: transcript.final ? 'var(--label)' : 'var(--label-2)' }}>
-              {transcript.text}
-              {!transcript.final && <span className="ml-1 inline-block animate-pulse">▍</span>}
-            </span>
-          ) : (
-            <span style={{ color: 'var(--label-3)' }}>
-              {protocolState === 'listening'
-                ? 'Listening... speak your answer'
-                : 'Your answer will appear here'}
+          {/* The top bar shows the progress from tablet width up; phones keep it in the gutter. */}
+          {question && (
+            <span data-testid="question-index" className="tabular-nums md:hidden" style={{ color: 'var(--label-3)' }}>
+              <span className="sr-only">Question </span>
+              {question.index}/{question.total}
             </span>
           )}
+        </span>
+        <div className="flex min-w-0 flex-col gap-1">
+          {!question && (
+            <span data-testid="question-index" className="t-small" style={{ color: 'var(--label-2)' }}>
+              Waiting for exam question
+            </span>
+          )}
+          <p
+            data-testid="question-text"
+            className="m-0 text-[1rem] leading-[1.65] font-medium [overflow-wrap:anywhere] select-text"
+            style={{ color: 'var(--label)', textWrap: 'pretty' }}
+          >
+            {question?.text || 'Connecting to examiner server...'}
+          </p>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-[6ch_minmax(0,1fr)] gap-x-[1.5ch]">
+        <span className="t-small pt-[0.2em] text-right" style={{ color: 'var(--live)' }} aria-hidden="true">
+          you
+        </span>
+        <div className="flex min-w-0 flex-col gap-2">
+          <div
+            data-testid="transcript-text"
+            className="t-read max-h-48 min-h-[1.7em] overflow-y-auto [overflow-wrap:anywhere] select-text"
+          >
+            {transcript.text ? (
+              <span style={{ color: transcript.final ? 'var(--label)' : 'var(--label-2)' }}>
+                {transcript.text}
+                {!transcript.final && (
+                  <span
+                    aria-hidden="true"
+                    className="cursor-blink ml-1 inline-block h-[1.05em] w-[0.55em] align-[-0.18em]"
+                    style={{ background: 'var(--label-2)' }}
+                  />
+                )}
+              </span>
+            ) : (
+              <span style={{ color: 'var(--label-2)' }}>
+                {protocolState === 'listening'
+                  ? 'Listening... speak your answer'
+                  : 'Your answer will appear here'}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              data-testid="reanswer-button"
+              onClick={onReanswer}
+              title="Re-answer the current question (R)"
+              aria-keyshortcuts="R"
+              className="key t-small min-h-8"
+            >
+              <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+              Re-answer
+              <kbd>R</kbd>
+            </button>
+            {transcript.text && !transcript.final && (
+              <span className="t-small" style={{ color: 'var(--listen)' }}>
+                Transcribing
+              </span>
+            )}
+          </div>
         </div>
       </section>
     </div>

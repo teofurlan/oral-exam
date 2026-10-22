@@ -5,12 +5,6 @@ import AgentApp from './AgentApp'
 import { FakeAudioContext, FakeWebSocket } from '@/test/fakeSocket'
 import { STORAGE_KEY_AGENT_FOLDER, STORAGE_KEY_AGENT_SELECTION, STORAGE_KEY_VISUALIZER } from '@/lib/storage'
 
-vi.mock('@/components/ui/orb', () => ({
-  Orb: ({ agentState }: { agentState: string | null }) => (
-    <div data-testid="mock-orb" data-agent-state={agentState ?? 'null'} />
-  ),
-}))
-
 // Real capture needs a microphone and WebAudio; this page only wires it up.
 const micOptions: { protocolState?: string; onFinalize?: (b64: string) => void } = {}
 vi.mock('@/hooks/useMicCapture', () => ({
@@ -77,7 +71,7 @@ describe('AgentApp', () => {
 
     openPage()
 
-    expect(screen.getByLabelText('Agent and model')).toHaveValue('claude-code::opus')
+    expect(screen.getByRole('button', { name: /agent and model/i })).toHaveTextContent('Opus')
     expect(screen.getByTestId('folder-path')).toHaveTextContent('C:\\work\\socra')
   })
 
@@ -85,7 +79,8 @@ describe('AgentApp', () => {
     const user = userEvent.setup()
     const { ws } = openPage()
 
-    await user.selectOptions(screen.getByLabelText('Agent and model'), 'claude-code::opus')
+    await user.click(screen.getByRole('button', { name: /agent and model/i }))
+    await user.click(screen.getByRole('option', { name: 'Opus' }))
     await user.click(screen.getByRole('button', { name: /choose folder/i }))
     act(() => ws.receive({ type: 'agent_folder', path: 'D:\\code\\app' }))
 
@@ -120,6 +115,32 @@ describe('AgentApp', () => {
     expect(screen.getByRole('button', { name: /start agent/i })).toBeInTheDocument()
   })
 
+  it('rests the particles in their shape on the setup screen, and frees them for the conversation', async () => {
+    const user = userEvent.setup()
+    const { ws } = openPage()
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
+
+    startSession(ws)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'false')
+
+    await user.click(screen.getByRole('button', { name: /change agent or folder/i }))
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
+  })
+
+  it('keeps a pending prompt visible while changing the setup, and can go back', async () => {
+    const user = userEvent.setup()
+    const { ws } = openPage()
+    startSession(ws)
+    act(() => ws.receive({ type: 'permission_request', id: 'r1', tool: 'Bash', title: 'Run git status', detail: '' }))
+
+    await user.click(screen.getByRole('button', { name: /change agent or folder/i }))
+    expect(screen.getByRole('button', { name: 'Allow' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /back to the conversation/i }))
+    expect(screen.getByTestId('session-bar')).toBeInTheDocument()
+    expect(ws.sent()).not.toContainEqual(expect.objectContaining({ type: 'start_agent' }))
+  })
+
   it('uses the visualizer chosen in settings, shared with the exam page', async () => {
     window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'particle-lines')
     const user = userEvent.setup()
@@ -128,10 +149,23 @@ describe('AgentApp', () => {
     expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'lines')
 
     await user.click(screen.getByTestId('settings-button'))
-    await user.click(screen.getByTestId('visualizer-orb'))
+    await user.click(screen.getByTestId('visualizer-particle-grid'))
 
-    expect(window.localStorage.getItem(STORAGE_KEY_VISUALIZER)).toBe('orb')
-    expect(screen.queryByTestId('particle-visualizer')).toBeNull()
+    expect(window.localStorage.getItem(STORAGE_KEY_VISUALIZER)).toBe('particle-grid')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'grid')
+  })
+
+  it('uses the particle shape chosen in settings, shared with the exam page', async () => {
+    window.localStorage.setItem('socra_shape', 'wave')
+    const user = userEvent.setup()
+    openPage()
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'wave')
+
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('shape-sphere'))
+
+    expect(window.localStorage.getItem('socra_shape')).toBe('sphere')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'sphere')
   })
 
   it('sends dictated and typed turns', async () => {
@@ -146,6 +180,26 @@ describe('AgentApp', () => {
     expect(ws.sent()).toContainEqual({ type: 'turn_audio', format: 'wav', data: 'UklGRg==' })
     expect(ws.sent()).toContainEqual({ type: 'turn_text', text: 'list the files' })
     expect(screen.getAllByRole('listitem').at(-1)).toHaveTextContent('list the files')
+  })
+
+  it('opens the code from a reply in its own pane and can close it', async () => {
+    const user = userEvent.setup()
+    const { ws } = openPage()
+    startSession(ws)
+
+    expect(screen.queryByRole('region', { name: 'Code' })).toBeNull()
+    act(() => ws.receive({ type: 'agent_reply', text: 'Added it:\n```ts\nconst retries = 3\n```' }))
+
+    const pane = screen.getByRole('region', { name: 'Code' })
+    expect(pane).toHaveTextContent('const retries = 3')
+    expect(screen.getByRole('list', { name: 'Conversation' })).not.toHaveTextContent('const retries = 3')
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent('Added it:')
+
+    await user.click(screen.getByRole('button', { name: 'Close code' }))
+    expect(screen.queryByRole('region', { name: 'Code' })).toBeNull()
+
+    act(() => ws.receive({ type: 'agent_reply', text: '```py\nprint(2)\n```' }))
+    expect(screen.getByRole('region', { name: 'Code' })).toHaveTextContent('print(2)')
   })
 
   it('asks for permission on the page and sends the answer', async () => {

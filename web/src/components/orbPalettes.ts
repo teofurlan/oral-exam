@@ -1,36 +1,35 @@
 export type OrbPalette = {
   id: string
   name: string
-  note: string
   colors: [string, string]
-  seed: number
 }
 
-/**
- * The Orb has one shader; its look is two colours (dark ramp stop, light ramp stop)
- * and a seed that fixes the blob layout. These are the options.
- */
+/** Fixed two-colour looks for the particles; "By state" follows the conversation instead. */
 export const ORB_PALETTES: OrbPalette[] = [
-  { id: 'iris', name: 'Iris', note: 'Current default', colors: ['#818cf8', '#c084fc'], seed: 7 },
-  { id: 'aurora', name: 'Aurora', note: 'Cool, calm', colors: ['#34d399', '#22d3ee'], seed: 21 },
-  { id: 'ember', name: 'Ember', note: 'Warm, focused', colors: ['#fb923c', '#f43f5e'], seed: 42 },
-  { id: 'glacier', name: 'Glacier', note: 'ElevenLabs original', colors: ['#CADCFC', '#A0B9D1'], seed: 88 },
-  { id: 'mono', name: 'Graphite', note: 'Neutral, quiet', colors: ['#71717a', '#e4e4e7'], seed: 131 },
-  { id: 'orchid', name: 'Orchid', note: 'Soft, playful', colors: ['#f472b6', '#a78bfa'], seed: 205 },
+  { id: 'iris', name: 'Iris', colors: ['#5aa9e6', '#c678dd'] },
+  { id: 'aurora', name: 'Aurora', colors: ['#98c379', '#56b6c2'] },
+  { id: 'ember', name: 'Ember', colors: ['#d19a66', '#e06c75'] },
+  { id: 'glacier', name: 'Glacier', colors: ['#9fc4e8', '#56b6c2'] },
+  { id: 'mono', name: 'Graphite', colors: ['#6b727c', '#c5cad1'] },
+  { id: 'orchid', name: 'Orchid', colors: ['#e06c75', '#c678dd'] },
 ]
 
-export const STATE_PALETTES: Record<'idle' | 'speaking' | 'listening' | 'thinking', [string, string]> = {
-  idle: ['#818cf8', '#c084fc'],
-  speaking: ['#818cf8', '#c084fc'],
-  listening: ['#f472b6', '#a78bfa'],
-  thinking: ['#fbbf24', '#fb7185'],
+type ProtocolKey = 'idle' | 'speaking' | 'listening' | 'thinking'
+
+/** Same hues as the state line: red is the user's turn, blue is Socra talking, gold is work. */
+export const STATE_PALETTES: Record<ProtocolKey, [string, string]> = {
+  idle: ['#6b727c', '#5aa9e6'],
+  speaking: ['#5aa9e6', '#56b6c2'],
+  listening: ['#e06c75', '#d19a66'],
+  thinking: ['#e5c07b', '#d19a66'],
 }
 
-export const STATE_AMBIENT: Record<'idle' | 'speaking' | 'listening' | 'thinking', string> = {
-  idle: 'rgba(129,140,248,0.16)',
-  speaking: 'rgba(129,140,248,0.26)',
-  listening: 'rgba(244,114,182,0.24)',
-  thinking: 'rgba(251,191,36,0.2)',
+/** Deeper versions of the same hues, painted on the light ground. */
+const LIGHT_STATE_PALETTES: Record<ProtocolKey, [string, string]> = {
+  idle: ['#8a919b', '#1f78c1'],
+  speaking: ['#1f78c1', '#1b8a96'],
+  listening: ['#c43d4b', '#b36a2c'],
+  thinking: ['#a87412', '#b36a2c'],
 }
 
 export type OrbState = keyof typeof STATE_PALETTES
@@ -39,14 +38,6 @@ export function findPalette(id: string): OrbPalette | undefined {
   return ORB_PALETTES.find((p) => p.id === id)
 }
 
-export function orbColors(paletteId: string, state: OrbState): [string, string] {
-  return findPalette(paletteId)?.colors ?? STATE_PALETTES[state]
-}
-
-export function ambientColor(paletteId: string, state: OrbState): string {
-  const p = findPalette(paletteId)
-  if (!p) return STATE_AMBIENT[state]
-  const n = parseInt(p.colors[0].slice(1), 16)
-  const a = state === 'idle' ? 0.16 : 0.26
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+export function orbColors(paletteId: string, state: OrbState, theme: 'light' | 'dark' = 'dark'): [string, string] {
+  return findPalette(paletteId)?.colors ?? (theme === 'light' ? LIGHT_STATE_PALETTES : STATE_PALETTES)[state]
 }

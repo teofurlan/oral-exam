@@ -66,6 +66,60 @@ failures are logged, not returned as fabricated empty answers.
 Only MCP JSON-RPC uses stdout. Python prints, library warnings and native
 speech-library stdout are redirected to stderr before model loading.
 
+### Agent mode
+
+Agent mode drives an agent by voice in a folder you choose. Two backends are
+available: Claude Code (through the Claude Agent SDK) and Pi (`pi --mode rpc`,
+with your gentle-pi extensions and your GPT, Gemini or other Pi providers).
+Start it without an MCP client:
+
+```bash
+uv run --project server socra-server --agent
+```
+
+This runs the HTTP and WebSocket servers without MCP stdio and opens
+`http://localhost:8767/?mode=agent`. If Socra is already running (for example
+as the exam MCP server), it only opens the page. The page talks to
+`ws://localhost:8766/ws/agent`; the exam keeps using `/ws`.
+
+- The folder is chosen with the native OS dialog, which the server opens:
+  browsers never hand a page an absolute path.
+- Tool calls follow your Claude Code permission settings. Only calls those
+  settings mark as "ask" show Allow / Deny on the page; with
+  `defaultMode: bypassPermissions` nothing asks.
+- Claude Code must be logged in (`claude auth login`); the page shows the
+  backend as not configured otherwise.
+- Pi is found on `PATH` or in `~/.pi/agent/bin`. Its model list shows the
+  models of every provider Pi is logged in to (`/login` inside `pi`), in
+  Pi's order; Pi's default provider is not preferred, and the session always
+  starts with the provider and model you pick. The first list skips Pi's
+  extensions (about 1 s); a background refresh with extensions (about 20 s)
+  adds the providers they bring, such as Antigravity, and is saved in
+  `%LOCALAPPDATA%\Socra\pi-models.json` (`~/.cache/Socra` elsewhere) so the
+  next start shows them at once. Reload the page to see them the first time.
+  Starting a Pi session loads your extensions and can take up to a minute.
+- Pi does not ask before tool calls by itself; it follows its own settings
+  (gentle-pi's Normal / Auto / YOLO mode). When an extension asks for a
+  confirmation, such as gentle-pi before a recognized data-loss command, the
+  page shows Allow / Deny. Pi questions that need a choice or free text are
+  cancelled, since they cannot be answered by voice yet.
+
+For a one-click desktop shortcut (Windows):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File server\install-shortcut.ps1
+# Remove it again:
+powershell -ExecutionPolicy Bypass -File server\install-shortcut.ps1 -Remove
+```
+
+The shortcut runs `.venv\Scripts\pythonw.exe -m socra_server --agent` with no
+console window; anything the server prints goes to `server/logs/socra-agent.log`.
+Agent mode stops by itself once no agent page has been open for two minutes
+(`SOCRA_AGENT_IDLE_S`), which frees ports 8766 and 8767. An exam MCP server
+that started meanwhile keeps retrying those ports every few seconds and takes
+them over, so exam mode works again without restarting Claude Code. Exam and
+agent mode cannot run at the same time: they share the same two ports.
+
 ### Environment variables
 
 | Variable | Default | Description |

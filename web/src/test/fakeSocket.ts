@@ -37,9 +37,9 @@ export class FakeWebSocket {
     this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(data) }))
   }
 
-  drop() {
+  drop(init?: CloseEventInit) {
     this.readyState = FakeWebSocket.CLOSED
-    this.onclose?.(new CloseEvent('close'))
+    this.onclose?.(new CloseEvent('close', init))
   }
 
   sent(): unknown[] {

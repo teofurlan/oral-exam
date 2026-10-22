@@ -1,8 +1,11 @@
+import type { VoiceMessage, VoicesMessage } from '@/types/voice'
+
 export type ProtocolState = 'idle' | 'speaking' | 'listening' | 'thinking'
 
 export type TurnMode = 'auto' | 'push-to-talk'
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'mock' | 'reconnecting'
+/** `replaced`: a newer Socra page took over the server connection; this one stays closed. */
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'mock' | 'reconnecting' | 'replaced'
 
 export interface QuestionData {
   index: number
@@ -24,13 +27,16 @@ export type ServerMessage =
   | { type: 'tts_audio'; format: string; data: string }
   | { type: 'transcript'; text: string; final: boolean }
   | { type: 'notice'; text: string }
+  | VoicesMessage
 
 // Client -> Server messages
 export type ClientMessage =
   | { type: 'answer_audio'; format: string; data: string }
+  | { type: 'answer_text'; text: string }
   | { type: 'reanswer' }
   | { type: 'mode'; mode: TurnMode }
   | { type: 'playback_done' }
+  | VoiceMessage
 
 export interface ExamState {
   connectionStatus: ConnectionStatus

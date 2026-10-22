@@ -17,6 +17,8 @@ from pathlib import Path
 from websockets.asyncio.server import serve, ServerConnection
 from websockets.http11 import Request, Response
 
+from socra_server.domain.voices import VOICES
+
 LOG_DIR = Path(__file__).resolve().parents[3] / "logs"
 LOG_PATH = LOG_DIR / "socra.log"
 
@@ -90,6 +92,14 @@ async def _dispatch(ws: ServerConnection) -> None:
 def _agent_text(msg: dict, key: str) -> str | None:
     value = msg.get(key)
     return value if isinstance(value, str) and value else None
+
+
+def _build_voices_message(tts) -> dict:
+    return {
+        "type": "voices",
+        "voices": [{"id": v.id, "label": v.label} for v in VOICES],
+        "current": tts.voice_id,
+    }
 
 
 async def _handle_agent(ws: ServerConnection) -> None:
@@ -172,6 +182,12 @@ async def _handle_agent(ws: ServerConnection) -> None:
                     await agent.handle_interrupt()
                 elif msg_type == "playback_done":
                     agent.handle_playback_done()
+                elif msg_type == "voice":
+                    if "voice" in msg:
+                        voice_id = msg["voice"]
+                        if not agent.loader.tts.set_voice(voice_id):
+                            logger.warning("Unknown voice id (ignored): %r", voice_id)
+                    await ws.send(json.dumps(_build_voices_message(agent.loader.tts)))
                 else:
                     logger.warning("Unknown agent message type (ignored): %r", msg_type)
             except Exception as exc:
@@ -251,12 +267,24 @@ async def _handle(ws: ServerConnection) -> None:
                     task.add_done_callback(audio_tasks.discard)
                     # Capture this turn before reading a following reanswer.
                     await asyncio.sleep(0)
+                elif msg_type == "answer_text":
+                    text = msg.get("text")
+                    if not isinstance(text, str):
+                        logger.warning("Malformed answer_text (expected text)")
+                        continue
+                    await app.handle_answer_text(text)
                 elif msg_type == "playback_done":
                     app.handle_playback_done()
                 elif msg_type == "reanswer":
                     await app.handle_reanswer()
                 elif msg_type == "mode":
                     await app.handle_mode(msg.get("mode", "auto"))
+                elif msg_type == "voice":
+                    if "voice" in msg:
+                        voice_id = msg["voice"]
+                        if not app.loader.tts.set_voice(voice_id):
+                            logger.warning("Unknown voice id (ignored): %r", voice_id)
+                    await ws.send(json.dumps(_build_voices_message(app.loader.tts)))
                 else:
                     logger.warning("Unknown message type (ignored): %r", msg_type)
             except Exception as exc:

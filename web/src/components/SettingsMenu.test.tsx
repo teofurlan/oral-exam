@@ -10,8 +10,12 @@ function renderMenu(overrides: Partial<SettingsMenuProps> = {}) {
     onSilenceChange: vi.fn(),
     paletteId: 'state',
     onPaletteChange: vi.fn(),
-    visualizer: 'orb',
+    visualizer: 'particle-lines',
     onVisualizerChange: vi.fn(),
+    shape: 'sphere',
+    onShapeChange: vi.fn(),
+    themePref: 'system',
+    onThemeChange: vi.fn(),
     microphones: [
       { deviceId: 'headset', label: 'Headset' },
       { deviceId: 'usb', label: 'USB Mic' },
@@ -30,20 +34,24 @@ function renderMenu(overrides: Partial<SettingsMenuProps> = {}) {
 describe('SettingsMenu — microphone', () => {
   it('lists the system default and every available microphone', () => {
     renderMenu()
-    const select = screen.getByLabelText('Microphone') as HTMLSelectElement
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['System default', 'Headset', 'USB Mic'])
-    expect(select).toHaveValue('')
+    const list = screen.getByRole('radiogroup', { name: 'Microphone' })
+    expect(Array.from(list.querySelectorAll('[role="radio"]')).map((o) => o.getAttribute('aria-label'))).toEqual([
+      'System default',
+      'Headset',
+      'USB Mic',
+    ])
+    expect(screen.getByRole('radio', { name: 'System default' })).toBeChecked()
   })
 
   it('reports the chosen microphone', () => {
     const props = renderMenu()
-    fireEvent.change(screen.getByLabelText('Microphone'), { target: { value: 'usb' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'USB Mic' }))
     expect(props.onMicChange).toHaveBeenCalledWith('usb')
   })
 
   it('shows the selected microphone', () => {
     renderMenu({ micDeviceId: 'usb' })
-    expect(screen.getByLabelText('Microphone')).toHaveValue('usb')
+    expect(screen.getByRole('radio', { name: 'USB Mic' })).toBeChecked()
   })
 
   it('refreshes the device list each time it opens', () => {
@@ -53,8 +61,8 @@ describe('SettingsMenu — microphone', () => {
 
   it('says when the selected microphone is disconnected', () => {
     renderMenu({ micDeviceId: 'gone' })
-    expect(screen.getByLabelText('Microphone')).toHaveValue('gone')
-    expect(screen.getByRole('option', { name: 'Disconnected microphone' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'Disconnected microphone' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Disconnected microphone' })).toBeDisabled()
     expect(screen.getByTestId('mic-fallback-note')).toHaveTextContent(/system default/i)
   })
 
@@ -75,24 +83,75 @@ describe('SettingsMenu — microphone', () => {
 
   it('does not call a saved microphone disconnected while device names are hidden', () => {
     renderMenu({ microphones: [], micDeviceId: 'usb' })
-    expect(screen.queryByRole('option', { name: 'Disconnected microphone' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Disconnected microphone' })).toBeNull()
     expect(screen.queryByTestId('mic-fallback-note')).toBeNull()
   })
 })
 
+describe('SettingsMenu — theme', () => {
+  it('offers system, light and dark, marking the current one, and reports a change', () => {
+    const props = renderMenu({ themePref: 'system' })
+    const group = screen.getByRole('radiogroup', { name: 'Theme' })
+    expect(Array.from(group.querySelectorAll('[role="radio"]')).map((o) => o.textContent)).toEqual(['System', 'Light', 'Dark'])
+    expect(screen.getByTestId('theme-system')).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(screen.getByTestId('theme-light'))
+    expect(props.onThemeChange).toHaveBeenCalledWith('light')
+  })
+})
+
 describe('SettingsMenu — visualizer', () => {
-  it('offers the orb and the two particle looks, marking the current one', () => {
-    renderMenu({ visualizer: 'particle-lines' })
+  it('offers the three particle looks, marking the current one', () => {
+    renderMenu({ visualizer: 'particle-grid' })
     const group = screen.getByRole('radiogroup', { name: 'Visualizer' })
     const options = Array.from(group.querySelectorAll('[role="radio"]'))
-    expect(options.map((o) => o.textContent)).toEqual(['Orb', 'Lines', 'Letters'])
-    expect(screen.getByTestId('visualizer-particle-lines')).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByTestId('visualizer-orb')).toHaveAttribute('aria-checked', 'false')
+    expect(options.map((o) => o.textContent)).toEqual(['Lines', 'Letters', 'Grid'])
+    expect(screen.getByTestId('visualizer-particle-grid')).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('visualizer-particle-lines')).toHaveAttribute('aria-checked', 'false')
+    expect(screen.queryByTestId('visualizer-orb')).toBeNull()
   })
 
   it('reports the chosen visualizer', () => {
     const props = renderMenu()
     fireEvent.click(screen.getByTestId('visualizer-particle-letters'))
     expect(props.onVisualizerChange).toHaveBeenCalledWith('particle-letters')
+  })
+})
+
+describe('SettingsMenu — shape', () => {
+  it('offers the sphere and the sound wave, marking the current one', () => {
+    renderMenu({ shape: 'wave' })
+    const group = screen.getByRole('radiogroup', { name: 'Shape' })
+    const options = Array.from(group.querySelectorAll('[role="radio"]'))
+    expect(options.map((o) => o.textContent)).toEqual(['Sphere', 'Sound wave'])
+    expect(screen.getByTestId('shape-wave')).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('shape-sphere')).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('reports the chosen shape', () => {
+    const props = renderMenu()
+    fireEvent.click(screen.getByTestId('shape-wave'))
+    expect(props.onShapeChange).toHaveBeenCalledWith('wave')
+  })
+
+  it('hides the shape choice when nothing handles it', () => {
+    renderMenu({ onShapeChange: undefined })
+    expect(screen.queryByRole('radiogroup', { name: 'Shape' })).toBeNull()
+  })
+})
+
+describe('SettingsMenu — voice', () => {
+  it('shows a Voice section containing the voice picker when provided', () => {
+    renderMenu({ voicePicker: <div data-testid="vp" /> })
+    const section = screen.getByTestId('voice-control')
+    expect(section).toBeInTheDocument()
+    expect(section.querySelector('h2')).toHaveTextContent('Voice')
+    expect(screen.getByTestId('vp')).toBeInTheDocument()
+    expect(section).toContainElement(screen.getByTestId('vp'))
+  })
+
+  it('omits the voice-control section when voicePicker is not provided', () => {
+    renderMenu()
+    expect(screen.queryByTestId('voice-control')).toBeNull()
   })
 })

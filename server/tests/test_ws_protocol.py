@@ -152,6 +152,39 @@ async def test_ws_answer_audio_sends_transcript(ws_bundle):
         assert msg["text"] == "fake transcript"
 
 
+@pytest.mark.asyncio
+async def test_ws_answer_text_is_the_final_answer(ws_bundle):
+    async with connect(ws_bundle.url) as ws:
+        await ws.recv()  # idle
+        await ws_bundle.app.ask("Q?", 1, 2)
+        await _collect(ws, 4)
+
+        await ws.send(json.dumps({"type": "answer_text", "text": "  It retries with backoff.  "}))
+
+        msg = json.loads(await asyncio.wait_for(ws.recv(), timeout=2))
+        assert msg == {"type": "transcript", "text": "It retries with backoff.", "final": True}
+        answer = await ws_bundle.app.get_answer(wait_s=1)
+        assert answer == {"status": "answered", "index": 1, "text": "It retries with backoff."}
+
+
+@pytest.mark.asyncio
+async def test_ws_blank_or_late_answer_text_is_ignored(ws_bundle):
+    async with connect(ws_bundle.url) as ws:
+        await ws.recv()  # idle
+        await ws_bundle.app.ask("Q?", 1, 2)
+        await _collect(ws, 4)
+
+        await ws.send(json.dumps({"type": "answer_text", "text": "   "}))
+        await ws.send(json.dumps({"type": "answer_text", "text": 42}))
+        await asyncio.sleep(0.1)
+        assert ws_bundle.app.session.pending_answer is None
+
+        await ws_bundle.app.finish()
+        await ws.send(json.dumps({"type": "answer_text", "text": "too late"}))
+        await asyncio.sleep(0.1)
+        assert ws_bundle.app.session.pending_answer is None
+
+
 # ---------------------------------------------------------------------------
 # reanswer -> state:listening
 # ---------------------------------------------------------------------------
