@@ -112,7 +112,7 @@ export const App: React.FC = () => {
           title={<span>Exam</span>}
         >
           <div className="shell-scroll flex flex-col items-center gap-5">
-            <div className="w-full max-w-64 shrink-0">
+            <div className="viz-slot w-full max-w-64 shrink-0">
               <OrbVisualizer
                 protocolState={state.protocolState}
                 getOutputVolume={getOutputVolume}

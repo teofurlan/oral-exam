@@ -201,7 +201,7 @@ export const AgentApp: React.FC = () => {
           }
         >
           <div className="shell-scroll flex flex-col items-center gap-5">
-            <div className={`w-full shrink-0 ${showSetup ? 'max-w-56' : 'max-w-64'}`}>
+            <div className={`viz-slot w-full shrink-0 ${showSetup ? 'max-w-56' : 'max-w-64'}`}>
               <OrbVisualizer
                 protocolState={showSetup ? 'idle' : state.protocolState}
                 getOutputVolume={socket.getOutputVolume}

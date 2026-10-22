@@ -33,6 +33,11 @@
   background: transparent;
 }
 
+/* The sphere swells past its slot with perspective and voice; keep the words clear of it. */
+.viz-slot {
+  margin-block: 18px 22px;
+}
+
 .shell-scroll {
   min-height: 0;
   flex: 1;
@@ -49,5 +54,10 @@
   .shell-panels[data-split="true"] {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 1px minmax(0, 0.9fr);
+  }
+  /* Stacked under code, the conversation is short: the sphere gives way to the words. */
+  .shell-panels[data-split="true"] .viz-slot {
+    max-width: 7.5rem;
+    margin-block: 14px 26px;
   }
 }
