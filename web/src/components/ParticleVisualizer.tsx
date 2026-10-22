@@ -16,6 +16,8 @@ export interface ParticleVisualizerProps {
   getInputVolume?: () => number
   /** Text the "letters" look is made of, usually the current question. */
   letters?: string
+  /** The page ground is light: paint particles instead of adding light. */
+  lightBackground?: boolean
   className?: string
 }
 
@@ -30,13 +32,14 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
   getOutputVolume,
   getInputVolume,
   letters,
+  lightBackground = false,
   className = '',
 }) => {
   const slotRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fieldRef = useRef<ParticleField | null>(null)
-  const live = useRef({ protocolState, colors, getOutputVolume, getInputVolume })
-  live.current = { protocolState, colors, getOutputVolume, getInputVolume }
+  const live = useRef({ protocolState, colors, getOutputVolume, getInputVolume, lightBackground })
+  live.current = { protocolState, colors, getOutputVolume, getInputVolume, lightBackground }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -83,6 +86,7 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
         : 0
       const rect = slot.getBoundingClientRect()
       field.setColors(c)
+      field.setLightBackground(live.current.lightBackground)
       field.step({
         dt,
         time: now,

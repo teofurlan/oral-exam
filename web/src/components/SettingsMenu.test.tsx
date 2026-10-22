@@ -12,6 +12,8 @@ function renderMenu(overrides: Partial<SettingsMenuProps> = {}) {
     onPaletteChange: vi.fn(),
     visualizer: 'particle-lines',
     onVisualizerChange: vi.fn(),
+    themePref: 'system',
+    onThemeChange: vi.fn(),
     microphones: [
       { deviceId: 'headset', label: 'Headset' },
       { deviceId: 'usb', label: 'USB Mic' },
@@ -81,6 +83,18 @@ describe('SettingsMenu — microphone', () => {
     renderMenu({ microphones: [], micDeviceId: 'usb' })
     expect(screen.queryByRole('radio', { name: 'Disconnected microphone' })).toBeNull()
     expect(screen.queryByTestId('mic-fallback-note')).toBeNull()
+  })
+})
+
+describe('SettingsMenu — theme', () => {
+  it('offers system, light and dark, marking the current one, and reports a change', () => {
+    const props = renderMenu({ themePref: 'system' })
+    const group = screen.getByRole('radiogroup', { name: 'Theme' })
+    expect(Array.from(group.querySelectorAll('[role="radio"]')).map((o) => o.textContent)).toEqual(['System', 'Light', 'Dark'])
+    expect(screen.getByTestId('theme-system')).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(screen.getByTestId('theme-light'))
+    expect(props.onThemeChange).toHaveBeenCalledWith('light')
   })
 })
 

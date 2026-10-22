@@ -8,27 +8,19 @@ const CONNECTION: Record<ConnectionStatus, { label: string; color: string; pendi
   disconnected: { label: 'Disconnected', color: 'var(--danger)' },
 }
 
-/** Status-bar segment: a lamp plus the word, so the state reads without colour too. */
+/** Top-bar chip: a lamp plus the word, so the state reads without colour too. */
 export function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
   const { label, color, pending } = CONNECTION[status] ?? CONNECTION.disconnected
   const accessibleLabel = `Connection: ${label}`
 
   return (
-    <span
-      role="status"
-      aria-label={accessibleLabel}
-      aria-live="polite"
-      aria-atomic="true"
-      title={accessibleLabel}
-      className="flex shrink-0 items-center gap-[0.75ch] border-l px-[1.25ch] whitespace-nowrap"
-      style={{ borderColor: 'var(--bg)', background: 'var(--bar-seg)', color: 'var(--label)' }}
-    >
+    <span role="status" aria-label={accessibleLabel} aria-live="polite" aria-atomic="true" title={accessibleLabel} className="chip">
       <span
         aria-hidden="true"
-        className={`inline-block h-[7px] w-[7px] rounded-full${pending ? ' cursor-blink' : ''}`}
+        className={`inline-block h-[7px] w-[7px] shrink-0 rounded-full${pending ? ' cursor-blink' : ''}`}
         style={{ background: color }}
       />
-      {label.toLowerCase()}
+      {label}
     </span>
   )
 }

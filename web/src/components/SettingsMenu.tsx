@@ -6,6 +6,7 @@ import { ORB_PALETTES, STATE_PALETTES } from '@/components/orbPalettes'
 import { VISUALIZERS, DEFAULT_VISUALIZER, type VisualizerId } from '@/components/visualizers'
 import type { Microphone } from '@/hooks/useAudioInputs'
 import { MIN_SILENCE_TIMEOUT_MS, MAX_SILENCE_TIMEOUT_MS } from '@/lib/storage'
+import { THEME_PREFS, type ThemePref } from '@/lib/theme'
 import type { TurnMode } from '@/types/exam'
 
 export interface SettingsMenuProps {
@@ -26,21 +27,20 @@ export interface SettingsMenuProps {
   micFallback: boolean
   /** Called each time the menu opens, to refresh the device list. */
   onOpen?: () => void
+  themePref: ThemePref
+  onThemeChange: (pref: ThemePref) => void
 }
 
 function Section({ title, children, testId }: { title: ReactNode; children: ReactNode; testId?: string }) {
   return (
     <section className="flex flex-col gap-2" data-testid={testId}>
-      <h2 className="t-small m-0 flex items-center gap-2 font-normal" style={{ color: 'var(--label-2)' }}>
-        {title}
-        <span aria-hidden="true" className="h-px flex-1" style={{ background: 'var(--rule)' }} />
-      </h2>
+      <h2 className="t-head m-0">{title}</h2>
       {children}
     </section>
   )
 }
 
-/** The status bar's last segment: a "…" button that opens every setting above the bar. */
+/** A "…" button at the end of the top bar; every setting lives in the panel below it. */
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   mode,
   onModeChange,
@@ -55,6 +55,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onMicChange,
   micFallback,
   onOpen,
+  themePref,
+  onThemeChange,
 }) => {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -90,7 +92,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
     micDeviceId !== '' && microphones.length > 0 && !microphones.some((m) => m.deviceId === micDeviceId)
 
   return (
-    <div ref={rootRef} className="relative flex items-stretch">
+    <div ref={rootRef} className="relative">
       <button
         ref={buttonRef}
         type="button"
@@ -104,11 +106,11 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
           if (!open) onOpen?.()
           setOpen(!open)
         }}
-        className="grid min-w-10 place-items-center border-l px-[1ch] hover:text-[var(--label)]"
+        className="grid h-8 w-8 place-items-center rounded-md border hover:bg-[var(--raise)] hover:text-[var(--label)]"
         style={{
-          borderColor: 'var(--bg)',
-          background: open ? 'var(--accent)' : 'var(--bar-seg)',
-          color: open ? '#0d1324' : 'var(--label-2)',
+          borderColor: open ? 'var(--seam-strong)' : 'transparent',
+          background: open ? 'var(--raise)' : undefined,
+          color: open ? 'var(--label)' : 'var(--label-2)',
         }}
       >
         <Ellipsis aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
@@ -120,10 +122,28 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
           role="dialog"
           aria-label="Settings"
           data-testid="settings-panel"
-          className="pane absolute right-1 bottom-[calc(100%+12px)] z-30 flex max-h-[calc(100dvh-5rem)] w-[min(22rem,calc(100vw-1rem))] flex-col gap-5 overflow-y-auto px-4 pt-5 pb-4"
-          style={{ background: 'var(--bg)', borderColor: 'var(--rule-strong)', boxShadow: '0 18px 40px -12px rgba(0,0,0,0.75)' }}
+          className="absolute top-[calc(100%+8px)] right-0 z-30 flex max-h-[calc(100dvh-4.5rem)] w-[min(22rem,calc(100vw-1rem))] flex-col gap-5 overflow-y-auto rounded-lg border p-4"
+          style={{ background: 'var(--panel)', borderColor: 'var(--seam-strong)', boxShadow: '0 16px 40px -16px rgba(0,0,0,0.45)' }}
         >
-          <Section title="microphone" testId="mic-control">
+          <Section title="Theme">
+            <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-1">
+              {THEME_PREFS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={themePref === t.id}
+                  data-testid={`theme-${t.id}`}
+                  onClick={() => onThemeChange(t.id)}
+                  className="key t-small min-h-8"
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Microphone" testId="mic-control">
             <ChoiceList
               label="Microphone"
               value={micDeviceId}
@@ -150,7 +170,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
             )}
           </Section>
 
-          <Section title="turns">
+          <Section title="Turns">
             <ModeToggle mode={mode} onChange={onModeChange} />
             {mode === 'auto' && (
               <div className="flex flex-col" data-testid="silence-timeout-control">
@@ -176,7 +196,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
           </Section>
 
           {onVisualizerChange && (
-            <Section title="visualizer">
+            <Section title="Visualizer">
               <div role="radiogroup" aria-label="Visualizer" className="grid grid-cols-3 gap-1">
                 {VISUALIZERS.map((v) => {
                   const active = visualizer === v.id
@@ -188,8 +208,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                       aria-checked={active}
                       data-testid={`visualizer-${v.id}`}
                       onClick={() => onVisualizerChange(v.id)}
-                      className="key t-small"
-                      style={active ? { borderColor: 'var(--accent)', color: 'var(--label)', background: 'var(--raise)' } : { color: 'var(--label-2)' }}
+                      className="key t-small min-h-8"
                     >
                       {v.name}
                     </button>
@@ -199,7 +218,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
             </Section>
           )}
 
-          <Section title="colors">
+          <Section title="Particle colors">
             <div role="radiogroup" aria-label="Particle colors" className="grid grid-cols-2 gap-1">
               {palettes.map((o) => {
                 const active = paletteId === o.id

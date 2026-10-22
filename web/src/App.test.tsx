@@ -74,7 +74,7 @@ describe('App Integration', () => {
   it('shows the title Socra and hides settings until the gear is opened', async () => {
     const user = userEvent.setup()
     render(<App />)
-    expect(screen.getByRole('heading', { name: 'socra' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Socra' })).toBeInTheDocument()
     expect(screen.queryByTestId('settings-panel')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('settings-button'))
     expect(screen.getByTestId('settings-panel')).toBeInTheDocument()
@@ -173,6 +173,16 @@ describe('App Integration', () => {
     expect(screen.queryByText('Exam finished')).not.toBeInTheDocument()
     expect(screen.getByTestId('question-text')).toHaveTextContent('New exam.')
     expect(screen.queryByText('print(42)')).not.toBeInTheDocument()
+  })
+
+  it('switches to the light theme from settings and remembers it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('theme-light'))
+
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(window.localStorage.getItem('socra_theme')).toBe('light')
   })
 
   it('sends a typed answer from the prompt line', async () => {

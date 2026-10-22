@@ -1,17 +1,24 @@
 # React + TypeScript + Vite
 
-## Responsive exam interface
+## Layout and theme
 
-The exam uses a single column from 360px upward, with vertically scrollable content
-in short windows (including browser `--app` windows). The orb stays square and is
-limited by its container width, 34% of viewport height, and 20rem. Dynamic viewport
-units have a `vh` fallback.
+Both pages (exam at `/`, agent at `/?mode=agent`) share one console shell: a top bar
+(wordmark, Exam/Agent tabs, context chips, connection, the `…` settings menu) over
+full-bleed panels. The conversation panel holds the particle visualizer (Lines by
+default; Letters and Grid in settings), the state line, the question or log, and a
+composer that is always available, so every turn can be typed instead of spoken. In
+exam mode a typed answer is sent as the final answer (`answer_text`).
+
+When code arrives (question code, or fenced blocks in an agent reply) a code panel
+opens on the right and the conversation narrows, so the particles glide left; on
+phones the code panel stacks below. Closing it hides that code until new code arrives.
+
+Settings offer a System/Light/Dark theme; the choice is stored in `socra_theme` and
+applied before the first paint by a script in `index.html`. Tokens live in
+`src/index.css` (dark on `:root`, light on `:root[data-theme="light"]`).
 
 Long question/transcript text wraps; code preserves whitespace and scrolls inside
-its own focusable “Question code” region. Exam controls have minimum 44px hit areas.
-Settings scroll independently when the window is short; their range input keeps a
-slim visual track inside a 44px hit area. Scoped rules in `src/App.css` leave the orb
-gallery and shared component logic unchanged.
+its own focusable region. Settings scroll independently when the window is short.
 
 Run `pnpm vitest run`, `pnpm lint`, and `pnpm build` from this directory.
 Component tests cover code contents, scroll-container classes, keyboard focus, and

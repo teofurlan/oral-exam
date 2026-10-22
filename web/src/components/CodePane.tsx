@@ -1,54 +1,51 @@
 import { X } from 'lucide-react'
-import { Pane } from '@/components/term/Pane'
+import { Panel } from '@/components/shell/Panel'
 
 interface CodePaneProps {
   code: string
-  /** Shown in the pane title, e.g. the language or "question 2". */
+  /** Shown in the header, e.g. the language or "question 2". */
   name: string
   /** Region name for assistive tech. */
   label: string
   onClose: () => void
 }
 
-/** The right-hand split: line-numbered code, scrolling inside its own pane. */
+/** The right-hand panel: line-numbered code, scrolling inside its own region. */
 export function CodePane({ code, name, label, onClose }: CodePaneProps) {
   const lines = code.replace(/\n$/, '').split('\n')
   const width = String(lines.length).length
 
   return (
-    <Pane
+    <Panel
       label={label}
       testId="code-pane"
-      className="flex h-full flex-col"
-      title={
+      className="h-full"
+      title={<span>Code</span>}
+      meta={
         <>
-          <span>[</span>
-          <b>{name}</b>
-          <span>· {lines.length} {lines.length === 1 ? 'line' : 'lines'} ]</span>
+          <span className="t-mono truncate" style={{ color: 'var(--label-3)' }}>
+            {name} · {lines.length} {lines.length === 1 ? 'line' : 'lines'}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close code"
+            title="Close the code panel"
+            className="-mr-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-md hover:bg-[var(--raise)] hover:text-[var(--label)]"
+            style={{ color: 'var(--label-2)' }}
+          >
+            <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+          </button>
         </>
       }
     >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close code"
-        title="Close the code pane"
-        className="absolute -top-[0.85em] right-3 z-10 grid h-6 w-6 place-items-center rounded-[3px] hover:text-[var(--label)]"
-        style={{ background: 'var(--bg)', color: 'var(--label-2)' }}
-      >
-        <X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
-      </button>
-      <pre
-        tabIndex={0}
-        className="t-small m-0 min-h-0 flex-1 overflow-auto py-4 select-text"
-        style={{ lineHeight: 1.75 }}
-      >
+      <pre tabIndex={0} className="t-mono m-0 min-h-0 flex-1 overflow-auto py-3.5 select-text" style={{ lineHeight: 1.7 }}>
         <code>
           {lines.map((line, i) => (
             <span key={i} className="block whitespace-pre pr-4">
               <span
                 aria-hidden="true"
-                className="mr-[2ch] inline-block select-none text-right tabular-nums"
+                className="mr-4 inline-block select-none text-right tabular-nums"
                 style={{ width: `${width + 3}ch`, color: 'var(--label-3)' }}
               >
                 {i + 1}
@@ -58,6 +55,6 @@ export function CodePane({ code, name, label, onClose }: CodePaneProps) {
           ))}
         </code>
       </pre>
-    </Pane>
+    </Panel>
   )
 }

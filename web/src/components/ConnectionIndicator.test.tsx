@@ -19,7 +19,7 @@ describe('ConnectionIndicator', () => {
     expect(indicator).toHaveAttribute('title', `Connection: ${label}`)
     expect(indicator).toHaveAttribute('aria-live', 'polite')
     expect(indicator).toHaveAttribute('aria-atomic', 'true')
-    expect(indicator).toHaveTextContent(label.toLowerCase())
+    expect(indicator).toHaveTextContent(label)
     expect(indicator).not.toHaveAttribute('tabindex')
 
     const lamp = indicator.querySelector('[aria-hidden="true"]')

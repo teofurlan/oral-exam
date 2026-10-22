@@ -87,6 +87,30 @@ describe('ParticleField', () => {
     }
   })
 
+  it('adds light on a dark page and paints normally on a light one', () => {
+    const modes = (light: boolean) => {
+      const field = new ParticleField({ count: 20, style: 'lines', random: seeded(2) })
+      field.resize(BASE.width, BASE.height)
+      field.setLightBackground(light)
+      const seen: string[] = []
+      const ctx = {
+        setTransform: () => {},
+        clearRect: () => {},
+        beginPath: () => {},
+        moveTo: () => {},
+        lineTo: () => {},
+        stroke(this: { globalCompositeOperation: string }) {
+          seen.push(this.globalCompositeOperation)
+        },
+        globalCompositeOperation: 'source-over',
+      } as unknown as CanvasRenderingContext2D
+      field.draw(ctx, 1)
+      return new Set(seen)
+    }
+    expect(modes(false)).toEqual(new Set(['lighter']))
+    expect(modes(true)).toEqual(new Set(['source-over']))
+  })
+
   it('starts scattered over the first screen size instead of piled in the corner', () => {
     const field = new ParticleField({ count: 300, style: 'lines', random: seeded(3) })
     field.resize(BASE.width, BASE.height)

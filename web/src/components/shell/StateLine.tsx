@@ -1,4 +1,4 @@
-import { STATE_TONE } from '@/components/term/stateTone'
+import { STATE_TONE } from '@/components/shell/stateTone'
 import type { ProtocolState, TurnMode } from '@/types/exam'
 
 interface StateLineProps {

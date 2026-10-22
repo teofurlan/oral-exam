@@ -20,6 +20,7 @@ export interface OrbVisualizerProps {
   visualizer?: VisualizerId
   /** The current question; the letter looks are made of its characters. */
   questionText?: string
+  theme?: 'light' | 'dark'
 }
 
 export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
@@ -30,6 +31,7 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
   getInputVolume,
   visualizer = DEFAULT_VISUALIZER,
   questionText,
+  theme = 'dark',
 }) => (
   <div
     data-testid="orb-visualizer"
@@ -40,7 +42,8 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
       <ParticleVisualizer
         protocolState={protocolState}
         style={STYLE[visualizer]}
-        colors={orbColors(paletteId, protocolState)}
+        colors={orbColors(paletteId, protocolState, theme)}
+        lightBackground={theme === 'light'}
         getOutputVolume={getOutputVolume}
         getInputVolume={getInputVolume}
         letters={questionText}

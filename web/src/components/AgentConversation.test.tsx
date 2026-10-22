@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AgentTimeline } from './AgentTimeline'
 import { PermissionPromptCard } from './PermissionPromptCard'
-import { PromptLine } from './term/PromptLine'
+import { PromptLine } from './shell/PromptLine'
 import type { TimelineEntry } from '@/types/agent'
 
 describe('AgentTimeline', () => {

@@ -25,8 +25,7 @@ export const ModeToggle: React.FC<ModeToggleProps> = ({ mode, onChange }) => (
           aria-checked={active}
           data-testid={testId}
           onClick={() => onChange(id)}
-          className="key t-small"
-          style={active ? { borderColor: 'var(--accent)', color: 'var(--label)', background: 'var(--raise)' } : { color: 'var(--label-2)' }}
+          className="key t-small min-h-8"
         >
           <Icon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
           <span>{label}</span>

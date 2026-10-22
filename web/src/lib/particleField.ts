@@ -117,6 +117,8 @@ export class ParticleField {
   private col1: [number, number, number] = [192, 132, 252]
   private target0 = this.col0
   private target1 = this.col1
+  /** Additive light reads on a dark ground; a light ground needs plain paint. */
+  private additive = 'lighter' as GlobalCompositeOperation
 
   constructor({ count, style, letters = FALLBACK_LETTERS, random = Math.random }: ParticleFieldOptions) {
     this.style = style
@@ -177,6 +179,10 @@ export class ParticleField {
     this.particles.forEach((p, i) => {
       p.letter = letters[i % letters.length]
     })
+  }
+
+  setLightBackground(light: boolean) {
+    this.additive = light ? 'source-over' : 'lighter'
   }
 
   setColors(colors: [string, string]) {
@@ -278,7 +284,7 @@ export class ParticleField {
     }
 
     if (this.style === 'lines') {
-      ctx.globalCompositeOperation = 'lighter'
+      ctx.globalCompositeOperation = this.additive
       ctx.lineCap = 'round'
       for (const p of this.particles) {
         const hx = (Math.cos(p.ang) * p.size) / 2, hy = (Math.sin(p.ang) * p.size) / 2
@@ -302,7 +308,7 @@ export class ParticleField {
       }
     } else {
       // Free letters float where the particle is and grow with it, nearer ones larger.
-      ctx.globalCompositeOperation = 'lighter'
+      ctx.globalCompositeOperation = this.additive
       ctx.font = `400 12px ${MONO}`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'

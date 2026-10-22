@@ -9,10 +9,11 @@ import { QuestionPanel } from '@/components/QuestionPanel'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
 import { CodePane } from '@/components/CodePane'
-import { Pane } from '@/components/term/Pane'
-import { PromptLine } from '@/components/term/PromptLine'
-import { StateLine } from '@/components/term/StateLine'
-import { Segment, StatusBar } from '@/components/term/StatusBar'
+import { Panel } from '@/components/shell/Panel'
+import { PromptLine } from '@/components/shell/PromptLine'
+import { StateLine } from '@/components/shell/StateLine'
+import { Chip, TopBar } from '@/components/shell/TopBar'
+import { useTheme } from '@/lib/theme'
 import {
   getStoredSilenceTimeout,
   setStoredSilenceTimeout,
@@ -42,6 +43,7 @@ export const App: React.FC = () => {
   // The code the user closed; new code opens the pane again.
   const [closedCode, setClosedCode] = useState<string | null>(null)
   const { microphones, refresh: refreshMicrophones } = useAudioInputs()
+  const { pref: themePref, theme, setPref: setThemePref } = useTheme()
 
   const handleFinalize = useCallback(
     (base64: string) => {
@@ -64,22 +66,52 @@ export const App: React.FC = () => {
   const showCode = codeKey !== null && codeKey !== closedCode
   const canAnswer = !!question && !state.finished && state.connectionStatus !== 'disconnected'
 
+  const settings = (
+    <SettingsMenu
+      mode={state.mode}
+      onModeChange={setMode}
+      silenceTimeoutMs={silenceTimeoutMs}
+      onSilenceChange={(ms) => {
+        setSilenceTimeoutMs(ms)
+        setStoredSilenceTimeout(ms)
+      }}
+      paletteId={paletteId}
+      onPaletteChange={(id) => {
+        setPaletteId(id)
+        setStoredOrbPalette(id)
+      }}
+      visualizer={visualizer}
+      onVisualizerChange={(id) => {
+        setVisualizer(id)
+        setStoredVisualizer(id)
+      }}
+      microphones={microphones}
+      micDeviceId={micDeviceId}
+      onMicChange={(id) => {
+        setMicDeviceId(id)
+        setStoredMicDeviceId(id)
+      }}
+      micFallback={micFallback}
+      onOpen={refreshMicrophones}
+      themePref={themePref}
+      onThemeChange={setThemePref}
+    />
+  )
+
   return (
-    <div className="term">
-      <div className="term-panes" data-split={showCode}>
-        <Pane
-          active
-          className="term-main"
-          title={
-            <>
-              <span>[</span>
-              <b>exam</b>
-              {question && !state.finished && <span>· question {question.index}/{question.total}</span>}
-              <span>]</span>
-            </>
-          }
+    <div className="shell">
+      <TopBar
+        page="exam"
+        connection={state.connectionStatus}
+        chips={question && !state.finished ? <Chip mono>{`Question ${question.index}/${question.total}`}</Chip> : undefined}
+        menu={settings}
+      />
+      <div className="shell-panels" data-split={showCode}>
+        <Panel
+          className="h-full"
+          title={<span>Exam</span>}
         >
-          <div className="term-scroll flex flex-col items-center gap-5">
+          <div className="shell-scroll flex flex-col items-center gap-5">
             <div className="w-full max-w-64 shrink-0">
               <OrbVisualizer
                 protocolState={state.protocolState}
@@ -88,6 +120,7 @@ export const App: React.FC = () => {
                 paletteId={paletteId}
                 visualizer={visualizer}
                 questionText={question?.text}
+                theme={theme}
               />
             </div>
 
@@ -142,8 +175,9 @@ export const App: React.FC = () => {
             onSend={sendText}
             aside={!state.finished && state.mode === 'push-to-talk' ? <PushToTalkControl onTalkingChange={onTalkingChange} /> : undefined}
           />
-        </Pane>
+        </Panel>
 
+        <div className="shell-seam" aria-hidden="true" />
         <div className="code-slot" aria-hidden={!showCode} inert={!showCode}>
           {question?.code !== undefined && (
             <CodePane code={question.code} name={`question ${question.index}`} label="Question code" onClose={() => setClosedCode(codeKey)} />
@@ -151,40 +185,6 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      <StatusBar
-        page="exam"
-        connection={state.connectionStatus}
-        segments={question && !state.finished ? <Segment>{`q ${question.index}/${question.total}`}</Segment> : undefined}
-        menu={
-          <SettingsMenu
-            mode={state.mode}
-            onModeChange={setMode}
-            silenceTimeoutMs={silenceTimeoutMs}
-            onSilenceChange={(ms) => {
-              setSilenceTimeoutMs(ms)
-              setStoredSilenceTimeout(ms)
-            }}
-            paletteId={paletteId}
-            onPaletteChange={(id) => {
-              setPaletteId(id)
-              setStoredOrbPalette(id)
-            }}
-            visualizer={visualizer}
-            onVisualizerChange={(id) => {
-              setVisualizer(id)
-              setStoredVisualizer(id)
-            }}
-            microphones={microphones}
-            micDeviceId={micDeviceId}
-            onMicChange={(id) => {
-              setMicDeviceId(id)
-              setStoredMicDeviceId(id)
-            }}
-            micFallback={micFallback}
-            onOpen={refreshMicrophones}
-          />
-        }
-      />
     </div>
   )
 }

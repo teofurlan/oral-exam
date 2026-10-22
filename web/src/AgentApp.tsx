@@ -11,10 +11,11 @@ import { AgentSetup } from '@/components/AgentSetup'
 import { AgentTimeline } from '@/components/AgentTimeline'
 import { PermissionPromptCard } from '@/components/PermissionPromptCard'
 import { CodePane } from '@/components/CodePane'
-import { Pane } from '@/components/term/Pane'
-import { PromptLine } from '@/components/term/PromptLine'
-import { StateLine } from '@/components/term/StateLine'
-import { Segment, StatusBar } from '@/components/term/StatusBar'
+import { Panel } from '@/components/shell/Panel'
+import { PromptLine } from '@/components/shell/PromptLine'
+import { StateLine } from '@/components/shell/StateLine'
+import { Chip, TopBar } from '@/components/shell/TopBar'
+import { useTheme } from '@/lib/theme'
 import { chooseSelection } from '@/lib/agentSelection'
 import { splitCode } from '@/lib/codeBlocks'
 import {
@@ -62,6 +63,7 @@ export const AgentApp: React.FC = () => {
   // The timeline entry whose code the user closed; newer code opens the pane again.
   const [closedCodeId, setClosedCodeId] = useState<number | null>(null)
   const { microphones, refresh: refreshMicrophones } = useAudioInputs()
+  const { pref: themePref, theme, setPref: setThemePref } = useTheme()
 
   const selection = chooseSelection(state.backends, storedSelection, state.defaultSelection)
   const showSetup = !state.session || editingFor === state.session
@@ -123,45 +125,82 @@ export const AgentApp: React.FC = () => {
   }, [state.timeline])
   const showCode = !showSetup && code !== null && code.id !== closedCodeId
 
+  const settings = (
+    <SettingsMenu
+      mode={mode}
+      onModeChange={handleModeChange}
+      silenceTimeoutMs={silenceTimeoutMs}
+      onSilenceChange={(ms) => {
+        setSilenceTimeoutMs(ms)
+        setStoredSilenceTimeout(ms)
+      }}
+      paletteId={paletteId}
+      onPaletteChange={(id) => {
+        setPaletteId(id)
+        setStoredOrbPalette(id)
+      }}
+      visualizer={visualizer}
+      onVisualizerChange={(id) => {
+        setVisualizer(id)
+        setStoredVisualizer(id)
+      }}
+      microphones={microphones}
+      micDeviceId={micDeviceId}
+      onMicChange={(id) => {
+        setMicDeviceId(id)
+        setStoredMicDeviceId(id)
+      }}
+      micFallback={micFallback}
+      onOpen={refreshMicrophones}
+      themePref={themePref}
+      onThemeChange={setThemePref}
+    />
+  )
+
   return (
-    <div className="term">
-      <div className="term-panes" data-split={showCode}>
-        <Pane
-          active
-          className="term-main"
-          title={
-            showSetup ? (
-              <>
-                <span>[</span>
-                <b>agent</b>
-                <span>· new session ]</span>
-              </>
-            ) : (
-              <span data-testid="session-bar" className="flex min-w-0 items-center gap-[1ch]">
-                <span>[</span>
-                <b>agent</b>
-                <span>·</span>
-                <span style={{ color: 'var(--label)' }}>{sessionModel?.label ?? session?.model}</span>
-                <span className="hidden sm:inline">· {sessionBackend?.label ?? session?.backend}</span>
-                <span>·</span>
-                <span className="min-w-0 truncate" title={session?.cwd} style={{ color: 'var(--warn)' }}>
-                  {session ? folderName(session.cwd) : ''}
+    <div className="shell">
+      <TopBar
+        page="agent"
+        connection={state.connectionStatus}
+        chips={
+          session && !showSetup ? (
+            <>
+              <Chip>{`${sessionModel?.label ?? session.model} · ${sessionBackend?.label ?? session.backend}`}</Chip>
+              <Chip mono title={session.cwd}>
+                {folderName(session.cwd)}
+              </Chip>
+            </>
+          ) : undefined
+        }
+        menu={settings}
+      />
+      <div className="shell-panels" data-split={showCode}>
+        <Panel
+          className="h-full"
+          title={<span>{showSetup ? 'New session' : 'Conversation'}</span>}
+          meta={
+            !showSetup && session ? (
+              <span data-testid="session-bar" className="flex min-w-0 items-center gap-2">
+                <span className="t-small truncate" style={{ color: 'var(--label-2)' }}>
+                  {sessionModel?.label ?? session.model}
+                  <span className="hidden sm:inline"> · {sessionBackend?.label ?? session.backend}</span>
                 </span>
-                <span>]</span>
+                <span className="t-mono truncate" title={session.cwd} style={{ color: 'var(--label)' }}>
+                  {folderName(session.cwd)}
+                </span>
                 <button
                   type="button"
                   onClick={() => setEditingFor(state.session)}
                   aria-label="Change agent or folder"
-                  className="ml-[0.5ch] underline decoration-[var(--label-3)] underline-offset-4 hover:text-[var(--label)]"
-                  style={{ color: 'var(--label-2)' }}
+                  className="key t-small min-h-7 px-2.5"
                 >
-                  change
+                  Change
                 </button>
               </span>
-            )
+            ) : undefined
           }
         >
-          <div className="term-scroll flex flex-col items-center gap-5">
+          <div className="shell-scroll flex flex-col items-center gap-5">
             <div className={`w-full shrink-0 ${showSetup ? 'max-w-56' : 'max-w-64'}`}>
               <OrbVisualizer
                 protocolState={showSetup ? 'idle' : state.protocolState}
@@ -170,6 +209,7 @@ export const AgentApp: React.FC = () => {
                 paletteId={paletteId}
                 visualizer={visualizer}
                 questionText={lettersText}
+                theme={theme}
               />
             </div>
 
@@ -232,54 +272,14 @@ export const AgentApp: React.FC = () => {
               aside={mode === 'push-to-talk' ? <PushToTalkControl onTalkingChange={onTalkingChange} /> : undefined}
             />
           )}
-        </Pane>
+        </Panel>
 
+        <div className="shell-seam" aria-hidden="true" />
         <div className="code-slot" aria-hidden={!showCode} inert={!showCode}>
           {code && <CodePane code={code.text} name={code.name} label="Code" onClose={() => setClosedCodeId(code.id)} />}
         </div>
       </div>
 
-      <StatusBar
-        page="agent"
-        connection={state.connectionStatus}
-        segments={
-          session && !showSetup ? (
-            <>
-              <Segment title={session.cwd}>{folderName(session.cwd)}</Segment>
-              <Segment>{sessionModel?.label ?? session.model}</Segment>
-            </>
-          ) : undefined
-        }
-        menu={
-          <SettingsMenu
-            mode={mode}
-            onModeChange={handleModeChange}
-            silenceTimeoutMs={silenceTimeoutMs}
-            onSilenceChange={(ms) => {
-              setSilenceTimeoutMs(ms)
-              setStoredSilenceTimeout(ms)
-            }}
-            paletteId={paletteId}
-            onPaletteChange={(id) => {
-              setPaletteId(id)
-              setStoredOrbPalette(id)
-            }}
-            visualizer={visualizer}
-            onVisualizerChange={(id) => {
-              setVisualizer(id)
-              setStoredVisualizer(id)
-            }}
-            microphones={microphones}
-            micDeviceId={micDeviceId}
-            onMicChange={(id) => {
-              setMicDeviceId(id)
-              setStoredMicDeviceId(id)
-            }}
-            micFallback={micFallback}
-            onOpen={refreshMicrophones}
-          />
-        }
-      />
     </div>
   )
 }

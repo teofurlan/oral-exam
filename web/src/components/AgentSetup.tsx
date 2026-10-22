@@ -108,7 +108,7 @@ export function AgentSetup({
       <Step n={2} title="folder">
         <div
           className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-[3px] border px-3 py-2.5"
-          style={{ borderColor: folder ? 'var(--rule-strong)' : 'var(--rule)', borderStyle: folder ? 'solid' : 'dashed' }}
+          style={{ borderColor: folder ? 'var(--seam-strong)' : 'var(--seam)', borderStyle: folder ? 'solid' : 'dashed', background: 'var(--panel)' }}
         >
           <FolderOpen aria-hidden="true" className="h-4 w-4 shrink-0" style={{ color: folder ? 'var(--warn)' : 'var(--label-3)' }} strokeWidth={2} />
           <span
