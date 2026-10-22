@@ -6,6 +6,9 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
+
+from socra_server.domain.voices import DEFAULT_VOICE_ID, get_voice
 
 
 def _voice_stack_dir() -> Path:
@@ -29,6 +32,8 @@ class KokoroTTS:
     def __init__(self) -> None:
         self._synthesizer = None
         self._glossary_terms: list[str] = []
+        self._voice_id: str = DEFAULT_VOICE_ID
+        self._style_cache: dict[str, Any] = {}
 
     def load(self) -> None:
         """Load the Kokoro model.  Must be called from a background thread."""
@@ -50,6 +55,19 @@ class KokoroTTS:
                 self._glossary_terms = []
 
     @property
+    def voice_id(self) -> str:
+        """Current voice ID."""
+        return self._voice_id
+
+    def set_voice(self, voice_id: object) -> bool:
+        """Set the current voice. Returns False if unknown, True otherwise."""
+        voice = get_voice(voice_id)
+        if voice is None:
+            return False
+        self._voice_id = voice.id
+        return True
+
+    @property
     def glossary_terms(self) -> list[str]:
         """Term keys from the voice stack's terms.json (loaded after load())."""
         return list(self._glossary_terms)
@@ -58,5 +76,18 @@ class KokoroTTS:
         """Return WAV bytes.  Raises RuntimeError if not yet loaded."""
         if self._synthesizer is None:
             raise RuntimeError("KokoroTTS not loaded — call load() first")
+
+        if self._voice_id not in self._style_cache:
+            voice = get_voice(self._voice_id)
+            if voice is not None:
+                style = None
+                for name, weight in voice.blend:
+                    part = self._synthesizer.engine.get_voice_style(name) * weight
+                    style = part if style is None else style + part
+                self._style_cache[self._voice_id] = style
+
+        if self._voice_id in self._style_cache:
+            self._synthesizer.style = self._style_cache[self._voice_id]
+
         wav_bytes, _duration = self._synthesizer.synthesize(text)
         return wav_bytes
