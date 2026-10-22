@@ -175,6 +175,17 @@ describe('ParticleField', () => {
     for (const p of ends) expect(Math.abs(p.y - BASE.cy)).toBeLessThan(BASE.radius * 0.3)
   })
 
+  it('keeps the wave strands apart while the voice is quiet', () => {
+    const field = new ParticleField({ count: 400, style: 'lines', shape: 'wave', random: seeded(8) })
+    field.resize(BASE.width, BASE.height)
+    let time = 0
+    for (let i = 0; i < 4 * 60; i++) {
+      time += BASE.dt
+      field.step({ ...BASE, state: 'speaking', volume: 0, time })
+    }
+    expect(Math.max(...field.particles.map((p) => Math.abs(p.y - BASE.cy)))).toBeGreaterThan(BASE.radius * 0.12)
+  })
+
   it('places every wave particle on one of five strands', () => {
     const field = new ParticleField({ count: 400, style: 'lines', shape: 'wave', random: seeded(4) })
     const strands = new Set(field.particles.map((p) => p.strand))

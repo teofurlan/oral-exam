@@ -260,14 +260,15 @@ export class ParticleField {
 
       let fx: number, fy: number, fa: number, depth: number
       if (wave) {
-        // Formation: a thick strand of a sound wave whose height follows the voice.
+        // Formation: a thick strand of a sound wave whose height follows the voice. It keeps a
+        // calm resting swell, so the strands never collapse into one line between words.
         const c = STRANDS[p.strand]
-        const A = R * 0.65 * (0.06 + 0.94 * vol) * c.amp
+        const A = R * 0.65 * (0.3 + 0.7 * vol) * c.amp
         const base = Math.max(0, 1 - p.u * p.u)
         const env = Math.pow(base, 1.6)
         const arg = p.u * c.f * Math.PI + t * c.s * motion + c.ph
         const sn = Math.sin(arg), cs = Math.cos(arg)
-        const thick = R * (0.03 + 0.15 * vol * c.thick) * (0.35 + 0.65 * env)
+        const thick = R * (0.05 + 0.15 * vol * c.thick) * (0.35 + 0.65 * env)
         fx = cx + p.u * halfW
         fy = cy + sn * A * env + p.v * thick
         fa = Math.atan2(A * (cs * c.f * Math.PI * env + sn * -3.2 * p.u * Math.pow(base, 0.6)), halfW)
