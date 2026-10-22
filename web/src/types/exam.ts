@@ -1,3 +1,5 @@
+import type { VoiceMessage, VoicesMessage } from '@/types/voice'
+
 export type ProtocolState = 'idle' | 'speaking' | 'listening' | 'thinking'
 
 export type TurnMode = 'auto' | 'push-to-talk'
@@ -25,6 +27,7 @@ export type ServerMessage =
   | { type: 'tts_audio'; format: string; data: string }
   | { type: 'transcript'; text: string; final: boolean }
   | { type: 'notice'; text: string }
+  | VoicesMessage
 
 // Client -> Server messages
 export type ClientMessage =
@@ -33,6 +36,7 @@ export type ClientMessage =
   | { type: 'reanswer' }
   | { type: 'mode'; mode: TurnMode }
   | { type: 'playback_done' }
+  | VoiceMessage
 
 export interface ExamState {
   connectionStatus: ConnectionStatus

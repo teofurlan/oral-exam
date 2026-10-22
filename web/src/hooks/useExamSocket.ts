@@ -5,8 +5,9 @@ import type {
   ServerMessage,
   TurnMode,
 } from '@/types/exam'
+import { EMPTY_VOICE_CATALOG, type VoiceCatalog } from '@/types/voice'
 import { examReducer, initialExamState } from '@/state/examReducer'
-import { getStoredTurnMode, setStoredTurnMode } from '@/lib/storage'
+import { getStoredTurnMode, setStoredTurnMode, getStoredVoice, setStoredVoice } from '@/lib/storage'
 import { useExamAudio } from './useExamAudio'
 
 export const DEFAULT_SOCKET_URL = 'ws://localhost:8766/ws'
@@ -65,6 +66,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
 
   // Re-answer can deliver listening -> listening; the state string alone is not a turn identity.
   const [listeningEpoch, setListeningEpoch] = useState(0)
+  const [voices, setVoices] = useState<VoiceCatalog>(EMPTY_VOICE_CATALOG)
   const socketRef = useRef<WebSocket | null>(null)
   const mockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMockActiveRef = useRef<boolean>(false)
@@ -161,6 +163,15 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
       setStoredTurnMode(newMode)
       dispatch({ type: 'set_mode', mode: newMode })
       send({ type: 'mode', mode: newMode })
+    },
+    [send]
+  )
+
+  const setVoice = useCallback(
+    (id: string) => {
+      setStoredVoice(id)
+      setVoices((prev) => ({ ...prev, current: id }))
+      send({ type: 'voice', voice: id })
     },
     [send]
   )
@@ -283,12 +294,21 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           dispatch({ type: 'set_status', status: 'connected' })
           const currentMode = getStoredTurnMode('auto')
           socket?.send(JSON.stringify({ type: 'mode', mode: currentMode }))
+          const storedVoice = getStoredVoice()
+          const voiceMsg: ClientMessage = storedVoice
+            ? { type: 'voice', voice: storedVoice }
+            : { type: 'voice' }
+          socket?.send(JSON.stringify(voiceMsg))
         }
 
         socket.onmessage = (event) => {
           if (disposed || fellBack) return
           try {
             const data = JSON.parse(event.data) as ServerMessage
+            if (data.type === 'voices') {
+              setVoices({ voices: data.voices, current: data.current })
+              return
+            }
             if (data.type === 'finished') {
               finishedRef.current = true
             } else if (data.type === 'question') {
@@ -383,5 +403,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
     getOutputVolume,
     listeningEpoch,
     dispatch,
+    voices,
+    setVoice,
   }
 }
