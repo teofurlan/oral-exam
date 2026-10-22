@@ -45,6 +45,40 @@
   padding: 24px clamp(14px, 3vw, 32px) 14px;
 }
 
+/* Composer: floats centred above the bottom edge on wide screens, about half to two thirds
+   of the conversation; on tablets and phones it keeps one even gap to the three edges. */
+.composer-dock {
+  --edge: 12px;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 28px;
+}
+.composer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: min(calc(100% - 32px), max(55%, 520px), 780px);
+  padding: 7px;
+  border: 1px solid var(--seam-strong);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px -18px rgb(0 0 0 / 0.55);
+  transition: border-color 150ms var(--ease-out);
+}
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+@media (max-width: 1023px) {
+  .composer-dock {
+    padding: 8px var(--edge) var(--edge);
+  }
+  .composer {
+    width: 100%;
+  }
+}
+
 @media (max-width: 767px) {
   .shell-panels {
     grid-template-columns: minmax(0, 1fr);

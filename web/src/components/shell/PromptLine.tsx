@@ -15,7 +15,7 @@ interface PromptLineProps {
   aside?: ReactNode
 }
 
-/** The composer pinned to the bottom of the conversation: typing is always one click away. */
+/** The composer floating near the bottom of the conversation: typing is always one click away. */
 export function PromptLine({ label, placeholder, disabled, busy = false, onSend, onStop, aside }: PromptLineProps) {
   const [text, setText] = useState('')
   const trimmed = text.trim()
@@ -29,34 +29,32 @@ export function PromptLine({ label, placeholder, disabled, busy = false, onSend,
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="flex min-w-0 flex-wrap items-center gap-2 border-t px-3 py-3 sm:px-4"
-      style={{ borderColor: 'var(--seam)', background: 'var(--panel)' }}
-    >
-      <input
-        type="text"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        disabled={disabled}
-        aria-label={label}
-        placeholder={placeholder}
-        className="t-ui min-h-10 min-w-[10rem] flex-1 rounded-md border px-3 outline-none placeholder:text-[var(--label-2)] focus-visible:border-[var(--accent)] disabled:opacity-60"
-        style={{ borderColor: 'var(--seam)', background: 'var(--bg)', color: 'var(--label)' }}
-      />
-      <div className="flex shrink-0 items-center gap-2">
-        {aside}
-        {busy && onStop && (
-          <button type="button" onClick={onStop} aria-label="Stop" title="Stop (interrupts the reply)" className="key min-h-10" data-tone="danger">
-            <Square aria-hidden="true" className="h-3 w-3" fill="currentColor" strokeWidth={0} />
-            Stop
+    <div className="composer-dock">
+      <form onSubmit={submit} className="composer">
+        <input
+          type="text"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          disabled={disabled}
+          aria-label={label}
+          placeholder={placeholder}
+          className="t-ui min-h-10 min-w-[8rem] flex-1 bg-transparent px-2.5 outline-none placeholder:text-[var(--label-2)] disabled:opacity-60"
+          style={{ color: 'var(--label)' }}
+        />
+        <div className="flex shrink-0 items-center gap-2">
+          {aside}
+          {busy && onStop && (
+            <button type="button" onClick={onStop} aria-label="Stop" title="Stop (interrupts the reply)" className="key min-h-10" data-tone="danger">
+              <Square aria-hidden="true" className="h-3 w-3" fill="currentColor" strokeWidth={0} />
+              Stop
+            </button>
+          )}
+          <button type="submit" aria-label="Send" disabled={!canSend} className="key min-h-10" data-tone="primary">
+            <CornerDownLeft aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+            Send
           </button>
-        )}
-        <button type="submit" aria-label="Send" disabled={!canSend} className="key min-h-10" data-tone="primary">
-          <CornerDownLeft aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
-          Send
-        </button>
-      </div>
-    </form>
+        </div>
+      </form>
+    </div>
   )
 }
