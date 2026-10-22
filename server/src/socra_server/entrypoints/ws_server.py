@@ -251,6 +251,12 @@ async def _handle(ws: ServerConnection) -> None:
                     task.add_done_callback(audio_tasks.discard)
                     # Capture this turn before reading a following reanswer.
                     await asyncio.sleep(0)
+                elif msg_type == "answer_text":
+                    text = msg.get("text")
+                    if not isinstance(text, str):
+                        logger.warning("Malformed answer_text (expected text)")
+                        continue
+                    await app.handle_answer_text(text)
                 elif msg_type == "playback_done":
                     app.handle_playback_done()
                 elif msg_type == "reanswer":

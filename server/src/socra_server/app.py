@@ -356,6 +356,15 @@ class ExamApp:
         await self.channel.send({"type": "transcript", "text": text, "final": True})
         self._answer_event.set()
 
+    async def handle_answer_text(self, text: str) -> None:
+        """Store a typed answer as the final answer, exactly as typed."""
+        text = text.strip()
+        if self._finished or not text:
+            return
+        self.session.store_answer(text)
+        await self.channel.send({"type": "transcript", "text": text, "final": True})
+        self._answer_event.set()
+
     async def handle_reanswer(self) -> None:
         """Discard pending answer and move back to listening."""
         if self._finished:
