@@ -40,11 +40,16 @@ describe('AgentSetup', () => {
     const user = userEvent.setup()
     const props = setup()
 
-    const select = screen.getByLabelText('Agent and model')
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Sonnet', 'Opus', 'Local'])
+    const list = screen.getByRole('radiogroup', { name: 'Agent and model' })
+    expect(Array.from(list.querySelectorAll('[role="radio"]')).map((o) => o.getAttribute('aria-label'))).toEqual([
+      'Sonnet',
+      'Opus',
+      'Local',
+    ])
     expect(screen.getByRole('group', { name: 'Claude Code' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Sonnet' })).toBeChecked()
 
-    await user.selectOptions(select, screen.getByRole('option', { name: 'Opus' }))
+    await user.click(screen.getByRole('radio', { name: 'Opus' }))
 
     expect(props.onSelectionChange).toHaveBeenCalledWith({ backend: 'claude-code', model: 'opus' })
   })
@@ -92,7 +97,7 @@ describe('AgentSetup', () => {
   it('says it is still looking for agents before the list arrives', () => {
     setup({ backends: [], selection: null })
 
-    expect(screen.getByLabelText('Agent and model')).toBeDisabled()
-    expect(screen.getByRole('option')).toHaveTextContent('Looking for agents…')
+    expect(screen.getByRole('radiogroup', { name: 'Agent and model' })).toHaveTextContent('Looking for agents…')
+    expect(screen.queryByRole('radio')).toBeNull()
   })
 })

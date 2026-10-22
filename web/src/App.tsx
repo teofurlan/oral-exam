@@ -1,14 +1,18 @@
 import React, { useCallback, useState } from 'react'
 import './App.css'
+import { AlertTriangle } from 'lucide-react'
 import { useExamSocket } from '@/hooks/useExamSocket'
 import { useMicCapture } from '@/hooks/useMicCapture'
 import { useAudioInputs } from '@/hooks/useAudioInputs'
 import { OrbVisualizer } from '@/components/OrbVisualizer'
-import { ConnectionIndicator } from '@/components/ConnectionIndicator'
 import { QuestionPanel } from '@/components/QuestionPanel'
 import { SettingsMenu } from '@/components/SettingsMenu'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
-import { ambientColor } from '@/components/orbPalettes'
+import { CodePane } from '@/components/CodePane'
+import { Pane } from '@/components/term/Pane'
+import { PromptLine } from '@/components/term/PromptLine'
+import { StateLine } from '@/components/term/StateLine'
+import { Segment, StatusBar } from '@/components/term/StatusBar'
 import {
   getStoredSilenceTimeout,
   setStoredSilenceTimeout,
@@ -20,22 +24,23 @@ import {
   setStoredVisualizer,
 } from '@/lib/storage'
 import type { VisualizerId } from '@/components/visualizers'
-import { AlertTriangle } from 'lucide-react'
 
-const STATE_LABEL: Record<string, { label: string; color: string }> = {
-  speaking: { label: 'Examiner speaking', color: 'var(--accent)' },
-  listening: { label: 'Your turn: speak your answer', color: 'var(--listen)' },
-  thinking: { label: 'Examiner thinking', color: 'var(--warn)' },
-  idle: { label: 'Ready', color: 'var(--label-2)' },
+const STATE_LABEL: Record<string, string> = {
+  speaking: 'Examiner speaking',
+  listening: 'Your turn: speak your answer',
+  thinking: 'Examiner thinking',
+  idle: 'Ready',
 }
 
 export const App: React.FC = () => {
-  const { state, setMode, reanswer, sendAudio, getOutputVolume, listeningEpoch } = useExamSocket()
+  const { state, setMode, reanswer, sendText, sendAudio, getOutputVolume, listeningEpoch } = useExamSocket()
 
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
   const [visualizer, setVisualizer] = useState<VisualizerId>(getStoredVisualizer)
   const [micDeviceId, setMicDeviceId] = useState<string>(getStoredMicDeviceId)
+  // The code the user closed; new code opens the pane again.
+  const [closedCode, setClosedCode] = useState<string | null>(null)
   const { microphones, refresh: refreshMicrophones } = useAudioInputs()
 
   const handleFinalize = useCallback(
@@ -54,148 +59,132 @@ export const App: React.FC = () => {
     onFinalize: handleFinalize,
   })
 
-  const handleMicChange = (id: string) => {
-    setMicDeviceId(id)
-    setStoredMicDeviceId(id)
-  }
-
-  const handleSilenceChange = (newMs: number) => {
-    setSilenceTimeoutMs(newMs)
-    setStoredSilenceTimeout(newMs)
-  }
-
-  const handlePaletteChange = (id: string) => {
-    setPaletteId(id)
-    setStoredOrbPalette(id)
-  }
-
-  const handleVisualizerChange = (id: VisualizerId) => {
-    setVisualizer(id)
-    setStoredVisualizer(id)
-  }
-
-  const stateLabel = STATE_LABEL[state.protocolState] ?? STATE_LABEL.idle
-  const modeLabel = state.mode === 'auto' ? 'Automatic turns' : 'Hold Space to talk'
-  const ambientKey = state.protocolState
-  const ambientOpacity = state.protocolState === 'idle' ? 0.5 : 1
+  const question = state.question
+  const codeKey = question?.code !== undefined && !state.finished ? `${question.index}:${question.code}` : null
+  const showCode = codeKey !== null && codeKey !== closedCode
+  const canAnswer = !!question && !state.finished && state.connectionStatus !== 'disconnected'
 
   return (
-    <div
-      className="exam-app relative flex h-full min-w-0 w-full select-none flex-col overflow-hidden"
-      style={
-        {
-          '--ambient': ambientColor(paletteId, ambientKey),
-          '--ambient-o': ambientOpacity,
-        } as React.CSSProperties
-      }
-    >
-      <div className="ambient" aria-hidden />
-
-      {/* Toolbar: translucent, content scrolls under it. */}
-      <header className="exam-toolbar relative z-20 flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="t-title">Socra</h1>
-          <ConnectionIndicator status={state.connectionStatus} />
-        </div>
-
-        <SettingsMenu
-          mode={state.mode}
-          onModeChange={setMode}
-          silenceTimeoutMs={silenceTimeoutMs}
-          onSilenceChange={handleSilenceChange}
-          paletteId={paletteId}
-          onPaletteChange={handlePaletteChange}
-          visualizer={visualizer}
-          onVisualizerChange={handleVisualizerChange}
-          microphones={microphones}
-          micDeviceId={micDeviceId}
-          onMicChange={handleMicChange}
-          micFallback={micFallback}
-          onOpen={refreshMicrophones}
-        />
-      </header>
-
-      {micError && (
-        <div
-          role="alert"
-          data-testid="mic-error-banner"
-          className="materialize glass relative z-20 mx-4 flex shrink-0 items-start gap-3 rounded-2xl px-4 py-3 t-caption [overflow-wrap:anywhere] sm:mx-5"
-          style={{ color: 'var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 40%, transparent)' }}
+    <div className="term">
+      <div className="term-panes" data-split={showCode}>
+        <Pane
+          active
+          className="term-main"
+          title={
+            <>
+              <span>[</span>
+              <b>exam</b>
+              {question && !state.finished && <span>· question {question.index}/{question.total}</span>}
+              <span>]</span>
+            </>
+          }
         >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
-          <span className="min-w-0 flex-1">{micError}</span>
-        </div>
-      )}
+          <div className="term-scroll flex flex-col items-center gap-5">
+            <div className="w-full max-w-64 shrink-0">
+              <OrbVisualizer
+                protocolState={state.protocolState}
+                getOutputVolume={getOutputVolume}
+                getInputVolume={getInputVolume}
+                paletteId={paletteId}
+                visualizer={visualizer}
+                questionText={question?.text}
+              />
+            </div>
 
-      <main className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-4 pb-6 sm:px-5">
-        {/* Orb */}
-        <div className="relative mt-1 w-full max-w-80 shrink-0">
-          <OrbVisualizer
-            protocolState={state.protocolState}
-            getOutputVolume={getOutputVolume}
-            getInputVolume={getInputVolume}
-            paletteId={paletteId}
-            visualizer={visualizer}
-            questionText={state.question?.text}
-          />
+            <StateLine
+              state={state.protocolState}
+              label={STATE_LABEL[state.protocolState] ?? STATE_LABEL.idle}
+              mode={state.mode}
+              countdownMs={silenceCountdownMs}
+            />
 
-          {state.protocolState === 'listening' &&
-            state.mode === 'auto' &&
-            silenceCountdownMs > 0 && (
+            {micError && (
               <div
-                data-testid="silence-countdown"
-                className="materialize glass-chip pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full px-3 py-1 t-caption whitespace-nowrap"
-                style={{ color: 'var(--warn)' }}
+                role="alert"
+                data-testid="mic-error-banner"
+                className="t-small flex w-full max-w-[72ch] items-start gap-2 [overflow-wrap:anywhere]"
+                style={{ color: 'var(--danger)' }}
               >
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--warn)]" />
-                Finalizing in {(silenceCountdownMs / 1000).toFixed(1)}s…
+                <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                <span className="min-w-0 flex-1">{micError}</span>
               </div>
             )}
-        </div>
 
-        <div className="flex w-full shrink-0 flex-col items-center gap-0.5 text-center [overflow-wrap:anywhere]" role="status" aria-live="polite">
-          <span
-            data-testid="state-label"
-            className="t-title"
-            style={{ color: stateLabel.color, fontSize: '1.0625rem' }}
-          >
-            {stateLabel.label}
-          </span>
-          <span className="t-caption" style={{ color: 'var(--label-2)' }}>
-            {modeLabel}
-          </span>
-        </div>
+            {state.notice && (
+              <div
+                role="status"
+                data-testid="notice-banner"
+                className="t-small w-full max-w-[72ch] [overflow-wrap:anywhere]"
+                style={{ color: 'var(--warn)' }}
+              >
+                {state.notice}
+              </div>
+            )}
 
-        {state.notice && (
-          <div
-            role="status"
-            data-testid="notice-banner"
-            className="materialize glass-chip w-full max-w-2xl shrink-0 rounded-2xl px-4 py-2.5 text-center t-caption [overflow-wrap:anywhere]"
-            style={{ color: 'var(--warn)' }}
-          >
-            {state.notice}
+            {state.finished ? (
+              <section role="status" className="w-full max-w-[72ch] py-6 text-center">
+                <h2 className="m-0 text-[1.0625rem] font-semibold">Exam finished</h2>
+              </section>
+            ) : (
+              <QuestionPanel
+                question={question}
+                transcript={state.transcript}
+                protocolState={state.protocolState}
+                onReanswer={reanswer}
+              />
+            )}
           </div>
-        )}
 
-        {state.finished ? (
-          <section role="status" className="materialize w-full shrink-0 py-8 text-center">
-            <h2 className="t-display">Exam finished</h2>
-          </section>
-        ) : (
-          <QuestionPanel
-            question={state.question}
-            transcript={state.transcript}
-            protocolState={state.protocolState}
-            onReanswer={reanswer}
+          <PromptLine
+            label="Type your answer"
+            placeholder={canAnswer ? 'Type your answer' : 'Waiting for a question'}
+            disabled={!canAnswer}
+            onSend={sendText}
+            aside={!state.finished && state.mode === 'push-to-talk' ? <PushToTalkControl onTalkingChange={onTalkingChange} /> : undefined}
           />
-        )}
+        </Pane>
 
-        {!state.finished && state.mode === 'push-to-talk' && (
-          <div className="materialize flex w-full shrink-0 justify-center pt-1">
-            <PushToTalkControl onTalkingChange={onTalkingChange} />
-          </div>
-        )}
-      </main>
+        <div className="code-slot" aria-hidden={!showCode} inert={!showCode}>
+          {question?.code !== undefined && (
+            <CodePane code={question.code} name={`question ${question.index}`} label="Question code" onClose={() => setClosedCode(codeKey)} />
+          )}
+        </div>
+      </div>
+
+      <StatusBar
+        page="exam"
+        connection={state.connectionStatus}
+        segments={question && !state.finished ? <Segment>{`q ${question.index}/${question.total}`}</Segment> : undefined}
+        menu={
+          <SettingsMenu
+            mode={state.mode}
+            onModeChange={setMode}
+            silenceTimeoutMs={silenceTimeoutMs}
+            onSilenceChange={(ms) => {
+              setSilenceTimeoutMs(ms)
+              setStoredSilenceTimeout(ms)
+            }}
+            paletteId={paletteId}
+            onPaletteChange={(id) => {
+              setPaletteId(id)
+              setStoredOrbPalette(id)
+            }}
+            visualizer={visualizer}
+            onVisualizerChange={(id) => {
+              setVisualizer(id)
+              setStoredVisualizer(id)
+            }}
+            microphones={microphones}
+            micDeviceId={micDeviceId}
+            onMicChange={(id) => {
+              setMicDeviceId(id)
+              setStoredMicDeviceId(id)
+            }}
+            micFallback={micFallback}
+            onOpen={refreshMicrophones}
+          />
+        }
+      />
     </div>
   )
 }

@@ -10,12 +10,30 @@ import { useExamAudio } from './useExamAudio'
 
 export const DEFAULT_SOCKET_URL = 'ws://localhost:8766/ws'
 
-const MOCK_QUESTIONS = [
+const MOCK_QUESTIONS: { text: string; code?: string; partialAnswer: string; finalAnswer: string }[] = [
   {
     text: 'What is the fundamental difference between a process and a thread in modern operating systems?',
     partialAnswer: 'A process is an execution environment with its own memory space...',
     finalAnswer:
       'A process is an execution environment with its own dedicated virtual memory space, whereas threads are lightweight execution units within a process that share the same address space and resources.',
+  },
+  {
+    text: 'This handler retries a failed request. What happens when the server is down for a minute?',
+    code: [
+      'async function fetchWithRetry(url: string, attempt = 0): Promise<Response> {',
+      '  try {',
+      '    return await fetch(url)',
+      '  } catch (error) {',
+      '    if (attempt >= 5) throw error',
+      '    const delay = 500 * 2 ** attempt',
+      '    await new Promise((resolve) => setTimeout(resolve, delay))',
+      '    return fetchWithRetry(url, attempt + 1)',
+      '  }',
+      '}',
+    ].join('\n'),
+    partialAnswer: 'It retries with exponential backoff...',
+    finalAnswer:
+      'It retries five times with exponential backoff, waiting about fifteen seconds in total, and then throws, so a one-minute outage still fails.',
   },
   {
     text: 'How does virtual memory protect memory isolation between different user processes?',
@@ -85,6 +103,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           index: qIndex,
           total,
           text: qData.text,
+          ...(qData.code ? { code: qData.code } : {}),
         })
         dispatch({ type: 'state', state: 'speaking' })
 
@@ -182,6 +201,24 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
       }, 1500)
     }
   }, [send, clearMockTimers, startMockDriver])
+
+  /** A typed answer is final as typed; the server echoes it back as the transcript. */
+  const sendText = useCallback(
+    (text: string) => {
+      if (isMockActiveRef.current) {
+        clearMockTimers()
+        dispatch({ type: 'transcript', text, final: true })
+        mockTimerRef.current = setTimeout(() => {
+          if (!isMockActiveRef.current || unmountedRef.current) return
+          currentQuestionIdxRef.current += 1
+          startMockDriver()
+        }, 2000)
+        return
+      }
+      send({ type: 'answer_text', text })
+    },
+    [send, clearMockTimers, startMockDriver]
+  )
 
   const sendAudio = useCallback(
     (base64Data: string) => {
@@ -338,6 +375,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
     state,
     setMode,
     reanswer,
+    sendText,
     sendAudio,
     getOutputVolume,
     listeningEpoch,

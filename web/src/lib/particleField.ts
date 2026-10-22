@@ -125,9 +125,19 @@ export class ParticleField {
     this.setCount(count)
   }
 
+  private sized = false
+
   resize(width: number, height: number) {
     this.width = width
     this.height = height
+    // Particles are built before the screen size is known: put them at their homes once.
+    if (!this.sized) {
+      this.sized = true
+      for (const p of this.particles) {
+        p.x = p.hx * width
+        p.y = p.hy * height
+      }
+    }
   }
 
   /** Rebuilds the formation for a new count, keeping existing particles where they are. */
@@ -249,7 +259,7 @@ export class ParticleField {
 
       const twinkle = 0.7 + 0.3 * Math.sin(t * (0.8 + p.spd) + p.ph)
       p.depth = lerp(0.5, depth, e)
-      p.alpha = lerp(0.26 * twinkle, 0.22 + 0.78 * depth, e)
+      p.alpha = lerp(0.16 * twinkle, 0.22 + 0.78 * depth, e)
       p.size = lerp(7, 4 + 10 * vol + 3 * depth, e) * lerp(1, 0.75 + 0.55 * depth, e) + w * 6 * (1 - e)
     }
   }

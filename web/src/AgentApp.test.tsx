@@ -71,7 +71,7 @@ describe('AgentApp', () => {
 
     openPage()
 
-    expect(screen.getByLabelText('Agent and model')).toHaveValue('claude-code::opus')
+    expect(screen.getByRole('radio', { name: 'Opus' })).toBeChecked()
     expect(screen.getByTestId('folder-path')).toHaveTextContent('C:\\work\\socra')
   })
 
@@ -79,7 +79,7 @@ describe('AgentApp', () => {
     const user = userEvent.setup()
     const { ws } = openPage()
 
-    await user.selectOptions(screen.getByLabelText('Agent and model'), 'claude-code::opus')
+    await user.click(screen.getByRole('radio', { name: 'Opus' }))
     await user.click(screen.getByRole('button', { name: /choose folder/i }))
     act(() => ws.receive({ type: 'agent_folder', path: 'D:\\code\\app' }))
 
@@ -154,6 +154,26 @@ describe('AgentApp', () => {
     expect(ws.sent()).toContainEqual({ type: 'turn_audio', format: 'wav', data: 'UklGRg==' })
     expect(ws.sent()).toContainEqual({ type: 'turn_text', text: 'list the files' })
     expect(screen.getAllByRole('listitem').at(-1)).toHaveTextContent('list the files')
+  })
+
+  it('opens the code from a reply in its own pane and can close it', async () => {
+    const user = userEvent.setup()
+    const { ws } = openPage()
+    startSession(ws)
+
+    expect(screen.queryByRole('region', { name: 'Code' })).toBeNull()
+    act(() => ws.receive({ type: 'agent_reply', text: 'Added it:\n```ts\nconst retries = 3\n```' }))
+
+    const pane = screen.getByRole('region', { name: 'Code' })
+    expect(pane).toHaveTextContent('const retries = 3')
+    expect(screen.getByRole('list', { name: 'Conversation' })).not.toHaveTextContent('const retries = 3')
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent('Added it:')
+
+    await user.click(screen.getByRole('button', { name: 'Close code' }))
+    expect(screen.queryByRole('region', { name: 'Code' })).toBeNull()
+
+    act(() => ws.receive({ type: 'agent_reply', text: '```py\nprint(2)\n```' }))
+    expect(screen.getByRole('region', { name: 'Code' })).toHaveTextContent('print(2)')
   })
 
   it('asks for permission on the page and sends the answer', async () => {

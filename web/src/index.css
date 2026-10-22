@@ -1,34 +1,37 @@
 @import "tailwindcss";
+@import "@fontsource-variable/jetbrains-mono";
 
 /*
- * Design tokens. Spring-like easing via linear(); critically damped by default,
- * a touch of overshoot only where the gesture carried momentum (press release).
+ * Socra lives in the user's terminal multiplexer: panes outlined by 1px rules with the
+ * title in the top border, a status bar along the bottom, one monospaced face.
  */
 :root {
   color-scheme: dark;
 
-  --bg: #050507;
-  --label: rgba(255, 255, 255, 0.92);
-  --label-2: rgba(235, 235, 245, 0.6);
-  --label-3: rgba(235, 235, 245, 0.56);
-  --fill: rgba(120, 120, 140, 0.16);
-  --fill-2: rgba(120, 120, 140, 0.26);
-  --hairline: rgba(255, 255, 255, 0.09);
-  --accent: #8b8cf8;
-  --live: #34d399;
-  --listen: #f472b6;
-  --warn: #fbbf24;
-  --danger: #fb7185;
+  --bg: #0d0f12;
+  --bar: #15171c;
+  --bar-seg: #232733;
+  --rule: #2c3240;
+  --rule-strong: #3a4150;
+  --raise: #151820;
 
-  --glass: rgba(24, 24, 30, 0.58);
-  --glass-edge: rgba(255, 255, 255, 0.14);
+  --label: #c8ccd4;
+  --label-2: #8f96a6;
+  --label-3: #5d6475;
 
-  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
-  --spring: linear(
-    0, 0.009, 0.035 2.1%, 0.141 4.4%, 0.723 12.9%, 0.938 16.7%, 1.017 19.4%,
-    1.077 22.4%, 1.121 26.7%, 1.149 32.3%, 1.15 37.3%, 1.129 45.4%, 1.052 61.8%,
-    1.016 74.3%, 1.003 87.3%, 1
-  );
+  --accent: #7aa2f7;
+  --live: #9ece6a;
+  --listen: #f7768e;
+  --warn: #e0af68;
+  --danger: #f7768e;
+  --violet: #bb9af7;
+  --cyan: #7dcfff;
+  --orange: #ff9e64;
+
+  --mono: "JetBrains Mono Variable", "Cascadia Mono", ui-monospace, Consolas, monospace;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --split: 520ms;
 }
 
 html,
@@ -39,169 +42,195 @@ body,
   margin: 0;
   background: var(--bg);
   color: var(--label);
-  font-family: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, sans-serif;
-  font-optical-sizing: auto;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+  font-variant-ligatures: none;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* Typography: tracking and leading are size-specific, never one value. */
-.t-display {
-  font-size: clamp(1.5rem, 3.4vw + 0.6rem, 2.35rem);
-  line-height: 1.12;
-  letter-spacing: -0.026em;
-  font-weight: 650;
-  text-wrap: balance;
-}
-.t-title {
-  font-size: 0.9375rem;
-  line-height: 1.2;
-  letter-spacing: -0.012em;
-  font-weight: 650;
-}
-.t-body {
-  font-size: 1rem;
-  line-height: 1.5;
-  letter-spacing: -0.006em;
-}
-.t-caption {
-  font-size: 0.75rem;
-  line-height: 1.35;
-  letter-spacing: 0.01em;
-  font-weight: 500;
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: #e4e7ee;
 }
 
-/* Materials: translucent layer, bright top edge = light catching the glass. */
-.glass {
-  background: var(--glass);
-  backdrop-filter: blur(28px) saturate(170%);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  border: 1px solid var(--hairline);
-  border-top-color: var(--glass-edge);
-  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-}
-.glass-chip {
-  background: var(--fill);
-  border: 1px solid var(--hairline);
-}
-.surface {
-  background: rgba(120, 120, 140, 0.12);
-  border: 1px solid var(--hairline);
+input,
+textarea {
+  caret-color: var(--live);
 }
 
-/* Press feedback lives on pointer-down, instant. Release springs back. */
-.press {
-  transition: transform 0.5s var(--spring), background-color 0.2s var(--ease-settle),
-    opacity 0.2s var(--ease-settle);
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
 }
-.press:active {
-  transform: scale(0.96);
-  transition-duration: 0.08s, 0.08s, 0.08s;
-}
-.press:focus-visible,
-input[type="range"]:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 80%, white);
+
+:focus-visible {
+  outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Ambient light behind the orb follows protocol state. */
-.ambient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(60% 50% at 50% 34%, var(--ambient, rgba(129, 140, 248, 0.22)), transparent 70%);
-  opacity: var(--ambient-o, 0.55);
-  transition: opacity 0.9s var(--ease-settle), background 0.9s var(--ease-settle);
-}
-
-/* Entrances: material arrives (blur + scale + fade), never a plain fade. */
-@keyframes materialize {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-    filter: blur(8px);
+@layer components {
+  /* Type: one face, four sizes. Reading text stays at reading size. */
+  .t-read {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    max-width: 72ch;
   }
-  to {
-    opacity: 1;
-    transform: none;
-    filter: blur(0);
+  .t-ui {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  .t-small {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+  .t-bar {
+    font-size: 0.78125rem;
+    line-height: 1;
+  }
+
+  /* Pane: a 1px box whose title sits in the top rule. */
+  .pane {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    transition: border-color 200ms var(--ease-out);
+  }
+  .pane[data-active="true"] {
+    border-color: var(--accent);
+  }
+  .pane-title {
+    position: absolute;
+    top: -0.7em;
+    left: 12px;
+    max-width: calc(100% - 24px);
+    display: flex;
+    align-items: center;
+    gap: 0.5ch;
+    padding: 0 1ch;
+    background: var(--bg);
+    color: var(--label-2);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .pane[data-active="true"] > .pane-title {
+    color: var(--accent);
+  }
+  .pane-title b {
+    font-weight: 600;
+    color: var(--label);
+  }
+
+  /* Buttons: bracketed terminal actions. */
+  .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75ch;
+    min-height: 36px;
+    padding: 0 1.5ch;
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--label);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out);
+  }
+  .key:hover:not(:disabled) {
+    background: var(--raise);
+    border-color: var(--label-3);
+  }
+  .key:disabled {
+    cursor: not-allowed;
+    color: var(--label-3);
+    border-color: var(--rule);
+  }
+  .key[data-tone="primary"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d1324;
+    font-weight: 600;
+  }
+  .key[data-tone="primary"]:hover:not(:disabled) {
+    background: #8fb2fa;
+    border-color: #8fb2fa;
+  }
+  .key[data-tone="primary"]:disabled {
+    background: transparent;
+    color: var(--label-3);
+    border-color: var(--rule);
+  }
+  .key[data-tone="danger"] {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  }
+  kbd {
+    font: inherit;
+    font-size: 0.75rem;
+    color: var(--label-2);
+    padding: 0 0.6ch;
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+  }
+
+  /* Kept for shared controls: press feedback without a costume. */
+  .press {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), border-color 150ms var(--ease-out);
+  }
+
+  /* Slim range input */
+  input[type="range"].slim {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 28px;
+    background: linear-gradient(var(--rule-strong), var(--rule-strong)) center / 100% 2px no-repeat;
+    cursor: pointer;
+  }
+  input[type="range"].slim::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 18px;
+    border-radius: 2px;
+    background: var(--label);
+  }
+  input[type="range"].slim::-moz-range-thumb {
+    width: 10px;
+    height: 18px;
+    border: 0;
+    border-radius: 2px;
+    background: var(--label);
   }
 }
-.materialize {
-  animation: materialize 0.55s var(--ease-settle) both;
-}
 
-/* Slim range input */
-input[type="range"].slim {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--fill-2);
-  cursor: pointer;
+@keyframes blink {
+  50% { opacity: 0; }
 }
-input[type="range"].slim::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s var(--spring);
-}
-input[type="range"].slim::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: 0;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-}
-input[type="range"].slim:active::-webkit-slider-thumb {
-  transform: scale(1.15);
-}
-
-/* Scroll edge effect instead of a hard divider. */
-.scroll-fade {
-  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+.cursor-blink {
+  animation: blink 1.1s steps(1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .materialize {
-    animation: fade-only 0.2s ease both;
+  :root {
+    --split: 0ms;
   }
-  .press,
-  .press:active {
-    transition: opacity 0.2s ease, background-color 0.2s ease;
-    transform: none;
-  }
-  .ambient {
-    transition: opacity 0.2s ease;
-  }
-}
-@keyframes fade-only {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .glass {
-    background: #17171c;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-  .glass-chip {
-    background: #202027;
+  .cursor-blink {
+    animation: none;
   }
 }
 
 @media (prefers-contrast: more) {
   :root {
-    --label-2: rgba(255, 255, 255, 0.85);
-    --label-3: rgba(255, 255, 255, 0.7);
-    --hairline: rgba(255, 255, 255, 0.45);
+    --label-2: #b4bac6;
+    --label-3: #8a91a1;
+    --rule: #4a5262;
   }
 }

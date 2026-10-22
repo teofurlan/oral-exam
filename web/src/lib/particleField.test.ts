@@ -87,6 +87,16 @@ describe('ParticleField', () => {
     }
   })
 
+  it('starts scattered over the first screen size instead of piled in the corner', () => {
+    const field = new ParticleField({ count: 300, style: 'lines', random: seeded(3) })
+    field.resize(BASE.width, BASE.height)
+
+    const xs = field.particles.map((p) => p.x)
+    const ys = field.particles.map((p) => p.y)
+    expect(Math.max(...xs)).toBeGreaterThan(BASE.width * 0.8)
+    expect(Math.max(...ys)).toBeGreaterThan(BASE.height * 0.8)
+  })
+
   it('draws free letters off the grid and grid letters on it', () => {
     const at = (style: 'letters' | 'grid') => {
       const field = new ParticleField({ count: 60, style, random: seeded(5) })

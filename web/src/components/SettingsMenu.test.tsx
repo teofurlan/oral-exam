@@ -30,20 +30,24 @@ function renderMenu(overrides: Partial<SettingsMenuProps> = {}) {
 describe('SettingsMenu — microphone', () => {
   it('lists the system default and every available microphone', () => {
     renderMenu()
-    const select = screen.getByLabelText('Microphone') as HTMLSelectElement
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['System default', 'Headset', 'USB Mic'])
-    expect(select).toHaveValue('')
+    const list = screen.getByRole('radiogroup', { name: 'Microphone' })
+    expect(Array.from(list.querySelectorAll('[role="radio"]')).map((o) => o.getAttribute('aria-label'))).toEqual([
+      'System default',
+      'Headset',
+      'USB Mic',
+    ])
+    expect(screen.getByRole('radio', { name: 'System default' })).toBeChecked()
   })
 
   it('reports the chosen microphone', () => {
     const props = renderMenu()
-    fireEvent.change(screen.getByLabelText('Microphone'), { target: { value: 'usb' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'USB Mic' }))
     expect(props.onMicChange).toHaveBeenCalledWith('usb')
   })
 
   it('shows the selected microphone', () => {
     renderMenu({ micDeviceId: 'usb' })
-    expect(screen.getByLabelText('Microphone')).toHaveValue('usb')
+    expect(screen.getByRole('radio', { name: 'USB Mic' })).toBeChecked()
   })
 
   it('refreshes the device list each time it opens', () => {
@@ -53,8 +57,8 @@ describe('SettingsMenu — microphone', () => {
 
   it('says when the selected microphone is disconnected', () => {
     renderMenu({ micDeviceId: 'gone' })
-    expect(screen.getByLabelText('Microphone')).toHaveValue('gone')
-    expect(screen.getByRole('option', { name: 'Disconnected microphone' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'Disconnected microphone' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Disconnected microphone' })).toBeDisabled()
     expect(screen.getByTestId('mic-fallback-note')).toHaveTextContent(/system default/i)
   })
 
@@ -75,7 +79,7 @@ describe('SettingsMenu — microphone', () => {
 
   it('does not call a saved microphone disconnected while device names are hidden', () => {
     renderMenu({ microphones: [], micDeviceId: 'usb' })
-    expect(screen.queryByRole('option', { name: 'Disconnected microphone' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Disconnected microphone' })).toBeNull()
     expect(screen.queryByTestId('mic-fallback-note')).toBeNull()
   })
 })

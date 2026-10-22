@@ -28,6 +28,7 @@ export type ServerMessage =
 // Client -> Server messages
 export type ClientMessage =
   | { type: 'answer_audio'; format: string; data: string }
+  | { type: 'answer_text'; text: string }
   | { type: 'reanswer' }
   | { type: 'mode'; mode: TurnMode }
   | { type: 'playback_done' }

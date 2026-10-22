@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AgentTimeline } from './AgentTimeline'
 import { PermissionPromptCard } from './PermissionPromptCard'
-import { AgentComposer } from './AgentComposer'
+import { PromptLine } from './term/PromptLine'
 import type { TimelineEntry } from '@/types/agent'
 
 describe('AgentTimeline', () => {
@@ -60,11 +60,11 @@ describe('PermissionPromptCard', () => {
   })
 })
 
-describe('AgentComposer', () => {
+describe('PromptLine', () => {
   it('sends a typed turn and clears the field', async () => {
     const user = userEvent.setup()
     const onSend = vi.fn()
-    render(<AgentComposer disabled={false} busy={false} onSend={onSend} onStop={vi.fn()} />)
+    render(<PromptLine label="Message the agent" placeholder="Type" disabled={false} busy={false} onSend={onSend} onStop={vi.fn()} />)
 
     const field = screen.getByLabelText('Message the agent')
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
@@ -77,7 +77,7 @@ describe('AgentComposer', () => {
   it('offers Stop while the agent works and blocks sending', async () => {
     const user = userEvent.setup()
     const onStop = vi.fn()
-    render(<AgentComposer disabled={false} busy onSend={vi.fn()} onStop={onStop} />)
+    render(<PromptLine label="Message the agent" placeholder="Type" disabled={false} busy onSend={vi.fn()} onStop={onStop} />)
 
     await user.type(screen.getByLabelText('Message the agent'), 'more')
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
@@ -87,7 +87,7 @@ describe('AgentComposer', () => {
   })
 
   it('has no Stop button when idle', () => {
-    render(<AgentComposer disabled={false} busy={false} onSend={vi.fn()} onStop={vi.fn()} />)
+    render(<PromptLine label="Message the agent" placeholder="Type" disabled={false} busy={false} onSend={vi.fn()} onStop={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
   })

@@ -74,7 +74,7 @@ describe('App Integration', () => {
   it('shows the title Socra and hides settings until the gear is opened', async () => {
     const user = userEvent.setup()
     render(<App />)
-    expect(screen.getByRole('heading', { name: 'Socra' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'socra' })).toBeInTheDocument()
     expect(screen.queryByTestId('settings-panel')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('settings-button'))
     expect(screen.getByTestId('settings-panel')).toBeInTheDocument()
@@ -173,6 +173,33 @@ describe('App Integration', () => {
     expect(screen.queryByText('Exam finished')).not.toBeInTheDocument()
     expect(screen.getByTestId('question-text')).toHaveTextContent('New exam.')
     expect(screen.queryByText('print(42)')).not.toBeInTheDocument()
+  })
+
+  it('sends a typed answer from the prompt line', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    const ws = MockWebSocket.instances[0]
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    act(() => {
+      ws.simulateMessage({ type: 'question', index: 1, total: 2, text: 'What is a mutex?' })
+      ws.simulateMessage({ type: 'state', state: 'listening' })
+    })
+
+    await user.type(screen.getByLabelText('Type your answer'), 'A lock for one thread at a time{Enter}')
+
+    expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'answer_text', text: 'A lock for one thread at a time' }))
+    expect(screen.getByLabelText('Type your answer')).toHaveValue('')
+  })
+
+  it('shows question code in a code pane beside the question', () => {
+    render(<App />)
+    const ws = MockWebSocket.instances[0]
+    act(() => ws.simulateMessage({ type: 'question', index: 1, total: 1, text: 'Read this code.', code: 'print(42)' }))
+
+    expect(screen.getByRole('region', { name: 'Question code' })).toHaveTextContent('print(42)')
+    expect(screen.getByTestId('question-panel')).not.toHaveTextContent('print(42)')
   })
 
   it('renders notice banner when notice message is received', () => {
