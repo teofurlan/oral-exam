@@ -32,4 +32,18 @@ describe('OrbVisualizer', () => {
     rerender(<OrbVisualizer protocolState="idle" />)
     expect(screen.getByTestId('mock-inner-orb')).toHaveAttribute('data-agent-state', 'null')
   })
+
+  it('renders the particle visualizer instead of the orb when a particle look is chosen', () => {
+    render(<OrbVisualizer protocolState="speaking" visualizer="particle-letters" questionText="Why?" />)
+
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'speaking')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'letters')
+    expect(screen.queryByTestId('mock-inner-orb')).toBeNull()
+  })
+
+  it('keeps the orb by default', () => {
+    render(<OrbVisualizer protocolState="idle" />)
+    expect(screen.getByTestId('mock-inner-orb')).toBeInTheDocument()
+    expect(screen.queryByTestId('particle-visualizer')).toBeNull()
+  })
 })
