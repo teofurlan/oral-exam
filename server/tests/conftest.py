@@ -133,6 +133,12 @@ class FakeLoader:
 # App fixture (no page connected by default)
 # ---------------------------------------------------------------------------
 
+@pytest.fixture(autouse=True)
+def isolated_preferences(tmp_path_factory, monkeypatch):
+    """Keep every page server off the user's real preferences file."""
+    monkeypatch.setenv("SOCRA_PREFERENCES_FILE", str(tmp_path_factory.mktemp("prefs") / "preferences.json"))
+
+
 @pytest.fixture
 def loader():
     return FakeLoader()

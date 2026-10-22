@@ -19,6 +19,15 @@ When that process exits, its page retries a few times and then shows
 servers cannot start at all, the MCP tools keep working and report `no_client`
 with an `error` and no URL, never another session's page.
 
+Because a page on free ports has a new origin each session, page preferences
+(voice, turn mode, theme, visualizer, agent choice and folder, and the rest of
+the settings) are not left to that origin's `localStorage` alone. Every server
+keeps them in one file, `%LOCALAPPDATA%/Socra/preferences.json` (override with
+`SOCRA_PREFERENCES_FILE`), served on the page's own origin at
+`/api/preferences`: the page loads it before its first render and sends each
+change back. Only the page's own origin may write to it. The microphone choice
+stays per origin, since browsers give each origin its own device ids.
+
 ---
 
 ## Requirements

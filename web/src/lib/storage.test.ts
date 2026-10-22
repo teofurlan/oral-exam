@@ -15,7 +15,20 @@ import {
   getStoredVoice,
   setStoredVoice,
   STORAGE_KEY_VOICE,
+  setStoredSilenceTimeout,
+  STORAGE_KEY_SILENCE_TIMEOUT,
+  setStoredOrbPalette,
+  STORAGE_KEY_ORB_PALETTE,
+  setStoredAgentSelection,
+  STORAGE_KEY_AGENT_SELECTION,
+  setStoredAgentFolder,
+  STORAGE_KEY_AGENT_FOLDER,
+  SHARED_PREFERENCE_KEYS,
 } from './storage'
+import { setStoredTheme, STORAGE_KEY_THEME } from './theme'
+import { sharePreference } from './preferences'
+
+vi.mock('./preferences', () => ({ sharePreference: vi.fn() }))
 
 describe('storage (turn mode persistence)', () => {
   beforeEach(() => {
@@ -158,3 +171,43 @@ describe('storage (voice selection)', () => {
   })
 })
 
+
+describe('storage (shared across page origins, #27)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    vi.mocked(sharePreference).mockClear()
+  })
+
+  it('sends each preference change to the shared store', () => {
+    setStoredTurnMode('push-to-talk')
+    setStoredSilenceTimeout(2000)
+    setStoredOrbPalette('ember')
+    setStoredVisualizer('particle-letters')
+    setStoredShape('wave')
+    setStoredAgentSelection({ backend: 'pi', model: 'm' })
+    setStoredAgentFolder('C:/work')
+    setStoredVoice('dora')
+    setStoredTheme('light')
+
+    expect(vi.mocked(sharePreference).mock.calls).toEqual([
+      [STORAGE_KEY_MODE, 'push-to-talk'],
+      [STORAGE_KEY_SILENCE_TIMEOUT, '2000'],
+      [STORAGE_KEY_ORB_PALETTE, 'ember'],
+      [STORAGE_KEY_VISUALIZER, 'particle-letters'],
+      [STORAGE_KEY_SHAPE, 'wave'],
+      [STORAGE_KEY_AGENT_SELECTION, JSON.stringify({ backend: 'pi', model: 'm' })],
+      [STORAGE_KEY_AGENT_FOLDER, 'C:/work'],
+      [STORAGE_KEY_VOICE, 'dora'],
+      [STORAGE_KEY_THEME, 'light'],
+    ])
+    expect([...SHARED_PREFERENCE_KEYS].sort()).toEqual(
+      vi.mocked(sharePreference).mock.calls.map(([key]) => key).sort(),
+    )
+  })
+
+  it('keeps the microphone on this origin: browsers scope device ids per origin', () => {
+    setStoredMicDeviceId('mic-1')
+    expect(sharePreference).not.toHaveBeenCalled()
+    expect(SHARED_PREFERENCE_KEYS).not.toContain(STORAGE_KEY_MIC_DEVICE)
+  })
+})

@@ -1,5 +1,7 @@
 import type { TurnMode } from '@/types/exam'
 import type { AgentSelection } from '@/types/agent'
+import { sharePreference } from '@/lib/preferences'
+import { STORAGE_KEY_THEME } from '@/lib/theme'
 import {
   DEFAULT_SHAPE,
   DEFAULT_VISUALIZER,
@@ -36,6 +38,7 @@ export function setStoredTurnMode(mode: TurnMode): void {
   } catch (err) {
     console.warn('Failed to write turn mode to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_MODE, mode)
 }
 
 export function getStoredSilenceTimeout(): number {
@@ -59,6 +62,7 @@ export function setStoredSilenceTimeout(ms: number): void {
   } catch (err) {
     console.warn('Failed to write silence timeout to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_SILENCE_TIMEOUT, String(ms))
 }
 
 /** 'state' = colours follow the protocol state; otherwise a palette id. */
@@ -77,6 +81,7 @@ export function setStoredOrbPalette(id: string): void {
   } catch (err) {
     console.warn('Failed to write orb palette to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_ORB_PALETTE, id)
 }
 
 export const STORAGE_KEY_VISUALIZER = 'socra_visualizer'
@@ -97,6 +102,7 @@ export function setStoredVisualizer(id: VisualizerId): void {
   } catch (err) {
     console.warn('Failed to write visualizer to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_VISUALIZER, id)
 }
 
 export const STORAGE_KEY_SHAPE = 'socra_shape'
@@ -117,6 +123,7 @@ export function setStoredShape(id: ShapeId): void {
   } catch (err) {
     console.warn('Failed to write particle shape to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_SHAPE, id)
 }
 
 export const STORAGE_KEY_MIC_DEVICE = 'socra_mic_device_id'
@@ -162,11 +169,13 @@ export function getStoredAgentSelection(): AgentSelection | null {
 }
 
 export function setStoredAgentSelection(selection: AgentSelection): void {
+  const value = JSON.stringify(selection)
   try {
-    window.localStorage.setItem(STORAGE_KEY_AGENT_SELECTION, JSON.stringify(selection))
+    window.localStorage.setItem(STORAGE_KEY_AGENT_SELECTION, value)
   } catch (err) {
     console.warn('Failed to write agent selection to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_AGENT_SELECTION, value)
 }
 
 export function getStoredAgentFolder(): string | null {
@@ -184,6 +193,7 @@ export function setStoredAgentFolder(path: string): void {
   } catch (err) {
     console.warn('Failed to write agent folder to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_AGENT_FOLDER, path)
 }
 
 export const STORAGE_KEY_VOICE = 'socra_voice'
@@ -203,5 +213,21 @@ export function setStoredVoice(id: string): void {
   } catch (err) {
     console.warn('Failed to write voice to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_VOICE, id)
 }
 
+/**
+ * Preferences kept by the Socra server for every page origin (#27). The
+ * microphone stays per origin: browsers give each origin its own device ids.
+ */
+export const SHARED_PREFERENCE_KEYS: readonly string[] = [
+  STORAGE_KEY_MODE,
+  STORAGE_KEY_SILENCE_TIMEOUT,
+  STORAGE_KEY_ORB_PALETTE,
+  STORAGE_KEY_VISUALIZER,
+  STORAGE_KEY_SHAPE,
+  STORAGE_KEY_AGENT_SELECTION,
+  STORAGE_KEY_AGENT_FOLDER,
+  STORAGE_KEY_VOICE,
+  STORAGE_KEY_THEME,
+]
