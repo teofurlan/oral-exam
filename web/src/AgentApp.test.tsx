@@ -5,12 +5,6 @@ import AgentApp from './AgentApp'
 import { FakeAudioContext, FakeWebSocket } from '@/test/fakeSocket'
 import { STORAGE_KEY_AGENT_FOLDER, STORAGE_KEY_AGENT_SELECTION, STORAGE_KEY_VISUALIZER } from '@/lib/storage'
 
-vi.mock('@/components/ui/orb', () => ({
-  Orb: ({ agentState }: { agentState: string | null }) => (
-    <div data-testid="mock-orb" data-agent-state={agentState ?? 'null'} />
-  ),
-}))
-
 // Real capture needs a microphone and WebAudio; this page only wires it up.
 const micOptions: { protocolState?: string; onFinalize?: (b64: string) => void } = {}
 vi.mock('@/hooks/useMicCapture', () => ({
@@ -142,10 +136,10 @@ describe('AgentApp', () => {
     expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'lines')
 
     await user.click(screen.getByTestId('settings-button'))
-    await user.click(screen.getByTestId('visualizer-orb'))
+    await user.click(screen.getByTestId('visualizer-particle-grid'))
 
-    expect(window.localStorage.getItem(STORAGE_KEY_VISUALIZER)).toBe('orb')
-    expect(screen.queryByTestId('particle-visualizer')).toBeNull()
+    expect(window.localStorage.getItem(STORAGE_KEY_VISUALIZER)).toBe('particle-grid')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'grid')
   })
 
   it('sends dictated and typed turns', async () => {

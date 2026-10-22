@@ -1,6 +1,6 @@
 import type { TurnMode } from '@/types/exam'
 import type { AgentSelection } from '@/types/agent'
-import { isVisualizerId, type VisualizerId } from '@/components/visualizers'
+import { DEFAULT_VISUALIZER, isVisualizerId, type VisualizerId } from '@/components/visualizers'
 
 export const STORAGE_KEY_MODE = 'oral_exam_turn_mode'
 export const STORAGE_KEY_SILENCE_TIMEOUT = 'oral_exam_silence_timeout_ms'
@@ -81,7 +81,7 @@ export function getStoredVisualizer(): VisualizerId {
   } catch (err) {
     console.warn('Failed to read visualizer from localStorage:', err)
   }
-  return 'orb'
+  return DEFAULT_VISUALIZER
 }
 
 export function setStoredVisualizer(id: VisualizerId): void {

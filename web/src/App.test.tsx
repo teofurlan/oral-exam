@@ -4,13 +4,6 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 import { STORAGE_KEY_MODE } from './lib/storage'
 
-// Mock Three.js Canvas to avoid WebGL context issues in jsdom
-vi.mock('@/components/ui/orb', () => ({
-  Orb: ({ agentState, className }: { agentState: string | null; className?: string }) => (
-    <div data-testid="mock-orb" data-agent-state={agentState ?? 'null'} className={className} />
-  ),
-}))
-
 class MockWebSocket {
   static instances: MockWebSocket[] = []
   static OPEN = 1
@@ -135,7 +128,7 @@ describe('App Integration', () => {
 
     expect(screen.getByTestId('question-index')).toHaveTextContent('Question 3/10')
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is an atomic operation?')
-    expect(screen.getByTestId('mock-orb')).toHaveAttribute('data-agent-state', 'talking')
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'speaking')
 
     // Simulate transcript
     act(() => {

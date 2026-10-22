@@ -80,8 +80,18 @@ describe('storage (visualizer choice)', () => {
     vi.restoreAllMocks()
   })
 
-  it('defaults to the orb when nothing is stored', () => {
-    expect(getStoredVisualizer()).toBe('orb')
+  it('defaults to the lines when nothing is stored', () => {
+    expect(getStoredVisualizer()).toBe('particle-lines')
+  })
+
+  it('falls back to the lines for the retired orb', () => {
+    window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'orb')
+    expect(getStoredVisualizer()).toBe('particle-lines')
+  })
+
+  it('persists the letters on a grid', () => {
+    setStoredVisualizer('particle-grid')
+    expect(getStoredVisualizer()).toBe('particle-grid')
   })
 
   it('persists a particle visualizer and reads it back', () => {
@@ -92,6 +102,6 @@ describe('storage (visualizer choice)', () => {
 
   it('ignores an unknown stored value', () => {
     window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'hologram')
-    expect(getStoredVisualizer()).toBe('orb')
+    expect(getStoredVisualizer()).toBe('particle-lines')
   })
 })

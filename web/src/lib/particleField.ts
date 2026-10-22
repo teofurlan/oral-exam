@@ -7,7 +7,7 @@
  */
 
 export type FieldState = 'idle' | 'speaking' | 'listening' | 'thinking'
-export type ParticleStyle = 'lines' | 'letters'
+export type ParticleStyle = 'lines' | 'letters' | 'grid'
 
 export interface FieldFrame {
   /** Seconds since the previous frame. */
@@ -280,7 +280,7 @@ export class ParticleField {
         ctx.lineTo(p.x + hx, p.y + hy)
         ctx.stroke()
       }
-    } else {
+    } else if (this.style === 'grid') {
       // Letters snap to a terminal grid, like text art.
       ctx.font = `400 12px ${MONO}`
       ctx.textAlign = 'center'
@@ -290,6 +290,20 @@ export class ParticleField {
         ctx.fillStyle = colors[Math.min(BUCKETS - 1, (p.hue * BUCKETS) | 0)]
         ctx.fillText(p.letter, Math.round(p.x / CELL_W) * CELL_W, Math.round(p.y / CELL_H) * CELL_H)
       }
+    } else {
+      // Free letters float where the particle is and grow with it, nearer ones larger.
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.font = `400 12px ${MONO}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      for (const p of this.particles) {
+        const s = clamp(p.size / 8, 0.6, 2) * dpr
+        ctx.globalAlpha = p.alpha
+        ctx.fillStyle = colors[Math.min(BUCKETS - 1, (p.hue * BUCKETS) | 0)]
+        ctx.setTransform(s, 0, 0, s, p.x * dpr, p.y * dpr)
+        ctx.fillText(p.letter, 0, 0)
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
     ctx.globalAlpha = 1
     ctx.globalCompositeOperation = 'source-over'

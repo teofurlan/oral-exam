@@ -87,6 +87,37 @@ describe('ParticleField', () => {
     }
   })
 
+  it('draws free letters off the grid and grid letters on it', () => {
+    const at = (style: 'letters' | 'grid') => {
+      const field = new ParticleField({ count: 60, style, random: seeded(5) })
+      field.resize(BASE.width, BASE.height)
+      run(field, 'speaking', 1, 0)
+      const spots: [number, number][] = []
+      const ctx = {
+        setTransform: (_a: number, _b: number, _c: number, _d: number, e: number, f: number) => spots.push([e, f]),
+        clearRect: () => {},
+        fillText: (_t: string, x: number, y: number) => spots.push([x, y]),
+        beginPath: () => {},
+        moveTo: () => {},
+        lineTo: () => {},
+        stroke: () => {},
+      } as unknown as CanvasRenderingContext2D
+      field.draw(ctx, 1)
+      return { field, spots }
+    }
+    const onGrid = (x: number, y: number) =>
+      Math.abs(x / 7.4 - Math.round(x / 7.4)) < 1e-6 && Math.abs(y / 12 - Math.round(y / 12)) < 1e-6
+
+    const grid = at('grid')
+    const gridText = grid.spots.filter(([x, y]) => x !== 0 || y !== 0)
+    expect(gridText.length).toBeGreaterThan(0)
+    expect(gridText.every(([x, y]) => onGrid(x, y))).toBe(true)
+
+    const free = at('letters')
+    const freeText = free.spots.filter(([x, y]) => x !== 0 || y !== 0)
+    expect(freeText.some(([x, y]) => !onGrid(x, y))).toBe(true)
+  })
+
   it('keeps every particle position finite', () => {
     const field = new ParticleField({ count: 200, style: 'lines', random: seeded(11) })
     field.resize(BASE.width, BASE.height)
