@@ -75,6 +75,10 @@
 .composer:focus-within {
   border-color: var(--accent);
 }
+/* The rounded composer supplies the field's focus indicator; buttons keep their own. */
+.composer > input:focus-visible {
+  outline: none;
+}
 
 @media (max-width: 1023px) {
   .composer-dock {
