@@ -43,7 +43,13 @@ export interface TimelineEntry {
 
 // Server -> page messages on /ws/agent
 export type AgentServerMessage =
-  | { type: 'agent_backends'; backends: AgentBackendInfo[]; default: AgentSelection | null }
+  | {
+      type: 'agent_backends'
+      backends: AgentBackendInfo[]
+      default: AgentSelection | null
+      /** The conversation the server holds now; the page resyncs to it on every connect. */
+      session?: AgentSession | null
+    }
   | { type: 'agent_folder'; path: string | null }
   | { type: 'agent_started'; backend: string; model: string; cwd: string }
   | { type: 'state'; state: ProtocolState }
