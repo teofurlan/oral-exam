@@ -16,7 +16,10 @@ import {
   setStoredOrbPalette,
   getStoredMicDeviceId,
   setStoredMicDeviceId,
+  getStoredVisualizer,
+  setStoredVisualizer,
 } from '@/lib/storage'
+import type { VisualizerId } from '@/components/visualizers'
 import { AlertTriangle } from 'lucide-react'
 
 const STATE_LABEL: Record<string, { label: string; color: string }> = {
@@ -31,6 +34,7 @@ export const App: React.FC = () => {
 
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
+  const [visualizer, setVisualizer] = useState<VisualizerId>(getStoredVisualizer)
   const [micDeviceId, setMicDeviceId] = useState<string>(getStoredMicDeviceId)
   const { microphones, refresh: refreshMicrophones } = useAudioInputs()
 
@@ -65,6 +69,11 @@ export const App: React.FC = () => {
     setStoredOrbPalette(id)
   }
 
+  const handleVisualizerChange = (id: VisualizerId) => {
+    setVisualizer(id)
+    setStoredVisualizer(id)
+  }
+
   const stateLabel = STATE_LABEL[state.protocolState] ?? STATE_LABEL.idle
   const modeLabel = state.mode === 'auto' ? 'Automatic turns' : 'Hold Space to talk'
   const ambientKey = state.protocolState
@@ -96,6 +105,8 @@ export const App: React.FC = () => {
           onSilenceChange={handleSilenceChange}
           paletteId={paletteId}
           onPaletteChange={handlePaletteChange}
+          visualizer={visualizer}
+          onVisualizerChange={handleVisualizerChange}
           microphones={microphones}
           micDeviceId={micDeviceId}
           onMicChange={handleMicChange}
@@ -124,6 +135,8 @@ export const App: React.FC = () => {
             getOutputVolume={getOutputVolume}
             getInputVolume={getInputVolume}
             paletteId={paletteId}
+            visualizer={visualizer}
+            questionText={state.question?.text}
           />
 
           {state.protocolState === 'listening' &&
