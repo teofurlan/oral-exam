@@ -6,6 +6,7 @@ import { useMicCapture } from '@/hooks/useMicCapture'
 import { useAudioInputs } from '@/hooks/useAudioInputs'
 import { OrbVisualizer } from '@/components/OrbVisualizer'
 import { SettingsMenu } from '@/components/SettingsMenu'
+import { VoicePicker } from '@/components/VoicePicker'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
 import { AgentSetup } from '@/components/AgentSetup'
 import { AgentTimeline } from '@/components/AgentTimeline'
@@ -162,6 +163,7 @@ export const AgentApp: React.FC = () => {
       onOpen={refreshMicrophones}
       themePref={themePref}
       onThemeChange={setThemePref}
+      voicePicker={<VoicePicker voices={socket.voices.voices} current={socket.voices.current} onChange={socket.setVoice} />}
     />
   )
 

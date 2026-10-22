@@ -139,3 +139,19 @@ describe('SettingsMenu — shape', () => {
     expect(screen.queryByRole('radiogroup', { name: 'Shape' })).toBeNull()
   })
 })
+
+describe('SettingsMenu — voice', () => {
+  it('shows a Voice section containing the voice picker when provided', () => {
+    renderMenu({ voicePicker: <div data-testid="vp" /> })
+    const section = screen.getByTestId('voice-control')
+    expect(section).toBeInTheDocument()
+    expect(section.querySelector('h2')).toHaveTextContent('Voice')
+    expect(screen.getByTestId('vp')).toBeInTheDocument()
+    expect(section).toContainElement(screen.getByTestId('vp'))
+  })
+
+  it('omits the voice-control section when voicePicker is not provided', () => {
+    renderMenu()
+    expect(screen.queryByTestId('voice-control')).toBeNull()
+  })
+})

@@ -39,6 +39,8 @@ export interface SettingsMenuProps {
   onOpen?: () => void
   themePref: ThemePref
   onThemeChange: (pref: ThemePref) => void
+  /** Omit to hide the voice choice. */
+  voicePicker?: ReactNode
 }
 
 function Section({ title, children, testId }: { title: ReactNode; children: ReactNode; testId?: string }) {
@@ -69,6 +71,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onOpen,
   themePref,
   onThemeChange,
+  voicePicker,
 }) => {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -181,6 +184,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
               </p>
             )}
           </Section>
+
+          {voicePicker && <Section title="Voice" testId="voice-control">{voicePicker}</Section>}
 
           <Section title="Turns">
             <ModeToggle mode={mode} onChange={onModeChange} />

@@ -7,6 +7,7 @@ import { useAudioInputs } from '@/hooks/useAudioInputs'
 import { OrbVisualizer } from '@/components/OrbVisualizer'
 import { QuestionPanel } from '@/components/QuestionPanel'
 import { SettingsMenu } from '@/components/SettingsMenu'
+import { VoicePicker } from '@/components/VoicePicker'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
 import { CodePane } from '@/components/CodePane'
 import { Panel } from '@/components/shell/Panel'
@@ -36,7 +37,7 @@ const STATE_LABEL: Record<string, string> = {
 }
 
 export const App: React.FC = () => {
-  const { state, setMode, reanswer, sendText, sendAudio, getOutputVolume, listeningEpoch } = useExamSocket()
+  const { state, setMode, reanswer, sendText, sendAudio, getOutputVolume, listeningEpoch, voices, setVoice } = useExamSocket()
 
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
@@ -103,6 +104,7 @@ export const App: React.FC = () => {
       onOpen={refreshMicrophones}
       themePref={themePref}
       onThemeChange={setThemePref}
+      voicePicker={<VoicePicker voices={voices.voices} current={voices.current} onChange={setVoice} />}
     />
   )
 
