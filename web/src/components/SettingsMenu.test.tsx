@@ -12,6 +12,8 @@ function renderMenu(overrides: Partial<SettingsMenuProps> = {}) {
     onPaletteChange: vi.fn(),
     visualizer: 'particle-lines',
     onVisualizerChange: vi.fn(),
+    shape: 'sphere',
+    onShapeChange: vi.fn(),
     themePref: 'system',
     onThemeChange: vi.fn(),
     microphones: [
@@ -113,5 +115,27 @@ describe('SettingsMenu — visualizer', () => {
     const props = renderMenu()
     fireEvent.click(screen.getByTestId('visualizer-particle-letters'))
     expect(props.onVisualizerChange).toHaveBeenCalledWith('particle-letters')
+  })
+})
+
+describe('SettingsMenu — shape', () => {
+  it('offers the sphere and the sound wave, marking the current one', () => {
+    renderMenu({ shape: 'wave' })
+    const group = screen.getByRole('radiogroup', { name: 'Shape' })
+    const options = Array.from(group.querySelectorAll('[role="radio"]'))
+    expect(options.map((o) => o.textContent)).toEqual(['Sphere', 'Sound wave'])
+    expect(screen.getByTestId('shape-wave')).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('shape-sphere')).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('reports the chosen shape', () => {
+    const props = renderMenu()
+    fireEvent.click(screen.getByTestId('shape-wave'))
+    expect(props.onShapeChange).toHaveBeenCalledWith('wave')
+  })
+
+  it('hides the shape choice when nothing handles it', () => {
+    renderMenu({ onShapeChange: undefined })
+    expect(screen.queryByRole('radiogroup', { name: 'Shape' })).toBeNull()
   })
 })

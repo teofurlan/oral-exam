@@ -25,6 +25,7 @@ import {
   getStoredOrbPalette,
   getStoredSilenceTimeout,
   getStoredTurnMode,
+  getStoredShape,
   getStoredVisualizer,
   setStoredAgentFolder,
   setStoredAgentSelection,
@@ -32,9 +33,10 @@ import {
   setStoredOrbPalette,
   setStoredSilenceTimeout,
   setStoredTurnMode,
+  setStoredShape,
   setStoredVisualizer,
 } from '@/lib/storage'
-import type { VisualizerId } from '@/components/visualizers'
+import type { ShapeId, VisualizerId } from '@/components/visualizers'
 import type { TurnMode } from '@/types/exam'
 import type { AgentSelection, AgentSession } from '@/types/agent'
 
@@ -59,6 +61,7 @@ export const AgentApp: React.FC = () => {
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
   // Shared with the exam page: one preference for the whole app.
   const [visualizer, setVisualizer] = useState<VisualizerId>(getStoredVisualizer)
+  const [shape, setShape] = useState<ShapeId>(getStoredShape)
   const [micDeviceId, setMicDeviceId] = useState<string>(getStoredMicDeviceId)
   // The timeline entry whose code the user closed; newer code opens the pane again.
   const [closedCodeId, setClosedCodeId] = useState<number | null>(null)
@@ -144,6 +147,11 @@ export const AgentApp: React.FC = () => {
         setVisualizer(id)
         setStoredVisualizer(id)
       }}
+      shape={shape}
+      onShapeChange={(id) => {
+        setShape(id)
+        setStoredShape(id)
+      }}
       microphones={microphones}
       micDeviceId={micDeviceId}
       onMicChange={(id) => {
@@ -208,6 +216,7 @@ export const AgentApp: React.FC = () => {
                 getInputVolume={getInputVolume}
                 paletteId={paletteId}
                 visualizer={visualizer}
+                shape={shape}
                 questionText={lettersText}
                 theme={theme}
               />

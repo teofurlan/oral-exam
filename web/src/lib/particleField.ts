@@ -1,13 +1,14 @@
 /**
  * Particle field behind the exam screen: particles drift loose over the whole screen while
- * nothing is said, and gather into a rotating sphere around the visualizer's slot whenever
- * there is a voice (speaking, listening) or the examiner is thinking.
+ * nothing is said, and gather around the visualizer's slot, into a rotating sphere or a sound
+ * wave, whenever there is a voice (speaking, listening) or the examiner is thinking.
  *
  * Plain TypeScript with no React, so the physics can be tested without a canvas.
  */
 
 export type FieldState = 'idle' | 'speaking' | 'listening' | 'thinking'
 export type ParticleStyle = 'lines' | 'letters' | 'grid'
+export type FieldShape = 'sphere' | 'wave'
 
 export interface FieldFrame {
   /** Seconds since the previous frame. */
@@ -40,6 +41,10 @@ export interface Particle {
   dx: number
   dy: number
   dz: number
+  /** Sound-wave strand it belongs to, its place along it (-1..1) and across it (about -1..1). */
+  strand: number
+  u: number
+  v: number
   hue: number
   rate: number
   ph: number
@@ -50,10 +55,20 @@ export interface Particle {
   ang: number
   alpha: number
   size: number
+  /** Where in the two-colour gradient it is painted, 0..1. */
+  tint: number
 }
 
 const TAU = Math.PI * 2
 const TILT = 0.38
+/** Five sine strands that cross one another; each pinches to a point at both ends. */
+const STRANDS = [
+  { amp: 1.0, f: 1.35, s: 2.3, ph: 0.0, thick: 1.0, alpha: 1.0, hue: 0.0 },
+  { amp: 0.78, f: 2.05, s: -1.9, ph: 1.7, thick: 0.85, alpha: 0.85, hue: 1.0 },
+  { amp: 0.6, f: 2.9, s: 3.0, ph: 3.1, thick: 0.7, alpha: 0.72, hue: 0.35 },
+  { amp: 0.46, f: 1.75, s: -2.6, ph: 4.4, thick: 0.6, alpha: 0.6, hue: 0.7 },
+  { amp: 0.32, f: 3.6, s: 1.6, ph: 5.2, thick: 0.5, alpha: 0.5, hue: 0.5 },
+]
 const FALLBACK_LETTERS = 'abcdefghijklmnopqrstuvwxyz0123456789?'.split('')
 const MONO = 'ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace'
 const BUCKETS = 10
@@ -100,6 +115,7 @@ export function simulatedVoice(t: number): number {
 export interface ParticleFieldOptions {
   count: number
   style: ParticleStyle
+  shape?: FieldShape
   letters?: string[]
   random?: () => number
 }
@@ -107,6 +123,7 @@ export interface ParticleFieldOptions {
 export class ParticleField {
   particles: Particle[] = []
   style: ParticleStyle
+  shape: FieldShape
   private letters: string[]
   private random: () => number
   private width = 1
@@ -120,8 +137,9 @@ export class ParticleField {
   /** Additive light reads on a dark ground; a light ground needs plain paint. */
   private additive = 'lighter' as GlobalCompositeOperation
 
-  constructor({ count, style, letters = FALLBACK_LETTERS, random = Math.random }: ParticleFieldOptions) {
+  constructor({ count, style, shape = 'sphere', letters = FALLBACK_LETTERS, random = Math.random }: ParticleFieldOptions) {
     this.style = style
+    this.shape = shape
     this.letters = letters
     this.random = random
     this.setCount(count)
@@ -146,10 +164,12 @@ export class ParticleField {
   setCount(count: number) {
     const rnd = this.random
     const sphere = fibonacciSphere(count)
+    const perStrand = Math.ceil(count / STRANDS.length)
     this.particles = sphere.map((d, i) => {
       const old = this.particles[i]
       const hx = old ? old.hx : rnd()
       const hy = old ? old.hy : rnd()
+      const hue = rnd()
       return {
         x: old ? old.x : hx * this.width,
         y: old ? old.y : hy * this.height,
@@ -161,7 +181,10 @@ export class ParticleField {
         dx: d.x,
         dy: d.y,
         dz: d.z,
-        hue: rnd(),
+        strand: i % STRANDS.length,
+        u: -1 + 2 * ((Math.floor(i / STRANDS.length) + rnd()) / perStrand),
+        v: (rnd() + rnd() + rnd()) / 1.5 - 1,
+        hue,
         rate: 0.8 + rnd() * 2.6,
         ph: rnd() * TAU,
         spd: 0.4 + rnd() * 0.6,
@@ -170,6 +193,7 @@ export class ParticleField {
         ang: 0,
         alpha: 0,
         size: 1,
+        tint: hue,
       }
     })
   }
@@ -179,6 +203,11 @@ export class ParticleField {
     this.particles.forEach((p, i) => {
       p.letter = letters[i % letters.length]
     })
+  }
+
+  /** The particles keep their places and glide into the new formation. */
+  setShape(shape: FieldShape) {
+    this.shape = shape
   }
 
   setLightBackground(light: boolean) {
@@ -210,6 +239,8 @@ export class ParticleField {
     const R = f.radius * 0.85 * (1 + vol * 0.1)
     const cr = Math.cos(this.rot), sr = Math.sin(this.rot)
     const ct = Math.cos(TILT), st = Math.sin(TILT)
+    const wave = this.shape === 'wave'
+    const halfW = Math.min(f.radius * 2.4, W * 0.45)
 
     for (const p of this.particles) {
       // Loose home: a slow flow field over the whole screen, wrapping at the edges.
@@ -227,15 +258,33 @@ export class ParticleField {
         p.y += wy * H * (1 - e)
       }
 
-      // Formation: a rotating, tilted sphere whose surface ripples with the voice.
-      const n = Math.sin(p.dx * 3.1 + t * 1.9) * Math.sin(p.dy * 3.7 - t * 1.4) * Math.sin(p.dz * 2.9 + t * 1.1)
-      const d = 1 + vol * 0.34 * n + 0.025 * Math.sin(t * 1.2)
-      const x = p.dx * d, y = p.dy * d, z = p.dz * d
-      const x1 = x * cr + z * sr, z1 = -x * sr + z * cr
-      const y2 = y * ct - z1 * st, z2 = y * st + z1 * ct
-      const s = 1 / (1 - z2 * 0.28)
-      const fx = cx + x1 * R * s, fy = cy + y2 * R * s
-      const depth = clamp((z2 + 1) / 2, 0, 1)
+      let fx: number, fy: number, fa: number, depth: number
+      if (wave) {
+        // Formation: a thick strand of a sound wave whose height follows the voice.
+        const c = STRANDS[p.strand]
+        const A = R * 0.65 * (0.06 + 0.94 * vol) * c.amp
+        const base = Math.max(0, 1 - p.u * p.u)
+        const env = Math.pow(base, 1.6)
+        const arg = p.u * c.f * Math.PI + t * c.s * motion + c.ph
+        const sn = Math.sin(arg), cs = Math.cos(arg)
+        const thick = R * (0.03 + 0.15 * vol * c.thick) * (0.35 + 0.65 * env)
+        fx = cx + p.u * halfW
+        fy = cy + sn * A * env + p.v * thick
+        fa = Math.atan2(A * (cs * c.f * Math.PI * env + sn * -3.2 * p.u * Math.pow(base, 0.6)), halfW)
+        depth = c.alpha
+      } else {
+        // Formation: a rotating, tilted sphere whose surface ripples with the voice.
+        const n = Math.sin(p.dx * 3.1 + t * 1.9) * Math.sin(p.dy * 3.7 - t * 1.4) * Math.sin(p.dz * 2.9 + t * 1.1)
+        const d = 1 + vol * 0.34 * n + 0.025 * Math.sin(t * 1.2)
+        const x = p.dx * d, y = p.dy * d, z = p.dz * d
+        const x1 = x * cr + z * sr, z1 = -x * sr + z * cr
+        const y2 = y * ct - z1 * st, z2 = y * st + z1 * ct
+        const s = 1 / (1 - z2 * 0.28)
+        fx = cx + x1 * R * s
+        fy = cy + y2 * R * s
+        fa = Math.atan2(x1 * st, z1)
+        depth = clamp((z2 + 1) / 2, 0, 1)
+      }
 
       // Spring toward a blend of the loose home and the formation, swirling while in transit.
       const tx = lerp(p.hx * W, fx, e), ty = lerp(p.hy * H, fy, e)
@@ -253,10 +302,10 @@ export class ParticleField {
       p.x += p.vx * dt
       p.y += p.vy * dt
 
-      // Lines point along their drift or flight while loose, along the spin once gathered
-      // (blended on doubled angles, since a line has no head or tail).
+      // Lines point along their drift or flight while loose, along the spin or the strand once
+      // gathered (blended on doubled angles, since a line has no head or tail).
       const speed = Math.hypot(p.vx, p.vy), w = clamp(speed / 140, 0, 1)
-      const va = Math.atan2(p.vy, p.vx), fa = Math.atan2(x1 * st, z1)
+      const va = Math.atan2(p.vy, p.vx)
       let sx = lerp(Math.cos(2 * da), Math.cos(2 * va), w)
       let sy = lerp(Math.sin(2 * da), Math.sin(2 * va), w)
       sx = lerp(sx, Math.cos(2 * fa), e)
@@ -265,8 +314,11 @@ export class ParticleField {
 
       const twinkle = 0.7 + 0.3 * Math.sin(t * (0.8 + p.spd) + p.ph)
       p.depth = lerp(0.5, depth, e)
-      p.alpha = lerp(0.16 * twinkle, 0.22 + 0.78 * depth, e)
-      p.size = lerp(7, 4 + 10 * vol + 3 * depth, e) * lerp(1, 0.75 + 0.55 * depth, e) + w * 6 * (1 - e)
+      p.alpha = lerp(0.16 * twinkle, wave ? 0.35 + 0.65 * depth : 0.22 + 0.78 * depth, e)
+      const scale = wave ? 0.85 + 0.25 * depth : 0.75 + 0.55 * depth
+      p.size = lerp(7, 4 + 10 * vol + 3 * depth, e) * lerp(1, scale, e) + w * 6 * (1 - e)
+      // On the wave each strand leans toward its own colour.
+      p.tint = wave ? lerp(p.hue, STRANDS[p.strand].hue, 0.75 * e) : p.hue
     }
   }
 
@@ -289,7 +341,7 @@ export class ParticleField {
       for (const p of this.particles) {
         const hx = (Math.cos(p.ang) * p.size) / 2, hy = (Math.sin(p.ang) * p.size) / 2
         ctx.globalAlpha = p.alpha
-        ctx.strokeStyle = colors[Math.min(BUCKETS - 1, (p.hue * BUCKETS) | 0)]
+        ctx.strokeStyle = colors[Math.min(BUCKETS - 1, (p.tint * BUCKETS) | 0)]
         ctx.lineWidth = 1 + 0.5 * p.depth
         ctx.beginPath()
         ctx.moveTo(p.x - hx, p.y - hy)
@@ -303,7 +355,7 @@ export class ParticleField {
       ctx.textBaseline = 'middle'
       for (const p of this.particles) {
         ctx.globalAlpha = p.alpha
-        ctx.fillStyle = colors[Math.min(BUCKETS - 1, (p.hue * BUCKETS) | 0)]
+        ctx.fillStyle = colors[Math.min(BUCKETS - 1, (p.tint * BUCKETS) | 0)]
         ctx.fillText(p.letter, Math.round(p.x / CELL_W) * CELL_W, Math.round(p.y / CELL_H) * CELL_H)
       }
     } else {
@@ -315,7 +367,7 @@ export class ParticleField {
       for (const p of this.particles) {
         const s = clamp(p.size / 8, 0.6, 2) * dpr
         ctx.globalAlpha = p.alpha
-        ctx.fillStyle = colors[Math.min(BUCKETS - 1, (p.hue * BUCKETS) | 0)]
+        ctx.fillStyle = colors[Math.min(BUCKETS - 1, (p.tint * BUCKETS) | 0)]
         ctx.setTransform(s, 0, 0, s, p.x * dpr, p.y * dpr)
         ctx.fillText(p.letter, 0, 0)
       }

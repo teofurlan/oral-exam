@@ -21,10 +21,12 @@ import {
   setStoredOrbPalette,
   getStoredMicDeviceId,
   setStoredMicDeviceId,
+  getStoredShape,
   getStoredVisualizer,
+  setStoredShape,
   setStoredVisualizer,
 } from '@/lib/storage'
-import type { VisualizerId } from '@/components/visualizers'
+import type { ShapeId, VisualizerId } from '@/components/visualizers'
 
 const STATE_LABEL: Record<string, string> = {
   speaking: 'Examiner speaking',
@@ -39,6 +41,7 @@ export const App: React.FC = () => {
   const [silenceTimeoutMs, setSilenceTimeoutMs] = useState<number>(getStoredSilenceTimeout)
   const [paletteId, setPaletteId] = useState<string>(getStoredOrbPalette)
   const [visualizer, setVisualizer] = useState<VisualizerId>(getStoredVisualizer)
+  const [shape, setShape] = useState<ShapeId>(getStoredShape)
   const [micDeviceId, setMicDeviceId] = useState<string>(getStoredMicDeviceId)
   // The code the user closed; new code opens the pane again.
   const [closedCode, setClosedCode] = useState<string | null>(null)
@@ -85,6 +88,11 @@ export const App: React.FC = () => {
         setVisualizer(id)
         setStoredVisualizer(id)
       }}
+      shape={shape}
+      onShapeChange={(id) => {
+        setShape(id)
+        setStoredShape(id)
+      }}
       microphones={microphones}
       micDeviceId={micDeviceId}
       onMicChange={(id) => {
@@ -119,6 +127,7 @@ export const App: React.FC = () => {
                 getInputVolume={getInputVolume}
                 paletteId={paletteId}
                 visualizer={visualizer}
+                shape={shape}
                 questionText={question?.text}
                 theme={theme}
               />

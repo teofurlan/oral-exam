@@ -3,7 +3,14 @@ import { Ellipsis } from 'lucide-react'
 import { ChoiceList } from '@/components/ChoiceList'
 import { ModeToggle } from '@/components/ModeToggle'
 import { ORB_PALETTES, STATE_PALETTES } from '@/components/orbPalettes'
-import { VISUALIZERS, DEFAULT_VISUALIZER, type VisualizerId } from '@/components/visualizers'
+import {
+  DEFAULT_SHAPE,
+  DEFAULT_VISUALIZER,
+  SHAPES,
+  VISUALIZERS,
+  type ShapeId,
+  type VisualizerId,
+} from '@/components/visualizers'
 import type { Microphone } from '@/hooks/useAudioInputs'
 import { MIN_SILENCE_TIMEOUT_MS, MAX_SILENCE_TIMEOUT_MS } from '@/lib/storage'
 import { THEME_PREFS, type ThemePref } from '@/lib/theme'
@@ -19,6 +26,9 @@ export interface SettingsMenuProps {
   /** Omit onVisualizerChange to hide the visualizer choice. */
   visualizer?: VisualizerId
   onVisualizerChange?: (id: VisualizerId) => void
+  /** Omit onShapeChange to hide the shape choice. */
+  shape?: ShapeId
+  onShapeChange?: (id: ShapeId) => void
   microphones: Microphone[]
   /** '' = system default. */
   micDeviceId: string
@@ -50,6 +60,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onPaletteChange,
   visualizer = DEFAULT_VISUALIZER,
   onVisualizerChange,
+  shape = DEFAULT_SHAPE,
+  onShapeChange,
   microphones,
   micDeviceId,
   onMicChange,
@@ -214,6 +226,26 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                     </button>
                   )
                 })}
+              </div>
+            </Section>
+          )}
+
+          {onShapeChange && (
+            <Section title="Shape">
+              <div role="radiogroup" aria-label="Shape" className="grid grid-cols-2 gap-1">
+                {SHAPES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={shape === s.id}
+                    data-testid={`shape-${s.id}`}
+                    onClick={() => onShapeChange(s.id)}
+                    className="key t-small min-h-8"
+                  >
+                    {s.name}
+                  </button>
+                ))}
               </div>
             </Section>
           )}

@@ -17,4 +17,12 @@ describe('OrbVisualizer', () => {
     rerender(<OrbVisualizer protocolState="idle" visualizer="particle-grid" questionText="Why?" />)
     expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'grid')
   })
+
+  it('forms the chosen shape, the sphere by default', () => {
+    const { rerender } = render(<OrbVisualizer protocolState="speaking" />)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'sphere')
+
+    rerender(<OrbVisualizer protocolState="speaking" shape="wave" />)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'wave')
+  })
 })

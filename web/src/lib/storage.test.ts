@@ -9,6 +9,9 @@ import {
   getStoredVisualizer,
   setStoredVisualizer,
   STORAGE_KEY_VISUALIZER,
+  getStoredShape,
+  setStoredShape,
+  STORAGE_KEY_SHAPE,
 } from './storage'
 
 describe('storage (turn mode persistence)', () => {
@@ -103,5 +106,27 @@ describe('storage (visualizer choice)', () => {
   it('ignores an unknown stored value', () => {
     window.localStorage.setItem(STORAGE_KEY_VISUALIZER, 'hologram')
     expect(getStoredVisualizer()).toBe('particle-lines')
+  })
+})
+
+describe('storage (particle shape)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('defaults to the sphere when nothing is stored', () => {
+    expect(getStoredShape()).toBe('sphere')
+  })
+
+  it('persists the sound wave and reads it back', () => {
+    setStoredShape('wave')
+    expect(window.localStorage.getItem(STORAGE_KEY_SHAPE)).toBe('wave')
+    expect(getStoredShape()).toBe('wave')
+  })
+
+  it('ignores an unknown stored value', () => {
+    window.localStorage.setItem(STORAGE_KEY_SHAPE, 'cube')
+    expect(getStoredShape()).toBe('sphere')
   })
 })

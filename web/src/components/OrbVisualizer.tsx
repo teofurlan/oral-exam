@@ -1,7 +1,7 @@
 import React from 'react'
 import { orbColors } from '@/components/orbPalettes'
 import { ParticleVisualizer } from '@/components/ParticleVisualizer'
-import { DEFAULT_VISUALIZER, type VisualizerId } from '@/components/visualizers'
+import { DEFAULT_SHAPE, DEFAULT_VISUALIZER, type ShapeId, type VisualizerId } from '@/components/visualizers'
 import type { ParticleStyle } from '@/lib/particleField'
 import type { ProtocolState } from '@/types/exam'
 
@@ -18,6 +18,8 @@ export interface OrbVisualizerProps {
   getOutputVolume?: () => number
   getInputVolume?: () => number
   visualizer?: VisualizerId
+  /** What the particles gather into. */
+  shape?: ShapeId
   /** The current question; the letter looks are made of its characters. */
   questionText?: string
   theme?: 'light' | 'dark'
@@ -30,6 +32,7 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
   getOutputVolume,
   getInputVolume,
   visualizer = DEFAULT_VISUALIZER,
+  shape = DEFAULT_SHAPE,
   questionText,
   theme = 'dark',
 }) => (
@@ -42,6 +45,7 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
       <ParticleVisualizer
         protocolState={protocolState}
         style={STYLE[visualizer]}
+        shape={shape}
         colors={orbColors(paletteId, protocolState, theme)}
         lightBackground={theme === 'light'}
         getOutputVolume={getOutputVolume}

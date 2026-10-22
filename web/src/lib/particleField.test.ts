@@ -152,6 +152,56 @@ describe('ParticleField', () => {
     expect(freeText.some(([x, y]) => !onGrid(x, y))).toBe(true)
   })
 
+  it('gathers into a wide band of strands for the sound wave, the sphere staying round', () => {
+    const spread = (shape: 'sphere' | 'wave') => {
+      const field = new ParticleField({ count: 400, style: 'lines', shape, random: seeded(9) })
+      field.resize(BASE.width, BASE.height)
+      run(field, 'speaking', 4, 0)
+      const dx = field.particles.map((p) => Math.abs(p.x - BASE.cx))
+      const dy = field.particles.map((p) => Math.abs(p.y - BASE.cy))
+      return { field, dx, dy, w: Math.max(...dx), h: Math.max(...dy) }
+    }
+
+    const sphere = spread('sphere')
+    expect(sphere.w).toBeLessThan(BASE.radius * 1.5)
+    expect(sphere.h).toBeLessThan(BASE.radius * 1.5)
+
+    const wave = spread('wave')
+    expect(wave.w).toBeGreaterThan(BASE.radius * 1.8)
+    expect(wave.h).toBeLessThan(BASE.radius * 0.9)
+    // The strands cross and pinch together at both ends of the wave.
+    const ends = wave.field.particles.filter((p) => Math.abs(p.x - BASE.cx) > BASE.radius * 2)
+    expect(ends.length).toBeGreaterThan(0)
+    for (const p of ends) expect(Math.abs(p.y - BASE.cy)).toBeLessThan(BASE.radius * 0.3)
+  })
+
+  it('places every wave particle on one of five strands', () => {
+    const field = new ParticleField({ count: 400, style: 'lines', shape: 'wave', random: seeded(4) })
+    const strands = new Set(field.particles.map((p) => p.strand))
+    expect(strands).toEqual(new Set([0, 1, 2, 3, 4]))
+    for (const p of field.particles) {
+      expect(p.u).toBeGreaterThanOrEqual(-1)
+      expect(p.u).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('switches between the sphere and the wave without rebuilding the particles', () => {
+    const field = new ParticleField({ count: 300, style: 'lines', random: seeded(6) })
+    field.resize(BASE.width, BASE.height)
+    expect(field.shape).toBe('sphere')
+    const before = field.particles
+    let t = run(field, 'speaking', 4, 0)
+
+    field.setShape('wave')
+    expect(field.particles).toBe(before)
+    t = run(field, 'speaking', 3, t)
+    expect(Math.max(...field.particles.map((p) => Math.abs(p.x - BASE.cx)))).toBeGreaterThan(BASE.radius * 1.8)
+
+    field.setShape('sphere')
+    run(field, 'speaking', 3, t)
+    expect(Math.max(...field.particles.map((p) => Math.abs(p.x - BASE.cx)))).toBeLessThan(BASE.radius * 1.5)
+  })
+
   it('keeps every particle position finite', () => {
     const field = new ParticleField({ count: 200, style: 'lines', random: seeded(11) })
     field.resize(BASE.width, BASE.height)

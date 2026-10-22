@@ -105,6 +105,16 @@ describe('App Integration', () => {
     expect(screen.getByTestId('palette-orchid')).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('switches the particles to the sound wave from settings and remembers it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'sphere')
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('shape-wave'))
+    expect(window.localStorage.getItem('socra_shape')).toBe('wave')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'wave')
+  })
+
   it('updates state, question, and transcript from WebSocket messages', async () => {
     render(<App />)
 

@@ -142,6 +142,19 @@ describe('AgentApp', () => {
     expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-style', 'grid')
   })
 
+  it('uses the particle shape chosen in settings, shared with the exam page', async () => {
+    window.localStorage.setItem('socra_shape', 'wave')
+    const user = userEvent.setup()
+    openPage()
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'wave')
+
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('shape-sphere'))
+
+    expect(window.localStorage.getItem('socra_shape')).toBe('sphere')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'sphere')
+  })
+
   it('sends dictated and typed turns', async () => {
     const user = userEvent.setup()
     const { ws } = openPage()

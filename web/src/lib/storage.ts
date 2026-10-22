@@ -1,6 +1,13 @@
 import type { TurnMode } from '@/types/exam'
 import type { AgentSelection } from '@/types/agent'
-import { DEFAULT_VISUALIZER, isVisualizerId, type VisualizerId } from '@/components/visualizers'
+import {
+  DEFAULT_SHAPE,
+  DEFAULT_VISUALIZER,
+  isShapeId,
+  isVisualizerId,
+  type ShapeId,
+  type VisualizerId,
+} from '@/components/visualizers'
 
 export const STORAGE_KEY_MODE = 'oral_exam_turn_mode'
 export const STORAGE_KEY_SILENCE_TIMEOUT = 'oral_exam_silence_timeout_ms'
@@ -89,6 +96,26 @@ export function setStoredVisualizer(id: VisualizerId): void {
     window.localStorage.setItem(STORAGE_KEY_VISUALIZER, id)
   } catch (err) {
     console.warn('Failed to write visualizer to localStorage:', err)
+  }
+}
+
+export const STORAGE_KEY_SHAPE = 'socra_shape'
+
+export function getStoredShape(): ShapeId {
+  try {
+    const item = window.localStorage.getItem(STORAGE_KEY_SHAPE)
+    if (isShapeId(item)) return item
+  } catch (err) {
+    console.warn('Failed to read particle shape from localStorage:', err)
+  }
+  return DEFAULT_SHAPE
+}
+
+export function setStoredShape(id: ShapeId): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY_SHAPE, id)
+  } catch (err) {
+    console.warn('Failed to write particle shape to localStorage:', err)
   }
 }
 
