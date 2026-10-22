@@ -21,6 +21,8 @@ export interface ParticleVisualizerProps {
   letters?: string
   /** The page ground is light: paint particles instead of adding light. */
   lightBackground?: boolean
+  /** While idle, keep the particles gathered in their shape, small and slow. */
+  resting?: boolean
   className?: string
 }
 
@@ -37,13 +39,14 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
   getInputVolume,
   letters,
   lightBackground = false,
+  resting = false,
   className = '',
 }) => {
   const slotRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fieldRef = useRef<ParticleField | null>(null)
-  const live = useRef({ protocolState, colors, getOutputVolume, getInputVolume, lightBackground })
-  live.current = { protocolState, colors, getOutputVolume, getInputVolume, lightBackground }
+  const live = useRef({ protocolState, colors, getOutputVolume, getInputVolume, lightBackground, resting })
+  live.current = { protocolState, colors, getOutputVolume, getInputVolume, lightBackground, resting }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -103,6 +106,7 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
         state,
         volume,
         reducedMotion,
+        rest: live.current.resting,
       })
       field.draw(ctx, dpr)
       raf = requestAnimationFrame(frame)
@@ -127,7 +131,7 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
   }, [shape])
 
   return (
-    <div ref={slotRef} data-testid="particle-visualizer" data-style={style} data-shape={shape} className={className}>
+    <div ref={slotRef} data-testid="particle-visualizer" data-style={style} data-shape={shape} data-resting={resting} className={className}>
       <canvas
         ref={canvasRef}
         aria-hidden

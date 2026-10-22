@@ -213,6 +213,44 @@ describe('ParticleField', () => {
     expect(Math.max(...field.particles.map((p) => Math.abs(p.x - BASE.cx)))).toBeLessThan(BASE.radius * 1.5)
   })
 
+  it('gathers into a small calm formation at rest while idle, in either shape', () => {
+    for (const shape of ['sphere', 'wave'] as const) {
+      const spoken = new ParticleField({ count: 400, style: 'lines', shape, random: seeded(12) })
+      spoken.resize(BASE.width, BASE.height)
+      run(spoken, 'speaking', 4, 0)
+
+      const resting = new ParticleField({ count: 400, style: 'lines', shape, random: seeded(12) })
+      resting.resize(BASE.width, BASE.height)
+      let time = 0
+      for (let i = 0; i < 4 * 60; i++) {
+        time += BASE.dt
+        resting.step({ ...BASE, state: 'idle', volume: 0, time, rest: true })
+      }
+      // Every particle joins the formation, none left loose over the screen.
+      const far = shape === 'sphere' ? BASE.radius * 1.2 : BASE.radius * 2.6
+      expect(resting.particles.every((p) => Math.hypot(p.x - BASE.cx, p.y - BASE.cy) < far)).toBe(true)
+      expect(meanDistance(resting)).toBeLessThan(meanDistance(spoken))
+      // Quieter than a voice: dimmer, and leaning to the first (grey) colour of the idle pair.
+      const mean = (f: ParticleField, k: 'alpha' | 'tint') => f.particles.reduce((s, p) => s + p[k], 0) / f.particles.length
+      expect(mean(resting, 'alpha')).toBeLessThan(mean(spoken, 'alpha') * 0.75)
+      expect(mean(resting, 'tint')).toBeLessThan(0.3)
+    }
+  })
+
+  it('ignores the rest formation once the conversation has a voice', () => {
+    const positions = (rest: boolean) => {
+      const field = new ParticleField({ count: 200, style: 'lines', random: seeded(13) })
+      field.resize(BASE.width, BASE.height)
+      let time = 0
+      for (let i = 0; i < 2 * 60; i++) {
+        time += BASE.dt
+        field.step({ ...BASE, state: 'speaking', volume: 0.5, time, rest })
+      }
+      return field.particles.map((p) => [p.x, p.y])
+    }
+    expect(positions(true)).toEqual(positions(false))
+  })
+
   it('keeps every particle position finite', () => {
     const field = new ParticleField({ count: 200, style: 'lines', random: seeded(11) })
     field.resize(BASE.width, BASE.height)

@@ -114,6 +114,18 @@ describe('AgentApp', () => {
     expect(screen.getByRole('button', { name: /start agent/i })).toBeInTheDocument()
   })
 
+  it('rests the particles in their shape on the setup screen, and frees them for the conversation', async () => {
+    const user = userEvent.setup()
+    const { ws } = openPage()
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
+
+    startSession(ws)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'false')
+
+    await user.click(screen.getByRole('button', { name: /change agent or folder/i }))
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
+  })
+
   it('keeps a pending prompt visible while changing the setup, and can go back', async () => {
     const user = userEvent.setup()
     const { ws } = openPage()

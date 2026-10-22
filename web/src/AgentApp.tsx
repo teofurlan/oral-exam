@@ -220,6 +220,7 @@ export const AgentApp: React.FC = () => {
                 shape={shape}
                 questionText={lettersText}
                 theme={theme}
+                resting={showSetup}
               />
             </div>
 

@@ -25,4 +25,12 @@ describe('OrbVisualizer', () => {
     rerender(<OrbVisualizer protocolState="speaking" shape="wave" />)
     expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'wave')
   })
+
+  it('lets the particles rest in their shape only when asked', () => {
+    const { rerender } = render(<OrbVisualizer protocolState="idle" />)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'false')
+
+    rerender(<OrbVisualizer protocolState="idle" resting />)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
+  })
 })

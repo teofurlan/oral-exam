@@ -1,7 +1,8 @@
 /**
  * Particle field behind the exam screen: particles drift loose over the whole screen while
  * nothing is said, and gather around the visualizer's slot, into a rotating sphere or a sound
- * wave, whenever there is a voice (speaking, listening) or the examiner is thinking.
+ * wave, whenever there is a voice (speaking, listening) or the examiner is thinking. A screen
+ * with nothing to say yet (the agent setup) can ask them to rest there, small and slow.
  *
  * Plain TypeScript with no React, so the physics can be tested without a canvas.
  */
@@ -25,6 +26,8 @@ export interface FieldFrame {
   /** Raw voice level 0..1; the field smooths it. */
   volume: number
   reducedMotion: boolean
+  /** While idle, gather into a small, slow formation instead of drifting loose. */
+  rest?: boolean
 }
 
 export interface Particle {
@@ -227,7 +230,10 @@ export class ParticleField {
 
     this.level += (f.volume - this.level) * (1 - Math.exp(-dt * (f.volume > this.level ? 26 : 8)))
     const vol = this.level
-    this.rot += dt * (f.state === 'thinking' ? 0.9 : 0.22 + vol * 0.7) * motion
+    // At rest the formation is smaller and turns and flows at a fraction of its speed.
+    const resting = f.state === 'idle' && f.rest === true
+    const calm = resting ? 0.4 : 1
+    this.rot += dt * (f.state === 'thinking' ? 0.9 : 0.22 + vol * 0.7) * motion * calm
 
     const ck = 1 - Math.exp(-dt * 3)
     for (let i = 0; i < 3; i++) {
@@ -235,12 +241,12 @@ export class ParticleField {
       this.col1[i] = lerp(this.col1[i], this.target1[i], ck)
     }
 
-    const G = f.state === 'idle' ? 0 : 1
-    const R = f.radius * 0.85 * (1 + vol * 0.1)
+    const G = f.state === 'idle' && !resting ? 0 : 1
+    const R = f.radius * (resting ? 0.6 : 0.85) * (1 + vol * 0.1)
     const cr = Math.cos(this.rot), sr = Math.sin(this.rot)
     const ct = Math.cos(TILT), st = Math.sin(TILT)
     const wave = this.shape === 'wave'
-    const halfW = Math.min(f.radius * 2.4, W * 0.45)
+    const halfW = Math.min(f.radius * (resting ? 1.7 : 2.4), W * 0.45)
 
     for (const p of this.particles) {
       // Loose home: a slow flow field over the whole screen, wrapping at the edges.
@@ -266,7 +272,7 @@ export class ParticleField {
         const A = R * 0.65 * (0.3 + 0.7 * vol) * c.amp
         const base = Math.max(0, 1 - p.u * p.u)
         const env = Math.pow(base, 1.6)
-        const arg = p.u * c.f * Math.PI + t * c.s * motion + c.ph
+        const arg = p.u * c.f * Math.PI + t * c.s * motion * calm + c.ph
         const sn = Math.sin(arg), cs = Math.cos(arg)
         const thick = R * (0.05 + 0.15 * vol * c.thick) * (0.35 + 0.65 * env)
         fx = cx + p.u * halfW
@@ -315,11 +321,12 @@ export class ParticleField {
 
       const twinkle = 0.7 + 0.3 * Math.sin(t * (0.8 + p.spd) + p.ph)
       p.depth = lerp(0.5, depth, e)
-      p.alpha = lerp(0.16 * twinkle, wave ? 0.35 + 0.65 * depth : 0.22 + 0.78 * depth, e)
+      p.alpha = lerp(0.16 * twinkle, wave ? 0.35 + 0.65 * depth : 0.22 + 0.78 * depth, e) * (resting ? 0.55 : 1)
       const scale = wave ? 0.85 + 0.25 * depth : 0.75 + 0.55 * depth
       p.size = lerp(7, 4 + 10 * vol + 3 * depth, e) * lerp(1, scale, e) + w * 6 * (1 - e)
-      // On the wave each strand leans toward its own colour.
+      // On the wave each strand leans toward its own colour; at rest everything leans to the first.
       p.tint = wave ? lerp(p.hue, STRANDS[p.strand].hue, 0.75 * e) : p.hue
+      if (resting) p.tint *= 0.3
     }
   }
 

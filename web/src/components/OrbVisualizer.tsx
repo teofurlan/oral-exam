@@ -23,6 +23,8 @@ export interface OrbVisualizerProps {
   /** The current question; the letter looks are made of its characters. */
   questionText?: string
   theme?: 'light' | 'dark'
+  /** Keep the particles gathered while idle, as the focal point of a screen with no voice yet. */
+  resting?: boolean
 }
 
 export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
@@ -35,6 +37,7 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
   shape = DEFAULT_SHAPE,
   questionText,
   theme = 'dark',
+  resting = false,
 }) => (
   <div
     data-testid="orb-visualizer"
@@ -51,6 +54,7 @@ export const OrbVisualizer: React.FC<OrbVisualizerProps> = ({
         getOutputVolume={getOutputVolume}
         getInputVolume={getInputVolume}
         letters={questionText}
+        resting={resting}
         className="w-full h-full"
       />
     </div>
