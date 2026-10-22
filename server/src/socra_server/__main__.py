@@ -19,10 +19,12 @@ from mcp.server.stdio import stdio_server
 from socra_server.adapters.browser import launch_page
 from socra_server.adapters.claude_code_agent import ClaudeCodeBackend
 from socra_server.adapters.folder_dialog import pick_folder
+from socra_server.adapters.pi_agent import PiBackend
 from socra_server.agent_app import AgentApp
 from socra_server.agent_registry import BackendRegistry
 from socra_server.app import ExamApp, ModelLoader, PageChannel
 from socra_server.entrypoints import http_server, mcp_tools, ws_server
+from socra_server.ports import AgentBackend
 
 LOG_DIR = Path(__file__).resolve().parents[2] / "logs"
 
@@ -58,6 +60,11 @@ PORT_RETRY_S = 5.0
 AGENT_IDLE_S = float(os.environ.get("SOCRA_AGENT_IDLE_S", "120"))
 
 
+def agent_backends() -> list[AgentBackend]:
+    """The agents the selector offers, in order; the first ready one is the default."""
+    return [ClaudeCodeBackend(), PiBackend()]
+
+
 def _build_apps(loop: asyncio.AbstractEventLoop) -> tuple[ExamApp, AgentApp, ModelLoader]:
     """Wire exam and agent mode to one model loader; each page has its own channel."""
     loader = ModelLoader()
@@ -65,7 +72,7 @@ def _build_apps(loop: asyncio.AbstractEventLoop) -> tuple[ExamApp, AgentApp, Mod
     exam = ExamApp(channel=PageChannel(), loader=loader)
     agent = AgentApp(
         channel=PageChannel(),
-        registry=BackendRegistry([ClaudeCodeBackend()]),
+        registry=BackendRegistry(agent_backends()),
         loader=loader,
         folder_picker=pick_folder,
     )
