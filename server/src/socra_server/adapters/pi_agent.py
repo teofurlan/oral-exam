@@ -12,6 +12,7 @@ import asyncio
 import collections
 import json
 import logging
+import os
 import platform
 import re
 import shutil
@@ -39,17 +40,23 @@ logger = logging.getLogger(__name__)
 # Loading the user's extensions took 11-56 s before Pi answered (measured).
 STARTUP_TIMEOUT_S = 120.0
 DISCOVERY_TIMEOUT_S = 30.0
+FULL_DISCOVERY_TIMEOUT_S = 180.0
 IDLE_TIMEOUT_S = 10.0
 CLOSE_TIMEOUT_S = 10.0
 STDERR_DRAIN_S = 2.0
 # One record can hold a whole run's messages (system prompt included).
 STREAM_LIMIT = 64 * 1024 * 1024
-# Model discovery only lists models, so it skips everything slow to load.
+# Model discovery only lists models, so it skips what it can.
 DISCOVERY_FLAGS = (
-    "--no-session", "--no-extensions", "--no-skills", "--no-mcp",
+    "--no-session", "--no-skills", "--no-mcp",
     "--no-prompt-templates", "--no-themes", "--no-context-files", "--offline",
 )
-SETTINGS_PATH = Path.home() / ".pi" / "agent" / "settings.json"
+# Without extensions Pi lists its models in ~1 s, but misses the providers that
+# extensions add (pi-antigravity); with them it takes ~20 s (measured).
+FAST_DISCOVERY_FLAGS = (*DISCOVERY_FLAGS, "--no-extensions")
+CACHE_PATH = (
+    Path(os.environ.get("LOCALAPPDATA") or Path.home() / ".cache") / "Socra" / "pi-models.json"
+)
 # Model ids reach the command line (a .cmd wrapper on Windows): keep them plain.
 _PROVIDER = re.compile(r"[A-Za-z0-9._-]+")
 _MODEL = re.compile(r"[A-Za-z0-9._:@+-]+(?:/[A-Za-z0-9._:@+-]+)*")
@@ -427,29 +434,35 @@ class PiBackend:
         *,
         rpc_starter: RpcStarter = SubprocessRpc.start,
         cli_path: str | None = None,
-        settings_path: Path = SETTINGS_PATH,
+        cache_path: Path = CACHE_PATH,
     ) -> None:
         self._start_rpc = rpc_starter
         self._cli_path = cli_path if cli_path is not None else find_cli()
-        self._settings_path = settings_path
-        # Filled by check(): models whose provider is logged in, default first.
-        self._models: list[ModelOption] | None = None
+        self._cache_path = cache_path
+        # Models of logged-in providers, in Pi's order: no provider is preferred.
+        self._fast: list[ModelOption] = []
+        self._full: list[ModelOption] | None = self._read_cache()
+        self.model_refresh: asyncio.Task[None] | None = None
 
     def models(self) -> list[ModelOption]:
-        if self._models is not None:
-            return list(self._models)
-        return self._configured_default()
+        return list(self._full if self._full is not None else self._fast)
 
     async def check(self) -> BackendStatus:
         if not self._cli_path:
             return BackendStatus("unreachable", "Pi CLI not found.")
         try:
-            models = await asyncio.wait_for(self._discover(self._cli_path), DISCOVERY_TIMEOUT_S)
+            self._fast = await asyncio.wait_for(
+                self._discover(self._cli_path, FAST_DISCOVERY_FLAGS), DISCOVERY_TIMEOUT_S
+            )
         except Exception as exc:
             logger.warning("Pi model discovery failed: %s", exc)
             return BackendStatus("unreachable", "Could not run Pi to list its models.")
-        self._models = models
-        if not models:
+        if self.model_refresh is None:
+            # Once per server run, list extension providers too, for the next page load.
+            self.model_refresh = asyncio.create_task(
+                self._refresh_full(self._cli_path), name="pi-model-refresh"
+            )
+        if not self.models():
             return BackendStatus(
                 "not_configured", "Pi has no logged-in provider. Run pi and use /login."
             )
@@ -461,6 +474,7 @@ class PiBackend:
         provider, model_id = _split_model(model)
         if not self._cli_path:
             raise RuntimeError("Pi CLI not found.")
+        # Always explicit: Pi's own default provider is never used implicitly.
         rpc = await self._start_rpc(
             [self._cli_path, "--mode", "rpc", "--provider", provider, "--model", model_id], cwd
         )
@@ -472,41 +486,45 @@ class PiBackend:
             raise
         return conversation
 
-    async def _discover(self, cli_path: str) -> list[ModelOption]:
+    async def _refresh_full(self, cli_path: str) -> None:
+        try:
+            models = await asyncio.wait_for(
+                self._discover(cli_path, DISCOVERY_FLAGS), FULL_DISCOVERY_TIMEOUT_S
+            )
+        except Exception as exc:
+            logger.warning("Pi model discovery with extensions failed: %s", exc)
+            return
+        self._full = models
+        try:
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            self._cache_path.write_text(
+                json.dumps([{"id": m.id, "label": m.label} for m in models]), encoding="utf-8"
+            )
+        except OSError as exc:
+            logger.warning("Could not save the Pi model list: %s", exc)
+
+    async def _discover(self, cli_path: str, flags: tuple[str, ...]) -> list[ModelOption]:
         rpc = await self._start_rpc(
-            [cli_path, "--mode", "rpc", *DISCOVERY_FLAGS], Path(tempfile.gettempdir())
+            [cli_path, "--mode", "rpc", *flags], Path(tempfile.gettempdir())
         )
         try:
-            await rpc.send({"id": "state", "type": "get_state"})
             await rpc.send({"id": "models", "type": "get_available_models"})
-            data: dict[str, dict[str, Any]] = {}
-            while len(data) < 2:
+            while True:
                 record = await rpc.receive()
                 if record is None:
                     raise RuntimeError(f"Pi exited: {rpc.stderr_tail()}")
-                if record.get("type") != "response" or record.get("id") not in ("state", "models"):
-                    continue
-                if not record.get("success"):
-                    raise RuntimeError(str(record.get("error")))
-                data[record["id"]] = record.get("data") or {}
+                if record.get("type") == "response" and record.get("id") == "models":
+                    break
+            if not record.get("success"):
+                raise RuntimeError(str(record.get("error")))
         finally:
             await rpc.close()
-        options = [
-            option for option in map(_model_option, data["models"].get("models") or [])
-            if option is not None
-        ]
-        default = _model_option(data["state"].get("model") or {})
-        if default is not None and default in options:
-            options.remove(default)
-            options.insert(0, default)
-        return options
+        models = (record.get("data") or {}).get("models") or []
+        return [option for option in map(_model_option, models) if option is not None]
 
-    def _configured_default(self) -> list[ModelOption]:
+    def _read_cache(self) -> list[ModelOption] | None:
         try:
-            settings = json.loads(self._settings_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return []
-        provider, model = settings.get("defaultProvider"), settings.get("defaultModel")
-        if not (isinstance(provider, str) and isinstance(model, str) and provider and model):
-            return []
-        return [ModelOption(f"{provider}/{model}", f"{model} ({provider})")]
+            entries = json.loads(self._cache_path.read_text(encoding="utf-8"))
+            return [ModelOption(str(e["id"]), str(e["label"])) for e in entries]
+        except (OSError, ValueError, TypeError, KeyError):
+            return None

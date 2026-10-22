@@ -90,10 +90,14 @@ as the exam MCP server), it only opens the page. The page talks to
 - Claude Code must be logged in (`claude auth login`); the page shows the
   backend as not configured otherwise.
 - Pi is found on `PATH` or in `~/.pi/agent/bin`. Its model list shows the
-  models of every provider Pi is logged in to (`/login` inside `pi`), with
-  your default model first; models that only extensions provide are not
-  listed. Starting a Pi session loads your extensions and can take up to a
-  minute.
+  models of every provider Pi is logged in to (`/login` inside `pi`), in
+  Pi's order; Pi's default provider is not preferred, and the session always
+  starts with the provider and model you pick. The first list skips Pi's
+  extensions (about 1 s); a background refresh with extensions (about 20 s)
+  adds the providers they bring, such as Antigravity, and is saved in
+  `%LOCALAPPDATA%\Socra\pi-models.json` (`~/.cache/Socra` elsewhere) so the
+  next start shows them at once. Reload the page to see them the first time.
+  Starting a Pi session loads your extensions and can take up to a minute.
 - Pi does not ask before tool calls by itself; it follows its own settings
   (gentle-pi's Normal / Auto / YOLO mode). When an extension asks for a
   confirmation, such as gentle-pi before a recognized data-loss command, the

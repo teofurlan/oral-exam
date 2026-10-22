@@ -15,7 +15,8 @@ from time import perf_counter
 from socra_server.adapters.pi_agent import PiBackend
 from socra_server.domain.agent import PermissionRequest
 
-DEFAULT_MODEL = "google/gemini-3.5-flash-lite"
+# Pass the provider explicitly: Pi's own default provider may be on a quota the user needs elsewhere.
+DEFAULT_MODEL = "antigravity/gemini-3.8-flash"
 
 
 async def deny(request: PermissionRequest) -> bool:
@@ -45,6 +46,11 @@ async def main(model: str) -> None:
     status = await backend.check()
     models = backend.models()
     print(f"check: {status} in {perf_counter() - started:.1f}s; {len(models)} models, first {models[:2]}")
+    started = perf_counter()
+    if backend.model_refresh is not None:
+        await backend.model_refresh
+    providers = sorted({m.id.split("/", 1)[0] for m in backend.models()})
+    print(f"refresh with extensions: {len(backend.models())} models after {perf_counter() - started:.1f}s; {providers}")
     with tempfile.TemporaryDirectory(prefix="socra-pi-smoke-") as folder:
         cwd = Path(folder)
         (cwd / "note.txt").write_text("hello\n", encoding="utf-8")

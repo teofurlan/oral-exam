@@ -23,6 +23,7 @@ from socra_server.ports import AgentBackend, AgentConversation
 GPT = {"provider": "openai-codex", "id": "gpt-6.1-sol", "name": "GPT-6.1 Sol"}
 GEMINI = {"provider": "google", "id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite"}
 GROQ = {"provider": "groq", "id": "openai/gpt-oss-120b", "name": "GPT OSS 120B"}
+ANTIGRAVITY = {"provider": "antigravity", "id": "gemini-3.8-flash", "name": "Gemini 3.8 Flash"}
 
 
 # --------------------------------------------------------------------------- #
@@ -77,15 +78,19 @@ class FakePi:
         cwd,
         *,
         models=(GPT, GEMINI),
+        extension_models=(ANTIGRAVITY,),
         default=GPT,
         turns=(),
+        full_discovery_fails=False,
         prompt_response=None,
         exit_on_start=False,
         stderr="",
     ):
         self.args = list(args)
         self.cwd = cwd
-        self.models = [dict(m) for m in models]
+        # Providers that extensions add are listed only when extensions load.
+        with_extensions = "--no-extensions" not in self.args
+        self.models = [dict(m) for m in (*models, *(extension_models if with_extensions else ()))]
         self.default = default
         self.turns = [list(turn) for turn in turns]
         self.prompt_response = prompt_response
@@ -93,7 +98,7 @@ class FakePi:
         self.sent: list[dict] = []
         self.closed = False
         self._out: asyncio.Queue = asyncio.Queue()
-        if exit_on_start:
+        if exit_on_start or (full_discovery_fails and with_extensions):
             self._out.put_nowait(None)
         FakePi.instances.append(self)
 
@@ -144,16 +149,17 @@ class FakePi:
         self._out.put_nowait(response)
 
 
-def _backend(tmp_path, *, settings=None, start_error=None, **fake_options):
+def _backend(tmp_path, *, cached=None, start_error=None, **fake_options):
     async def start(args, cwd):
         if start_error is not None:
             raise start_error
         return FakePi(args, cwd, **fake_options)
 
-    settings_path = tmp_path / "settings.json"
-    if settings is not None:
-        settings_path.write_text(json.dumps(settings), encoding="utf-8")
-    return PiBackend(rpc_starter=start, cli_path="pi-test.cmd", settings_path=settings_path)
+    cache_path = tmp_path / "cache" / "pi-models.json"
+    if cached is not None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(cached), encoding="utf-8")
+    return PiBackend(rpc_starter=start, cli_path="pi-test.cmd", cache_path=cache_path)
 
 
 async def _never_asked(request: PermissionRequest) -> bool:
@@ -176,42 +182,81 @@ async def _until(condition, timeout=2.0):
 # Backend: identity, models, check                                            #
 # --------------------------------------------------------------------------- #
 
-def test_backend_satisfies_port_and_offers_the_configured_default_before_any_check(tmp_path):
-    backend = _backend(
-        tmp_path, settings={"defaultProvider": "openai-codex", "defaultModel": "gpt-6.1-sol"}
-    )
+def test_backend_satisfies_port_and_has_no_models_before_any_check(tmp_path):
+    backend = _backend(tmp_path)
 
     assert isinstance(backend, AgentBackend)
     assert backend.id == "pi"
     assert backend.label == "Pi"
-    assert [m.id for m in backend.models()] == ["openai-codex/gpt-6.1-sol"]
+    # No model is offered from Pi's settings: its default provider is never preferred.
+    assert backend.models() == []
 
 
-def test_no_models_without_settings_or_check(tmp_path):
-    assert _backend(tmp_path).models() == []
+def test_the_list_saved_by_an_earlier_run_is_offered_before_any_check(tmp_path):
+    backend = _backend(tmp_path, cached=[{"id": "antigravity/gemini-3.8-flash", "label": "G"}])
+
+    assert backend.models() == [ModelOption("antigravity/gemini-3.8-flash", "G")]
 
 
-async def test_check_lists_logged_in_models_with_the_default_first(tmp_path):
+async def test_check_lists_logged_in_models_in_pis_order_without_preferring_the_default(tmp_path):
     backend = _backend(tmp_path, models=(GEMINI, GPT, GROQ), default=GPT)
 
     status = await backend.check()
 
     assert status == BackendStatus("ready")
     assert backend.models() == [
-        ModelOption("openai-codex/gpt-6.1-sol", "GPT-6.1 Sol (openai-codex)"),
         ModelOption("google/gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite (google)"),
+        ModelOption("openai-codex/gpt-6.1-sol", "GPT-6.1 Sol (openai-codex)"),
         ModelOption("groq/openai/gpt-oss-120b", "GPT OSS 120B (groq)"),
     ]
-    probe = FakePi.instances[-1]
-    # Discovery skips the user's extensions so the selector stays fast.
+    probe = FakePi.instances[0]
+    # The first listing skips extensions so the selector stays fast.
     assert probe.args[:3] == ["pi-test.cmd", "--mode", "rpc"]
     for flag in ("--no-session", "--no-extensions", "--no-mcp", "--offline"):
         assert flag in probe.args
     assert probe.closed
 
 
+async def test_extension_providers_are_listed_after_the_background_refresh_and_saved(tmp_path):
+    backend = _backend(tmp_path, models=(GEMINI,), extension_models=(ANTIGRAVITY,))
+
+    await backend.check()
+    await backend.model_refresh
+
+    expected = [
+        ModelOption("google/gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite (google)"),
+        ModelOption("antigravity/gemini-3.8-flash", "Gemini 3.8 Flash (antigravity)"),
+    ]
+    assert backend.models() == expected
+    full = FakePi.instances[-1]
+    assert "--no-extensions" not in full.args
+    assert "--no-session" in full.args and full.closed
+    # A new server run offers the full list at once.
+    assert _backend(tmp_path).models() == expected
+
+
+async def test_the_background_refresh_runs_once_per_server_run(tmp_path):
+    backend = _backend(tmp_path)
+    await backend.check()
+    refresh = backend.model_refresh
+
+    await backend.check()
+
+    assert backend.model_refresh is refresh
+
+
+async def test_a_failed_refresh_keeps_the_fast_list(tmp_path):
+    backend = _backend(tmp_path, models=(GEMINI,), full_discovery_fails=True)
+
+    await backend.check()
+    await backend.model_refresh
+
+    assert [m.id for m in backend.models()] == ["google/gemini-3.5-flash-lite"]
+    assert not (tmp_path / "cache" / "pi-models.json").exists()
+
+
 async def test_check_without_logged_in_providers_is_not_configured(tmp_path):
-    status = await _backend(tmp_path, models=(), default=None).check()
+    status = await _backend(tmp_path, models=(), extension_models=(), default=None).check()
 
     assert status.state == "not_configured"
     assert "/login" in status.message
@@ -232,7 +277,7 @@ async def test_check_reports_unreachable_when_pi_cannot_run(tmp_path, options, m
 
 
 async def test_check_without_cli_is_unreachable(tmp_path):
-    backend = PiBackend(cli_path="", settings_path=tmp_path / "settings.json")
+    backend = PiBackend(cli_path="", cache_path=tmp_path / "pi-models.json")
 
     status = await backend.check()
 
@@ -245,7 +290,6 @@ async def test_check_without_cli_is_unreachable(tmp_path):
 
 async def test_open_starts_pi_in_rpc_mode_with_provider_model_and_folder(tmp_path):
     backend = _backend(tmp_path)
-    await backend.check()
 
     conversation = await backend.open("google/gemini-3.5-flash-lite", tmp_path, _never_asked)
 
@@ -262,7 +306,6 @@ async def test_open_starts_pi_in_rpc_mode_with_provider_model_and_folder(tmp_pat
 
 async def test_open_splits_provider_from_a_model_id_that_has_a_slash(tmp_path):
     backend = _backend(tmp_path, models=(GROQ,), default=GROQ)
-    await backend.check()
 
     await backend.open("groq/openai/gpt-oss-120b", tmp_path, _never_asked)
 
