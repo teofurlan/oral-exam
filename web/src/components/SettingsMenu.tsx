@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react'
 import { Mic, Settings, Timer } from 'lucide-react'
 import { ModeToggle } from '@/components/ModeToggle'
 import { ORB_PALETTES } from '@/components/orbPalettes'
+import { VISUALIZERS, type VisualizerId } from '@/components/visualizers'
 import type { Microphone } from '@/hooks/useAudioInputs'
 import { MIN_SILENCE_TIMEOUT_MS, MAX_SILENCE_TIMEOUT_MS } from '@/lib/storage'
 import type { TurnMode } from '@/types/exam'
@@ -13,6 +14,9 @@ export interface SettingsMenuProps {
   onSilenceChange: (ms: number) => void
   paletteId: string
   onPaletteChange: (id: string) => void
+  /** Omit onVisualizerChange to hide the visualizer choice. */
+  visualizer?: VisualizerId
+  onVisualizerChange?: (id: VisualizerId) => void
   microphones: Microphone[]
   /** '' = system default. */
   micDeviceId: string
@@ -34,6 +38,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onSilenceChange,
   paletteId,
   onPaletteChange,
+  visualizer = 'orb',
+  onVisualizerChange,
   microphones,
   micDeviceId,
   onMicChange,
@@ -162,6 +168,41 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                 onChange={(e) => onSilenceChange(Number(e.target.value))}
                 aria-label="End-of-answer silence duration"
               />
+            </section>
+          )}
+
+          {onVisualizerChange && (
+            <section className="flex flex-col gap-2.5">
+              <h2 className="t-title">Visualizer</h2>
+              <div
+                role="radiogroup"
+                aria-label="Visualizer"
+                className="glass-chip relative grid grid-cols-3 rounded-full p-[3px]"
+              >
+                <span
+                  aria-hidden
+                  className="absolute top-[3px] bottom-[3px] left-[3px] rounded-full bg-white/[0.14] shadow-[0_1px_3px_rgba(0,0,0,0.4)]"
+                  style={{
+                    width: 'calc((100% - 6px) / 3)',
+                    transform: `translateX(${VISUALIZERS.findIndex((v) => v.id === visualizer) * 100}%)`,
+                    transition: 'transform 0.5s var(--spring)',
+                  }}
+                />
+                {VISUALIZERS.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={visualizer === v.id}
+                    data-testid={`visualizer-${v.id}`}
+                    onClick={() => onVisualizerChange(v.id)}
+                    className="press relative z-10 rounded-full px-3 py-2 t-caption whitespace-nowrap"
+                    style={{ color: visualizer === v.id ? 'var(--label)' : 'var(--label-2)' }}
+                  >
+                    {v.name}
+                  </button>
+                ))}
+              </div>
             </section>
           )}
 

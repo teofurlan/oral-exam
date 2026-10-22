@@ -10,6 +10,8 @@ function renderMenu(overrides: Partial<SettingsMenuProps> = {}) {
     onSilenceChange: vi.fn(),
     paletteId: 'state',
     onPaletteChange: vi.fn(),
+    visualizer: 'orb',
+    onVisualizerChange: vi.fn(),
     microphones: [
       { deviceId: 'headset', label: 'Headset' },
       { deviceId: 'usb', label: 'USB Mic' },
@@ -75,5 +77,22 @@ describe('SettingsMenu — microphone', () => {
     renderMenu({ microphones: [], micDeviceId: 'usb' })
     expect(screen.queryByRole('option', { name: 'Disconnected microphone' })).toBeNull()
     expect(screen.queryByTestId('mic-fallback-note')).toBeNull()
+  })
+})
+
+describe('SettingsMenu — visualizer', () => {
+  it('offers the orb and the two particle looks, marking the current one', () => {
+    renderMenu({ visualizer: 'particle-lines' })
+    const group = screen.getByRole('radiogroup', { name: 'Visualizer' })
+    const options = Array.from(group.querySelectorAll('[role="radio"]'))
+    expect(options.map((o) => o.textContent)).toEqual(['Orb', 'Lines', 'Letters'])
+    expect(screen.getByTestId('visualizer-particle-lines')).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('visualizer-orb')).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('reports the chosen visualizer', () => {
+    const props = renderMenu()
+    fireEvent.click(screen.getByTestId('visualizer-particle-letters'))
+    expect(props.onVisualizerChange).toHaveBeenCalledWith('particle-letters')
   })
 })
