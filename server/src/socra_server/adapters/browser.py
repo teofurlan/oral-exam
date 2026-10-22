@@ -10,7 +10,7 @@ import webbrowser
 from socra_server.entrypoints.http_server import PAGE_URL
 
 
-def launch_page() -> None:
+def launch_page(url: str = PAGE_URL) -> None:
     """Prefer Edge, then Chrome on Windows; otherwise use the default browser."""
     if sys.platform == "win32":
         roots = [
@@ -24,10 +24,10 @@ def launch_page() -> None:
                 if executable.is_file():
                     try:
                         subprocess.Popen(
-                            [str(executable), f"--app={PAGE_URL}"],
+                            [str(executable), f"--app={url}"],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                         )
                         return
                     except OSError:
                         continue
-    webbrowser.open(PAGE_URL)
+    webbrowser.open(url)

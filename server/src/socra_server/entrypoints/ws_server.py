@@ -1,4 +1,4 @@
-"""WebSocket server entrypoint — serves ws://localhost:8766/ws.
+"""WebSocket server entrypoint — serves ws://localhost:8766/ws (exam) and /ws/agent.
 
 Uses the modern websockets.asyncio API (websockets >= 14).
 Binds to 127.0.0.1 only.  One page client at a time; a new connection
@@ -49,9 +49,11 @@ logger = _setup_logger()
 WS_HOST = "127.0.0.1"
 WS_PORT = int(os.environ.get("SOCRA_WS_PORT", "8766"))
 WS_PATH = "/ws"
+AGENT_WS_PATH = "/ws/agent"
 
 # Injected by __main__
 _app = None  # type: ignore[assignment]
+_agent_app = None  # type: ignore[assignment]
 
 
 def wire_app(app) -> None:
@@ -65,11 +67,124 @@ def get_app():
     return _app
 
 
+def wire_agent_app(app) -> None:
+    global _agent_app
+    _agent_app = app
+
+
 def _check_path(connection: ServerConnection, request: Request) -> Response | None:
-    """Reject requests whose path is not /ws."""
-    if request.path != WS_PATH:
+    """Reject requests whose path is not /ws (exam) or /ws/agent (agent mode)."""
+    if request.path not in (WS_PATH, AGENT_WS_PATH):
         return connection.respond(404, "Not found\n")
     return None
+
+
+async def _dispatch(ws: ServerConnection) -> None:
+    """Route each page to its mode's handler by WebSocket path."""
+    if ws.request is not None and ws.request.path == AGENT_WS_PATH:
+        await _handle_agent(ws)
+    else:
+        await _handle(ws)
+
+
+def _agent_text(msg: dict, key: str) -> str | None:
+    value = msg.get(key)
+    return value if isinstance(value, str) and value else None
+
+
+async def _handle_agent(ws: ServerConnection) -> None:
+    """Handle one agent-mode page; a new page replaces the old one."""
+    agent = _agent_app
+    if agent is None:
+        await ws.close(code=1011, reason="Agent mode unavailable")
+        return
+    loop = asyncio.get_running_loop()
+
+    old = agent.channel._ws
+    if old is not None and old is not ws:
+        # The new page never saw the old page's permission prompts.
+        await agent.handle_disconnect()
+    agent.channel.set_connection(ws, loop)
+    if old is not None and old is not ws and hasattr(old, "close"):
+        try:
+            await old.close(code=1000, reason="Replaced by a new page")
+        except Exception:
+            pass
+    background: set[asyncio.Task] = set()
+
+    def spawn(coro, label: str) -> None:
+        # Slow work runs beside the read loop, so Allow / Deny answers and
+        # interrupts keep flowing while a turn is transcribed or a dialog is open.
+        async def guarded() -> None:
+            try:
+                await coro
+            except Exception as exc:
+                logger.error("Error handling %s: %s", label, exc)
+
+        task = asyncio.create_task(guarded())
+        background.add(task)
+        task.add_done_callback(background.discard)
+
+    logger.info("Agent page connected: %s", ws.remote_address)
+    try:
+        async for raw in ws:
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                logger.error("Malformed agent message (ignored): %r", raw)
+                continue
+            if not isinstance(msg, dict):
+                logger.warning("Malformed agent message (expected object): %r", msg)
+                continue
+            if agent.channel._ws is not ws:
+                break
+            msg_type = msg.get("type")
+            try:
+                if msg_type == "agent_hello":
+                    await agent.handle_hello()
+                elif msg_type == "pick_folder":
+                    spawn(agent.handle_pick_folder(), msg_type)
+                elif msg_type == "start_agent":
+                    backend, model, cwd = (_agent_text(msg, k) for k in ("backend", "model", "cwd"))
+                    if backend is None or model is None or cwd is None:
+                        logger.warning("Malformed start_agent (expected backend, model, cwd)")
+                        continue
+                    await agent.handle_start(backend, model, cwd)
+                elif msg_type == "turn_text":
+                    text = _agent_text(msg, "text")
+                    if text is None:
+                        logger.warning("Malformed turn_text (expected text)")
+                        continue
+                    await agent.handle_turn_text(text)
+                elif msg_type == "turn_audio":
+                    data = _agent_text(msg, "data")
+                    if msg.get("format") != "wav" or data is None:
+                        logger.warning("Malformed turn_audio (expected base64 WAV)")
+                        continue
+                    spawn(agent.handle_turn_audio(data), msg_type)
+                elif msg_type == "permission_response":
+                    request_id = _agent_text(msg, "id")
+                    if request_id is None:
+                        logger.warning("Malformed permission_response (expected id)")
+                        continue
+                    await agent.handle_permission_response(request_id, msg.get("allow"))
+                elif msg_type == "interrupt":
+                    await agent.handle_interrupt()
+                elif msg_type == "playback_done":
+                    agent.handle_playback_done()
+                else:
+                    logger.warning("Unknown agent message type (ignored): %r", msg_type)
+            except Exception as exc:
+                logger.error("Error handling agent message %r: %s", msg_type, exc)
+    except Exception:
+        pass
+    finally:
+        if agent.channel._ws is ws:
+            agent.channel.set_connection(None, loop)
+            await agent.handle_disconnect()
+        if background:
+            await asyncio.gather(*background, return_exceptions=True)
+        logger.info("Agent page disconnected: %s", ws.remote_address)
 
 
 async def _handle(ws: ServerConnection) -> None:
@@ -168,7 +283,7 @@ async def serve_forever(host: str = WS_HOST, port: int = WS_PORT) -> None:
     """Start the WebSocket server and run until cancelled."""
     logger.debug("WebSocket server starting on ws://%s:%d%s", host, port, WS_PATH)
     async with serve(
-        _handle,
+        _dispatch,
         host,
         port,
         process_request=_check_path,
@@ -183,7 +298,7 @@ async def serve_on_port(
     host: str, port: int, started_event: asyncio.Event | None = None
 ) -> None:
     """Serve on an explicit host/port; optionally signal when ready (for tests)."""
-    async with serve(_handle, host, port, process_request=_check_path) as server:
+    async with serve(_dispatch, host, port, process_request=_check_path) as server:
         if started_event is not None:
             started_event.set()
         await asyncio.Future()
