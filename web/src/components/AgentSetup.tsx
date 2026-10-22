@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { AlertTriangle, FolderOpen, LoaderCircle, Play } from 'lucide-react'
-import { ChoiceList } from '@/components/ChoiceList'
+import { ModelPicker } from '@/components/ModelPicker'
 import type { AgentBackendInfo, AgentSelection } from '@/types/agent'
 
 interface AgentSetupProps {
@@ -16,15 +16,7 @@ interface AgentSetupProps {
   onBack?: () => void
 }
 
-const SEPARATOR = '::'
 const STATUS_COLOR = { not_configured: 'var(--warn)', unreachable: 'var(--danger)' } as const
-
-const toValue = (selection: AgentSelection) => `${selection.backend}${SEPARATOR}${selection.model}`
-
-function fromValue(value: string): AgentSelection {
-  const at = value.indexOf(SEPARATOR)
-  return { backend: value.slice(0, at), model: value.slice(at + SEPARATOR.length) }
-}
 
 /** Splits a path into its parent and the folder's own name, which carries the emphasis. */
 function splitPath(path: string): { parent: string; name: string } {
@@ -73,36 +65,20 @@ export function AgentSetup({
       </div>
 
       <Step n={1} title="agent and model">
-        <ChoiceList
-          label="Agent and model"
-          value={selection ? toValue(selection) : ''}
-          onChange={(value) => onSelectionChange(fromValue(value))}
-          empty="Looking for agents…"
-          groups={backends.map((candidate) => {
-            const blocked = candidate.status.state !== 'ready' ? candidate.status : null
-            const chosen = candidate.id === selection?.backend
-            return {
-              label: candidate.label,
-              status:
-                blocked && chosen ? (
-                  <p
-                    data-testid="backend-status"
-                    role="status"
-                    className="t-small m-0 flex items-start gap-2 px-[1ch] [overflow-wrap:anywhere]"
-                    style={{ color: STATUS_COLOR[blocked.state as keyof typeof STATUS_COLOR] }}
-                  >
-                    <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-                    {blocked.message || `${candidate.label} is not available.`}
-                  </p>
-                ) : null,
-              choices: candidate.models.map((model) => ({
-                value: toValue({ backend: candidate.id, model: model.id }),
-                label: model.label,
-                note: blocked ? blocked.state.replace('_', ' ') : undefined,
-              })),
-            }
-          })}
-        />
+        <div className="flex flex-col gap-2">
+          <ModelPicker backends={backends} selection={selection} onChange={onSelectionChange} />
+          {backend && status && status.state !== 'ready' && (
+            <p
+              data-testid="backend-status"
+              role="status"
+              className="t-small m-0 flex items-start gap-2 [overflow-wrap:anywhere]"
+              style={{ color: STATUS_COLOR[status.state as keyof typeof STATUS_COLOR] }}
+            >
+              <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+              {status.message || `${backend.label} is not available.`}
+            </p>
+          )}
+        </div>
       </Step>
 
       <Step n={2} title="folder">

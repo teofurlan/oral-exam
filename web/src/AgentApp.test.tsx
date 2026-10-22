@@ -71,7 +71,7 @@ describe('AgentApp', () => {
 
     openPage()
 
-    expect(screen.getByRole('radio', { name: 'Opus' })).toBeChecked()
+    expect(screen.getByRole('button', { name: /agent and model/i })).toHaveTextContent('Opus')
     expect(screen.getByTestId('folder-path')).toHaveTextContent('C:\\work\\socra')
   })
 
@@ -79,7 +79,8 @@ describe('AgentApp', () => {
     const user = userEvent.setup()
     const { ws } = openPage()
 
-    await user.click(screen.getByRole('radio', { name: 'Opus' }))
+    await user.click(screen.getByRole('button', { name: /agent and model/i }))
+    await user.click(screen.getByRole('option', { name: 'Opus' }))
     await user.click(screen.getByRole('button', { name: /choose folder/i }))
     act(() => ws.receive({ type: 'agent_folder', path: 'D:\\code\\app' }))
 
