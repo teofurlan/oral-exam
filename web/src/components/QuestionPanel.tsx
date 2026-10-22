@@ -35,7 +35,8 @@ export const QuestionPanel: React.FC<QuestionPanelProps> = ({
           socra
         </span>
         <div className="flex min-w-0 flex-col gap-1">
-          <span data-testid="question-index" className="t-small tabular-nums" style={{ color: 'var(--label-2)' }}>
+          {/* The top bar shows the progress from tablet width up; phones keep it here. */}
+          <span data-testid="question-index" className={`t-small tabular-nums${question ? ' md:hidden' : ''}`} style={{ color: 'var(--label-2)' }}>
             {question ? `Question ${question.index}/${question.total}` : 'Waiting for exam question'}
           </span>
           <p

@@ -17,6 +17,19 @@ const WHO: Record<TimelineEntry['kind'], { label: string; color: string }> = {
   error: { label: 'error', color: 'var(--danger)' },
 }
 
+/** `inline code` in a reply, shown in mono without the backticks. */
+function withInlineCode(text: string) {
+  return text.split(/(`[^`\n]+`)/g).map((part, i) =>
+    part.length > 2 && part.startsWith('`') && part.endsWith('`') ? (
+      <code key={i} className="t-mono rounded-[3px] px-[0.35ch]" style={{ background: 'var(--raise)', color: 'var(--label)' }}>
+        {part.slice(1, -1)}
+      </code>
+    ) : (
+      part
+    ),
+  )
+}
+
 /** Code goes to the code pane; the log keeps a pointer to it. */
 function proseOf(text: string): { text: string; moved: number } {
   const { prose, blocks } = splitCode(text)
@@ -32,7 +45,7 @@ function Body({ entry }: { entry: TimelineEntry }) {
         <span className="flex min-w-0 gap-[1ch]" style={{ color: 'var(--warn)' }}>
           <span className="shrink-0">{entry.tool}</span>
           {entry.text && (
-            <span className="min-w-0 truncate" title={entry.text} style={{ color: 'var(--label-2)' }}>
+            <span className="t-mono min-w-0 truncate pt-[0.15em]" title={entry.text} style={{ color: 'var(--label-2)' }}>
               {entry.text}
             </span>
           )}
@@ -43,7 +56,7 @@ function Body({ entry }: { entry: TimelineEntry }) {
       const { text, moved } = proseOf(entry.text)
       return (
         <span className="whitespace-pre-wrap" style={{ color: entry.kind === 'text' ? 'var(--label-2)' : 'var(--label)' }}>
-          {text}
+          {withInlineCode(text)}
           {moved > 0 && (
             <span className="t-small mt-1 block" style={{ color: 'var(--label-3)' }}>
               {moved === 1 ? 'code shown in the right pane' : `${moved} code blocks shown in the right pane`}
@@ -60,9 +73,22 @@ function Body({ entry }: { entry: TimelineEntry }) {
 export function AgentTimeline({ entries, protocolState }: AgentTimelineProps) {
   const endRef = useRef<HTMLDivElement>(null)
 
+  // Follow the newest entry once the layout around it has settled (the code pane may have
+  // just opened and shortened the conversation).
+  const last = entries[entries.length - 1]
   useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: 'end', behavior: 'smooth' })
-  }, [entries.length])
+    const id = requestAnimationFrame(() => endRef.current?.scrollIntoView?.({ block: 'end' }))
+    return () => cancelAnimationFrame(id)
+  }, [entries.length, last?.text])
+
+  // The split animation keeps shrinking the conversation after that; stay at the end through it.
+  useEffect(() => {
+    const scroller = endRef.current?.closest('.shell-scroll')
+    if (!scroller || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => endRef.current?.scrollIntoView?.({ block: 'end' }))
+    observer.observe(scroller)
+    return () => observer.disconnect()
+  }, [])
 
   if (entries.length === 0) {
     return (

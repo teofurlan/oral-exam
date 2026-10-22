@@ -64,7 +64,7 @@ export function AgentSetup({
   return (
     <section className="mx-auto flex w-full max-w-[60ch] flex-col gap-6" aria-labelledby="agent-setup-title">
       <div className="flex flex-col gap-1">
-        <h2 id="agent-setup-title" className="m-0 text-[1.0625rem] leading-snug font-semibold" style={{ color: 'var(--label)' }}>
+        <h2 id="agent-setup-title" className="m-0 text-[1.375rem] leading-tight font-semibold tracking-[-0.01em]" style={{ color: 'var(--label)' }}>
           Work on a folder, by voice
         </h2>
         <p className="t-ui m-0" style={{ color: 'var(--label-2)' }}>

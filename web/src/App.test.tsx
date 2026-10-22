@@ -171,7 +171,7 @@ describe('App Integration', () => {
     act(() => {
       ws.simulateMessage({ type: 'question', index: 1, total: 1, text: 'Read this code.', code: 'print(42)' })
     })
-    expect(screen.getByText('print(42)')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Question code' })).toHaveTextContent('print(42)')
     act(() => {
       ws.simulateMessage({ type: 'state', state: 'idle' })
       ws.simulateMessage({ type: 'finished' })
@@ -182,7 +182,7 @@ describe('App Integration', () => {
     act(() => ws.simulateMessage({ type: 'question', index: 1, total: 2, text: 'New exam.' }))
     expect(screen.queryByText('Exam finished')).not.toBeInTheDocument()
     expect(screen.getByTestId('question-text')).toHaveTextContent('New exam.')
-    expect(screen.queryByText('print(42)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Question code' })).not.toBeInTheDocument()
   })
 
   it('switches to the light theme from settings and remembers it', async () => {

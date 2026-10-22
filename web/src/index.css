@@ -116,6 +116,13 @@ textarea {
     font-size: 0.8125rem;
     font-variant-ligatures: none;
   }
+  /* Code in its own panel, at reading size (the root is 14px, so this is set in px). */
+  .t-code {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    font-variant-ligatures: none;
+  }
   .t-head {
     font-size: 0.8125rem;
     font-weight: 600;

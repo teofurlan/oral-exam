@@ -15,6 +15,16 @@ describe('CodePane', () => {
     expect(region).toHaveTextContent('2 lines')
   })
 
+  it('colours the code by syntax at reading size', () => {
+    render(<CodePane code={'const delay = 500 // ms'} name="ts" label="Code" onClose={vi.fn()} />)
+    const pre = screen.getByRole('region', { name: 'Code' }).querySelector('pre')!
+    expect(pre).toHaveClass('t-code')
+    const token = (kind: string) => Array.from(pre.querySelectorAll(`[data-token="${kind}"]`)).map((t) => t.textContent)
+    expect(token('keyword')).toEqual(['const'])
+    expect(token('number')).toEqual(['500'])
+    expect(token('comment')).toEqual(['// ms'])
+  })
+
   it('scrolls long code inside a focusable block and closes on request', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()

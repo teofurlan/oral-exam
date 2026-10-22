@@ -1,5 +1,16 @@
 import { X } from 'lucide-react'
 import { Panel } from '@/components/shell/Panel'
+import { highlight, type TokenKind } from '@/lib/highlight'
+
+/** Syntax colours drawn from the same palette as the state colours. */
+const TOKEN_COLOR: Record<TokenKind, string | undefined> = {
+  plain: undefined,
+  keyword: 'var(--violet)',
+  string: 'var(--live)',
+  number: 'var(--orange)',
+  comment: 'var(--label-3)',
+  call: 'var(--accent)',
+}
 
 interface CodePaneProps {
   code: string
@@ -7,11 +18,13 @@ interface CodePaneProps {
   name: string
   /** Region name for assistive tech. */
   label: string
+  /** Fence language, when known; it decides how comments are read. */
+  lang?: string
   onClose: () => void
 }
 
 /** The right-hand panel: line-numbered code, scrolling inside its own region. */
-export function CodePane({ code, name, label, onClose }: CodePaneProps) {
+export function CodePane({ code, name, label, lang = '', onClose }: CodePaneProps) {
   const lines = code.replace(/\n$/, '').split('\n')
   const width = String(lines.length).length
 
@@ -39,7 +52,7 @@ export function CodePane({ code, name, label, onClose }: CodePaneProps) {
         </>
       }
     >
-      <pre tabIndex={0} className="t-mono m-0 min-h-0 flex-1 overflow-auto py-3.5 select-text" style={{ lineHeight: 1.7 }}>
+      <pre tabIndex={0} className="t-code m-0 min-h-0 flex-1 overflow-auto py-3.5 select-text">
         <code>
           {lines.map((line, i) => (
             <span key={i} className="block whitespace-pre pr-4">
@@ -50,7 +63,19 @@ export function CodePane({ code, name, label, onClose }: CodePaneProps) {
               >
                 {i + 1}
               </span>
-              {line || ' '}
+              <span>
+                {line
+                  ? highlight(line, lang).map((t, j) => (
+                      <span
+                        key={j}
+                        data-token={t.kind === 'plain' ? undefined : t.kind}
+                        style={{ color: TOKEN_COLOR[t.kind], fontStyle: t.kind === 'comment' ? 'italic' : undefined }}
+                      >
+                        {t.text}
+                      </span>
+                    ))
+                  : ' '}
+              </span>
             </span>
           ))}
         </code>

@@ -87,11 +87,11 @@
   }
   .shell-panels[data-split="true"] {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 1px minmax(0, 0.9fr);
+    grid-template-rows: minmax(0, 1fr) 1px minmax(0, 0.7fr);
   }
   /* Stacked under code, the conversation is short: the sphere gives way to the words. */
   .shell-panels[data-split="true"] .viz-slot {
-    max-width: 7.5rem;
-    margin-block: 14px 26px;
+    max-width: 5rem;
+    margin-block: 8px 14px;
   }
 }

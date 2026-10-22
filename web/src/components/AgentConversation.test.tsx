@@ -24,6 +24,46 @@ describe('AgentTimeline', () => {
     expect(items[4]).toHaveTextContent('Rate limited')
   })
 
+  it('shows inline code and tool paths in mono, without the backticks', () => {
+    const entries: TimelineEntry[] = [
+      { id: 1, kind: 'tool', text: 'web/src/lib/retry.ts', tool: 'Read' },
+      { id: 2, kind: 'reply', text: 'Apply it to `web/src/lib/retry.ts` now?' },
+    ]
+    render(<AgentTimeline entries={entries} protocolState="speaking" />)
+
+    const items = screen.getAllByRole('listitem')
+    expect(items[0].querySelector('.t-mono')).toHaveTextContent('web/src/lib/retry.ts')
+    const code = items[1].querySelector('code')
+    expect(code).toHaveTextContent('web/src/lib/retry.ts')
+    expect(items[1]).toHaveTextContent('Apply it to web/src/lib/retry.ts now?')
+    expect(items[1].textContent).not.toContain('`')
+  })
+
+  it('stays at the newest entry when the conversation is resized', () => {
+    let onResize = () => {}
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          onResize = cb
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    render(
+      <div className="shell-scroll">
+        <AgentTimeline entries={[{ id: 1, kind: 'reply', text: 'Done.' }]} protocolState="idle" />
+      </div>,
+    )
+    scrolled.mockClear()
+    onResize()
+    expect(scrolled).toHaveBeenCalledWith({ block: 'end' })
+    vi.unstubAllGlobals()
+  })
+
   it('invites the first turn when empty', () => {
     render(<AgentTimeline entries={[]} protocolState="listening" />)
 

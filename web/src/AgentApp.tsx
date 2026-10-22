@@ -121,7 +121,7 @@ export const AgentApp: React.FC = () => {
       if (entry.kind !== 'reply' && entry.kind !== 'text') continue
       const { blocks } = splitCode(entry.text)
       if (blocks.length > 0) {
-        return { id: entry.id, name: blocks[0].lang || 'code', text: blocks.map((b) => b.code).join('\n\n') }
+        return { id: entry.id, name: blocks[0].lang || 'code', lang: blocks[0].lang, text: blocks.map((b) => b.code).join('\n\n') }
       }
     }
     return null
@@ -189,11 +189,12 @@ export const AgentApp: React.FC = () => {
           meta={
             !showSetup && session ? (
               <span data-testid="session-bar" className="flex min-w-0 items-center gap-2">
-                <span className="t-small truncate" style={{ color: 'var(--label-2)' }}>
+                {/* The top bar's chips carry the model and folder from tablet width up. */}
+                <span className="t-small truncate md:hidden" style={{ color: 'var(--label-2)' }}>
                   {sessionModel?.label ?? session.model}
                   <span className="hidden sm:inline"> · {sessionBackend?.label ?? session.backend}</span>
                 </span>
-                <span className="t-mono truncate" title={session.cwd} style={{ color: 'var(--label)' }}>
+                <span className="t-mono truncate md:hidden" title={session.cwd} style={{ color: 'var(--label)' }}>
                   {folderName(session.cwd)}
                 </span>
                 <button
@@ -285,7 +286,7 @@ export const AgentApp: React.FC = () => {
 
         <div className="shell-seam" aria-hidden="true" />
         <div className="code-slot" aria-hidden={!showCode} inert={!showCode}>
-          {code && <CodePane code={code.text} name={code.name} label="Code" onClose={() => setClosedCodeId(code.id)} />}
+          {code && <CodePane code={code.text} name={code.name} lang={code.lang} label="Code" onClose={() => setClosedCodeId(code.id)} />}
         </div>
       </div>
 
