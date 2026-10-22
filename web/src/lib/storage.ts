@@ -1,4 +1,5 @@
 import type { TurnMode } from '@/types/exam'
+import type { AgentSelection } from '@/types/agent'
 import { isVisualizerId, type VisualizerId } from '@/components/visualizers'
 
 export const STORAGE_KEY_MODE = 'oral_exam_turn_mode'
@@ -108,5 +109,52 @@ export function setStoredMicDeviceId(id: string): void {
     window.localStorage.setItem(STORAGE_KEY_MIC_DEVICE, id)
   } catch (err) {
     console.warn('Failed to write microphone to localStorage:', err)
+  }
+}
+
+export const STORAGE_KEY_AGENT_SELECTION = 'socra_agent_selection'
+export const STORAGE_KEY_AGENT_FOLDER = 'socra_agent_folder'
+
+export function getStoredAgentSelection(): AgentSelection | null {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_AGENT_SELECTION)
+    if (raw === null) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (
+      typeof parsed === 'object' && parsed !== null &&
+      typeof (parsed as AgentSelection).backend === 'string' &&
+      typeof (parsed as AgentSelection).model === 'string'
+    ) {
+      const { backend, model } = parsed as AgentSelection
+      return { backend, model }
+    }
+  } catch (err) {
+    console.warn('Failed to read agent selection from localStorage:', err)
+  }
+  return null
+}
+
+export function setStoredAgentSelection(selection: AgentSelection): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY_AGENT_SELECTION, JSON.stringify(selection))
+  } catch (err) {
+    console.warn('Failed to write agent selection to localStorage:', err)
+  }
+}
+
+export function getStoredAgentFolder(): string | null {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY_AGENT_FOLDER) || null
+  } catch (err) {
+    console.warn('Failed to read agent folder from localStorage:', err)
+    return null
+  }
+}
+
+export function setStoredAgentFolder(path: string): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, path)
+  } catch (err) {
+    console.warn('Failed to write agent folder to localStorage:', err)
   }
 }

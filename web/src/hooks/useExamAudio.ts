@@ -7,6 +7,8 @@ interface Playback {
   sources: Set<AudioBufferSourceNode>
   queue: Promise<void>
   nextStart: number
+  /** Bumped by stopAudio so clips still decoding are dropped. */
+  generation: number
   disposed: boolean
 }
 
@@ -29,7 +31,7 @@ export function useExamAudio() {
         analyser.connect(context.destination)
         playbackRef.current = {
           context, analyser, samples: new Uint8Array(analyser.fftSize),
-          sources: new Set(), queue: Promise.resolve(), nextStart: 0, disposed: false,
+          sources: new Set(), queue: Promise.resolve(), nextStart: 0, generation: 0, disposed: false,
         }
       } catch (err) {
         console.error('Failed to create AudioContext:', err)
@@ -39,18 +41,19 @@ export function useExamAudio() {
     }
     const playback = playbackRef.current
     const { context, analyser } = playback
+    const generation = playback.generation
     // A browser may require a user gesture before sound can begin.
     if (context.state === 'suspended') {
       void context.resume().catch((error) => console.warn('Audio needs a user gesture:', error))
     }
     playback.queue = playback.queue.then(async () => {
-      if (playback.disposed) {
+      if (playback.disposed || playback.generation !== generation) {
         notifyDone()
         return
       }
       const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
       const buffer = await context.decodeAudioData(bytes.buffer)
-      if (playback.disposed) {
+      if (playback.disposed || playback.generation !== generation) {
         notifyDone()
         return
       }
@@ -70,6 +73,25 @@ export function useExamAudio() {
       if (!playback.disposed) console.error('Failed to play exam audio:', error)
       notifyDone()
     })
+  }, [])
+
+  /** Silence everything now; each stopped or pending clip still reports done once. */
+  const stopAudio = useCallback(() => {
+    const playback = playbackRef.current
+    if (!playback || playback.disposed) return
+    playback.generation += 1
+    for (const source of [...playback.sources]) {
+      const ended = source.onended
+      source.onended = null
+      try {
+        source.stop()
+      } catch (error) {
+        console.warn('Could not stop audio clip:', error)
+      }
+      // Runs the clip's own cleanup and its onDone callback.
+      ended?.call(source, new Event('ended'))
+    }
+    playback.nextStart = 0
   }, [])
 
   const getOutputVolume = useCallback(() => {
@@ -108,5 +130,5 @@ export function useExamAudio() {
     }
   }, [])
 
-  return { playAudio, getOutputVolume }
+  return { playAudio, stopAudio, getOutputVolume }
 }
