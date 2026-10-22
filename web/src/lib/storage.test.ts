@@ -12,6 +12,9 @@ import {
   getStoredShape,
   setStoredShape,
   STORAGE_KEY_SHAPE,
+  getStoredVoice,
+  setStoredVoice,
+  STORAGE_KEY_VOICE,
 } from './storage'
 
 describe('storage (turn mode persistence)', () => {
@@ -130,3 +133,28 @@ describe('storage (particle shape)', () => {
     expect(getStoredShape()).toBe('sphere')
   })
 })
+
+describe('storage (voice selection)', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('defaults to null when nothing is stored', () => {
+    expect(getStoredVoice()).toBeNull()
+  })
+
+  it('persists the voice and reads it back', () => {
+    setStoredVoice('alex-dora')
+    expect(window.localStorage.getItem(STORAGE_KEY_VOICE)).toBe('alex-dora')
+    expect(getStoredVoice()).toBe('alex-dora')
+  })
+
+  it('does not throw when localStorage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked') })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked') })
+    expect(() => setStoredVoice('alex-dora')).not.toThrow()
+    expect(getStoredVoice()).toBeNull()
+  })
+})
+

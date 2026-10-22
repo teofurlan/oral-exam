@@ -1,4 +1,5 @@
 import type { ConnectionStatus, ProtocolState } from '@/types/exam'
+import type { VoiceMessage, VoicesMessage } from '@/types/voice'
 
 /** What the user picks and the page persists: a backend and one of its models. */
 export interface AgentSelection {
@@ -62,6 +63,7 @@ export type AgentServerMessage =
   | { type: 'permission_closed'; id: string }
   | { type: 'tts_audio'; format: string; data: string }
   | { type: 'notice'; text: string }
+  | VoicesMessage
 
 // Page -> server messages on /ws/agent
 export type AgentClientMessage =
@@ -73,6 +75,7 @@ export type AgentClientMessage =
   | { type: 'permission_response'; id: string; allow: boolean }
   | { type: 'interrupt' }
   | { type: 'playback_done' }
+  | VoiceMessage
 
 export interface AgentState {
   connectionStatus: ConnectionStatus

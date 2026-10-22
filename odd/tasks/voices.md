@@ -16,7 +16,7 @@ Design (supervisor decision): catalogue `alex-dora` (default), `alex`, `santa`, 
 ## Tasks
 
 - T1 [S1-S4] Server: voice catalogue, `KokoroTTS.set_voice`, `voice` message on both routes. Route: Pi (antigravity, gemini-3.8-flash), first pass accepted, no correction. RED: `tests/test_voices.py` collection error (no `domain.voices`) -> GREEN 4 passed; suite 167 -> 171 passed (supervisor rerun). Real Kokoro smoke: all four voices synthesize. Status: done.
-- T2 [S2, S3, S5] Web plumbing: protocol types, stored voice (`socra_voice`), both socket hooks send it on connect and on change. Route: Pi (antigravity). Status: pending.
+- T2 [S2, S3, S5] Web plumbing: protocol types, stored voice (`socra_voice`), both socket hooks send it on connect and on change. Route: Pi (antigravity, gemini-3.8-flash, run in parallel with T1, disjoint files), first pass accepted, no correction. RED: storage and hook tests failing (`setVoice is not a function`, voices undefined) -> GREEN; web 268 passed, tsc clean (supervisor rerun). Three exact-sent assertions extended by the new `voice` message, not weakened. Status: done.
 - T3 [S1, S5] Web selector: `VoicePicker.tsx` and one section in `SettingsMenu.tsx`. Route: Pi (antigravity). Status: pending.
 
 ## Log

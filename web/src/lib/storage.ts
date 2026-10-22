@@ -185,3 +185,23 @@ export function setStoredAgentFolder(path: string): void {
     console.warn('Failed to write agent folder to localStorage:', err)
   }
 }
+
+export const STORAGE_KEY_VOICE = 'socra_voice'
+
+export function getStoredVoice(): string | null {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY_VOICE) || null
+  } catch (err) {
+    console.warn('Failed to read voice from localStorage:', err)
+    return null
+  }
+}
+
+export function setStoredVoice(id: string): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY_VOICE, id)
+  } catch (err) {
+    console.warn('Failed to write voice to localStorage:', err)
+  }
+}
+
