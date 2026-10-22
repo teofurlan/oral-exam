@@ -1,5 +1,6 @@
 import type { TurnMode } from '@/types/exam'
 import type { AgentSelection } from '@/types/agent'
+import { isVisualizerId, type VisualizerId } from '@/components/visualizers'
 
 export const STORAGE_KEY_MODE = 'oral_exam_turn_mode'
 export const STORAGE_KEY_SILENCE_TIMEOUT = 'oral_exam_silence_timeout_ms'
@@ -68,6 +69,26 @@ export function setStoredOrbPalette(id: string): void {
     window.localStorage.setItem(STORAGE_KEY_ORB_PALETTE, id)
   } catch (err) {
     console.warn('Failed to write orb palette to localStorage:', err)
+  }
+}
+
+export const STORAGE_KEY_VISUALIZER = 'socra_visualizer'
+
+export function getStoredVisualizer(): VisualizerId {
+  try {
+    const item = window.localStorage.getItem(STORAGE_KEY_VISUALIZER)
+    if (isVisualizerId(item)) return item
+  } catch (err) {
+    console.warn('Failed to read visualizer from localStorage:', err)
+  }
+  return 'orb'
+}
+
+export function setStoredVisualizer(id: VisualizerId): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY_VISUALIZER, id)
+  } catch (err) {
+    console.warn('Failed to write visualizer to localStorage:', err)
   }
 }
 
