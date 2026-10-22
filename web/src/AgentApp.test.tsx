@@ -120,6 +120,20 @@ describe('AgentApp', () => {
     expect(screen.getByRole('button', { name: /start agent/i })).toBeInTheDocument()
   })
 
+  it('keeps a pending prompt visible while changing the setup, and can go back', async () => {
+    const user = userEvent.setup()
+    const { ws } = openPage()
+    startSession(ws)
+    act(() => ws.receive({ type: 'permission_request', id: 'r1', tool: 'Bash', title: 'Run git status', detail: '' }))
+
+    await user.click(screen.getByRole('button', { name: /change agent or folder/i }))
+    expect(screen.getByRole('button', { name: 'Allow' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /back to the conversation/i }))
+    expect(screen.getByTestId('session-bar')).toBeInTheDocument()
+    expect(ws.sent()).not.toContainEqual(expect.objectContaining({ type: 'start_agent' }))
+  })
+
   it('sends dictated and typed turns', async () => {
     const user = userEvent.setup()
     const { ws } = openPage()

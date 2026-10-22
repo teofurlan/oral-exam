@@ -10,6 +10,8 @@ interface AgentSetupProps {
   onPickFolder: () => void
   onStart: () => void
   connected: boolean
+  /** Shown while a session runs: return to it without restarting. */
+  onBack?: () => void
 }
 
 const SEPARATOR = '::'
@@ -23,7 +25,7 @@ function fromValue(value: string): AgentSelection {
 }
 
 export function AgentSetup({
-  backends, selection, onSelectionChange, folder, pickingFolder, onPickFolder, onStart, connected,
+  backends, selection, onSelectionChange, folder, pickingFolder, onPickFolder, onStart, connected, onBack,
 }: AgentSetupProps) {
   const backend = backends.find((candidate) => candidate.id === selection?.backend)
   const status = backend?.status
@@ -125,6 +127,16 @@ export function AgentSetup({
           </button>
           {hint && (
             <p className="text-center t-caption" style={{ color: 'var(--label-2)' }}>{hint}</p>
+          )}
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="press self-center rounded-full px-4 t-caption underline decoration-[var(--label-3)] underline-offset-4 hover:text-white"
+              style={{ color: 'var(--label-2)' }}
+            >
+              Back to the conversation
+            </button>
           )}
         </div>
       </div>

@@ -1,6 +1,8 @@
 """Desktop launcher: the shortcut script and running without a console (pythonw)."""
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import subprocess
 import sys
 from pathlib import Path
@@ -73,3 +75,78 @@ def test_shortcut_can_be_removed(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert not (tmp_path / "Socra.lnk").exists()
+
+
+async def test_busy_ports_are_retried_until_they_free_up():
+    calls: list[int] = []
+
+    async def serve():
+        calls.append(1)
+        if len(calls) < 3:
+            raise OSError(10048, "address in use")
+
+    await main_mod._serve_with_retry(serve, "test-server", delay_s=0)
+
+    assert len(calls) == 3
+
+
+class _Channel:
+    def __init__(self, connected: bool) -> None:
+        self.is_connected = connected
+
+
+async def test_idle_watch_ends_when_no_agent_page_is_connected():
+    await asyncio.wait_for(main_mod._idle_watch(_Channel(False), idle_s=0.05, poll_s=0.01), timeout=1)
+
+
+async def test_idle_watch_waits_while_a_page_is_connected():
+    channel = _Channel(True)
+    watch = asyncio.create_task(main_mod._idle_watch(channel, idle_s=0.05, poll_s=0.01))
+
+    await asyncio.sleep(0.15)
+    assert not watch.done()
+
+    channel.is_connected = False
+    await asyncio.wait_for(watch, timeout=1)
+
+
+async def test_standalone_stops_and_frees_the_ports_when_idle(monkeypatch):
+    events: list[str] = []
+
+    class FakeAgent:
+        channel = _Channel(False)
+
+        async def shutdown(self):
+            events.append("agent shutdown")
+
+    class FakeLoader:
+        def start(self):
+            events.append("models loading")
+
+    async def not_running(host, port):
+        return False
+
+    class FakeServer:
+        async def serve_forever(self):
+            await asyncio.Future()
+
+    @contextlib.asynccontextmanager
+    async def fake_serve_page():
+        events.append("http up")
+        yield FakeServer()
+        events.append("http down")
+
+    async def fake_ws_forever():
+        try:
+            await asyncio.Future()
+        finally:
+            events.append("ws down")
+
+    monkeypatch.setattr(main_mod, "server_running", not_running)
+    monkeypatch.setattr(main_mod, "_build_apps", lambda loop: (None, FakeAgent(), FakeLoader()))
+    monkeypatch.setattr(main_mod.http_server, "serve_page", fake_serve_page)
+    monkeypatch.setattr(main_mod.ws_server, "serve_forever", fake_ws_forever)
+
+    await asyncio.wait_for(main_mod._standalone(launch=lambda url: None, idle_s=0.05, poll_s=0.01), timeout=2)
+
+    assert events[-3:] == ["http down", "ws down", "agent shutdown"]

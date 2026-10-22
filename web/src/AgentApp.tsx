@@ -169,6 +169,9 @@ export const AgentApp: React.FC = () => {
           )}
         </div>
 
+        {/* A pending tool call stays answerable from either view. */}
+        {showSetup && <PermissionPromptCard prompts={state.permissions} onAnswer={socket.answerPermission} />}
+
         {showSetup ? (
           <AgentSetup
             backends={state.backends}
@@ -179,6 +182,7 @@ export const AgentApp: React.FC = () => {
             onPickFolder={socket.pickFolder}
             onStart={handleStart}
             connected={connected}
+            onBack={state.session ? () => setEditingFor(null) : undefined}
           />
         ) : (
           <>

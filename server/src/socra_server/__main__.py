@@ -7,7 +7,7 @@ as an exam MCP server), it only opens the page.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 import logging
 import os
 from pathlib import Path
@@ -53,6 +53,9 @@ logger = logging.getLogger(__name__)
 
 
 SERVER_PROBE_TIMEOUT_S = 0.5
+PORT_RETRY_S = 5.0
+# Agent mode stops after this long without an agent page, freeing the ports.
+AGENT_IDLE_S = float(os.environ.get("SOCRA_AGENT_IDLE_S", "120"))
 
 
 def _build_apps(loop: asyncio.AbstractEventLoop) -> tuple[ExamApp, AgentApp, ModelLoader]:
@@ -88,8 +91,38 @@ async def server_running(host: str, port: int) -> bool:
     return True
 
 
-async def _standalone(launch: Callable[[str], None] = launch_page) -> None:
-    """Agent-mode start: reuse a running Socra, or run HTTP + WebSocket without MCP."""
+async def _serve_with_retry(
+    serve: Callable[[], Awaitable[None]], name: str, delay_s: float = PORT_RETRY_S
+) -> None:
+    """Keep trying to bind: another Socra (an agent-mode start or another MCP
+    session) may hold the port now and release it later."""
+    while True:
+        try:
+            await serve()
+            return
+        except OSError as exc:
+            logger.warning("%s cannot bind yet (%s); retrying in %.0f s", name, exc, delay_s)
+            await asyncio.sleep(delay_s)
+
+
+async def _idle_watch(channel, idle_s: float, poll_s: float = 1.0) -> None:
+    """Return once no agent page has been connected for ``idle_s`` seconds."""
+    idle = 0.0
+    while idle < idle_s:
+        await asyncio.sleep(poll_s)
+        idle = 0.0 if channel.is_connected else idle + poll_s
+
+
+async def _standalone(
+    launch: Callable[[str], None] = launch_page,
+    idle_s: float = AGENT_IDLE_S,
+    poll_s: float = 1.0,
+) -> None:
+    """Agent-mode start: reuse a running Socra, or run HTTP + WebSocket without MCP.
+
+    It stops by itself once no agent page has been open for ``idle_s``, so it
+    never keeps the ports an exam MCP server needs.
+    """
     if await server_running(http_server.HTTP_HOST, http_server.HTTP_PORT):
         logger.info("Socra is already running; opening the agent page")
         await asyncio.to_thread(launch, http_server.AGENT_PAGE_URL)
@@ -101,7 +134,13 @@ async def _standalone(launch: Callable[[str], None] = launch_page) -> None:
         async with http_server.serve_page() as server:
             await asyncio.to_thread(launch, http_server.AGENT_PAGE_URL)
             logger.info("Socra agent mode on %s", http_server.AGENT_PAGE_URL)
-            await server.serve_forever()
+            serving = asyncio.create_task(server.serve_forever(), name="http-server")
+            idle = asyncio.create_task(_idle_watch(agent.channel, idle_s, poll_s), name="idle-watch")
+            await asyncio.wait({serving, idle}, return_when=asyncio.FIRST_COMPLETED)
+            for task in (serving, idle):
+                task.cancel()
+            await asyncio.gather(serving, idle, return_exceptions=True)
+            logger.info("No agent page for %.0f s; stopping agent mode", idle_s)
     finally:
         ws_task.cancel()
         await asyncio.gather(ws_task, return_exceptions=True)
@@ -121,8 +160,12 @@ async def _amain(protocol_stdout) -> None:
 
     # Network listeners share the MCP loop; model loading never blocks them.
     network_tasks = [
-        asyncio.create_task(ws_server.serve_forever(), name="ws-server"),
-        asyncio.create_task(http_server.serve_forever(), name="http-server"),
+        asyncio.create_task(
+            _serve_with_retry(ws_server.serve_forever, "WebSocket server"), name="ws-server"
+        ),
+        asyncio.create_task(
+            _serve_with_retry(http_server.serve_forever, "Page server"), name="http-server"
+        ),
     ]
 
     logger.debug("socra-server started; MCP handshake available immediately")

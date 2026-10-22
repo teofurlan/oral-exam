@@ -98,7 +98,11 @@ powershell -ExecutionPolicy Bypass -File server\install-shortcut.ps1 -Remove
 
 The shortcut runs `.venv\Scripts\pythonw.exe -m socra_server --agent` with no
 console window; anything the server prints goes to `server/logs/socra-agent.log`.
-Closing the page does not stop the server: the next click reuses it.
+Agent mode stops by itself once no agent page has been open for two minutes
+(`SOCRA_AGENT_IDLE_S`), which frees ports 8766 and 8767. An exam MCP server
+that started meanwhile keeps retrying those ports every few seconds and takes
+them over, so exam mode works again without restarting Claude Code. Exam and
+agent mode cannot run at the same time: they share the same two ports.
 
 ### Environment variables
 
