@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useCallback, useState } from 'react'
+import { wasReplaced } from '@/lib/replacedPage'
 import type {
   ClientMessage,
   ServerMessage,
@@ -323,9 +324,11 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           if (!disposed && !hasConnected) fallBack()
         }
 
-        socket.onclose = () => {
+        socket.onclose = (event) => {
           if (disposed || fellBack) return
-          if (!hasConnected) {
+          if (wasReplaced(event)) {
+            dispatch({ type: 'set_status', status: 'replaced' })
+          } else if (!hasConnected) {
             fallBack()
           } else if (finishedRef.current) {
             dispatch({ type: 'set_status', status: 'disconnected' })

@@ -170,6 +170,17 @@ describe('useAgentSocket', () => {
     expect(FakeWebSocket.latest().sent()).toEqual([{ type: 'agent_hello' }])
   })
 
+  it('stays closed when a newer page takes over, instead of taking it back', () => {
+    const { result, ws } = connected()
+
+    act(() => ws.drop({ code: 1000, reason: 'Replaced by a new page' }))
+    expect(result.current.state.connectionStatus).toBe('replaced')
+
+    act(() => vi.advanceTimersByTime(30_000))
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    expect(result.current.state.connectionStatus).toBe('replaced')
+  })
+
   it('stops reconnecting after unmount', () => {
     const { unmount } = renderHook(() => useAgentSocket())
     const ws = FakeWebSocket.latest()

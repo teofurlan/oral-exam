@@ -349,6 +349,23 @@ describe('useExamSocket', () => {
     expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'playback_done' }))
   })
 
+  it('stays closed when a newer exam page takes over, instead of taking it back', () => {
+    const { result } = renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => ws.simulateOpen())
+
+    act(() => {
+      ws.onclose?.(new CloseEvent('close', { code: 1000, reason: 'Replaced by a new page' }))
+    })
+    expect(result.current.state.connectionStatus).toBe('replaced')
+
+    act(() => {
+      vi.advanceTimersByTime(30_000)
+    })
+    expect(MockWebSocket.instances).toHaveLength(1)
+    expect(result.current.state.connectionStatus).toBe('replaced')
+  })
+
   it('reconnects with backoff (0.5s doubling to 5s) when socket closes mid-exam', () => {
     const { result } = renderHook(() => useExamSocket({ forceMock: false }))
     const ws1 = MockWebSocket.instances[0]

@@ -6,6 +6,7 @@ const CONNECTION: Record<ConnectionStatus, { label: string; color: string; pendi
   connecting: { label: 'Connecting...', color: 'var(--warn)', pending: true },
   reconnecting: { label: 'Reconnecting…', color: 'var(--warn)', pending: true },
   disconnected: { label: 'Disconnected', color: 'var(--danger)' },
+  replaced: { label: 'Open in another window', color: 'var(--label-3)' },
 }
 
 /** Top-bar chip: a lamp plus the word, so the state reads without colour too. */

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { wasReplaced } from '@/lib/replacedPage'
 import type { AgentClientMessage, AgentSelection, AgentServerMessage } from '@/types/agent'
 import { agentReducer, initialAgentState } from '@/state/agentReducer'
 import { useExamAudio } from './useExamAudio'
@@ -122,8 +123,10 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
         }
         handle(message as AgentServerMessage)
       }
-      socket.onclose = () => {
-        if (!disposed) scheduleReconnect()
+      socket.onclose = (event) => {
+        if (disposed) return
+        if (wasReplaced(event)) dispatch({ type: 'set_status', status: 'replaced' })
+        else scheduleReconnect()
       }
     }
 
