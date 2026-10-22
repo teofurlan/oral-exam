@@ -522,4 +522,28 @@ describe('useExamSocket', () => {
     expect(result.current.voices.current).toBe('santa')
     expect(MockWebSocket.instances).toHaveLength(0)
   })
+  it('on a page pinned to its server with ?ws, gives up instead of mocking or retrying forever', () => {
+    window.history.replaceState(null, '', '/?ws=51001')
+    try {
+      const { result } = renderHook(() => useExamSocket({ forceMock: false }))
+      expect(MockWebSocket.instances[0].url).toBe('ws://localhost:51001/ws')
+
+      act(() => MockWebSocket.instances[0].simulateError())
+      act(() => MockWebSocket.instances[0].close())
+      expect(result.current.state.connectionStatus).toBe('reconnecting')
+
+      for (let attempt = 1; attempt < 5; attempt++) {
+        act(() => vi.advanceTimersByTime(5000))
+        act(() => MockWebSocket.instances[MockWebSocket.instances.length - 1].close())
+      }
+      expect(result.current.state.connectionStatus).toBe('gone')
+
+      const count = MockWebSocket.instances.length
+      act(() => vi.advanceTimersByTime(60_000))
+      expect(MockWebSocket.instances).toHaveLength(count)
+      expect(result.current.state.connectionStatus).toBe('gone')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
 })

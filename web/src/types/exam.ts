@@ -5,7 +5,7 @@ export type ProtocolState = 'idle' | 'speaking' | 'listening' | 'thinking'
 export type TurnMode = 'auto' | 'push-to-talk'
 
 /** `replaced`: a newer Socra page took over the server connection; this one stays closed. */
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'mock' | 'reconnecting' | 'replaced'
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'mock' | 'reconnecting' | 'replaced' | 'gone'
 
 export interface QuestionData {
   index: number

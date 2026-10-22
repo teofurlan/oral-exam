@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { wasReplaced } from '@/lib/replacedPage'
+import { PINNED_ATTEMPTS, pinnedToServer, socketUrl } from '@/lib/socketUrl'
 import type { AgentClientMessage, AgentSelection, AgentServerMessage } from '@/types/agent'
 import { EMPTY_VOICE_CATALOG, type VoiceCatalog } from '@/types/voice'
 import { agentReducer, initialAgentState } from '@/state/agentReducer'
 import { getStoredVoice, setStoredVoice } from '@/lib/storage'
 import { useExamAudio } from './useExamAudio'
 
-export const AGENT_SOCKET_URL = 'ws://localhost:8766/ws/agent'
 const NOTICE_MS = 4000
 const FIRST_BACKOFF_MS = 500
 const MAX_BACKOFF_MS = 5000
@@ -17,9 +17,10 @@ interface UseAgentSocketOptions {
 
 /**
  * Agent-mode connection. Unlike the exam socket there is no mock fallback:
- * a missing server shows as reconnecting, and the hook keeps retrying.
+ * a missing server shows as reconnecting, and the hook keeps retrying, except
+ * on a page pinned to one server's port (?ws=), which gives up once it is gone.
  */
-export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions = {}) {
+export function useAgentSocket({ url = socketUrl('/ws/agent') }: UseAgentSocketOptions = {}) {
   const [state, dispatch] = useReducer(agentReducer, initialAgentState)
   const [listeningEpoch, setListeningEpoch] = useState(0)
   const [voices, setVoices] = useState<VoiceCatalog>(EMPTY_VOICE_CATALOG)
@@ -76,8 +77,15 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
     let disposed = false
     let backoffMs = FIRST_BACKOFF_MS
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    const pinned = pinnedToServer(url)
+    let failures = 0
 
     const scheduleReconnect = () => {
+      failures += 1
+      if (pinned && failures >= PINNED_ATTEMPTS) {
+        dispatch({ type: 'set_status', status: 'gone' })
+        return
+      }
       dispatch({ type: 'set_status', status: 'reconnecting' })
       const delay = backoffMs
       backoffMs = Math.min(MAX_BACKOFF_MS, backoffMs * 2)
@@ -121,6 +129,7 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
       socket.onopen = () => {
         if (disposed) return
         backoffMs = FIRST_BACKOFF_MS
+        failures = 0
         dispatch({ type: 'set_status', status: 'connected' })
         send({ type: 'agent_hello' })
         const storedVoice = getStoredVoice()

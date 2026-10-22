@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { sharePreference } from '@/lib/preferences'
 
 export type ThemePref = 'system' | 'light' | 'dark'
 export type Theme = 'light' | 'dark'
@@ -28,6 +29,7 @@ export function setStoredTheme(pref: ThemePref): void {
   } catch (err) {
     console.warn('Failed to write theme to localStorage:', err)
   }
+  sharePreference(STORAGE_KEY_THEME, pref)
 }
 
 export function resolveTheme(pref: ThemePref, systemDark: boolean): Theme {

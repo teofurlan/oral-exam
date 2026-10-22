@@ -2,6 +2,7 @@
 import asyncio
 import base64
 import json
+import re
 import os
 from pathlib import Path
 import subprocess
@@ -14,7 +15,7 @@ import pytest
 from websockets.asyncio.client import connect
 
 from socra_server.adapters import kokoro_tts, whisper_stt
-from tests.conftest import make_wav_bytes
+from tests.conftest import free_ports, make_wav_bytes
 from tests.test_ws_protocol import ws_bundle, _collect
 
 
@@ -161,7 +162,10 @@ WhisperSTT.load = noisy_load
 from socra_server.__main__ import main
 main()
 '''
-    proc = await asyncio.create_subprocess_exec(sys.executable, "-c", code, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Free ports of its own: a running Socra must not decide the page URL.
+    ws_port, http_port = free_ports(2)
+    env = {**os.environ, "SOCRA_WS_PORT": str(ws_port), "SOCRA_HTTP_PORT": str(http_port)}
+    proc = await asyncio.create_subprocess_exec(sys.executable, "-c", code, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
     try:
         startup_stderr = bytearray()
         async with asyncio.timeout(60):
@@ -189,10 +193,13 @@ main()
         called = json.loads(await asyncio.wait_for(proc.stdout.readline(), 2.5))
         assert called["id"] == 3
         payload = json.loads(called["result"]["content"][0]["text"])
-        expected = {"status": "no_client", "url": "http://localhost:8767/"}
+        # The exact ports are covered in-process (test_port_fallback); here
+        # another process may grab a picked port before the server starts.
+        expected = {"status": "no_client", "url": payload.get("url")}
         if not (Path(__file__).resolve().parents[2] / "web/dist/index.html").is_file():
             expected["hint"] = "run pnpm -C web build"
         assert payload == expected
+        assert re.fullmatch(r"http://localhost:\d+/(\?ws=\d+)?", payload["url"])
         proc.stdin.close()
         # Drain both pipes while waiting; Process.wait() alone can deadlock
         # when subprocess stderr fills its pipe buffer on Windows.

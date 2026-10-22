@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useCallback, useState } from 'react'
 import { wasReplaced } from '@/lib/replacedPage'
+import { PINNED_ATTEMPTS, pinnedToServer, socketUrl } from '@/lib/socketUrl'
 import type {
   ClientMessage,
   ServerMessage,
@@ -9,8 +10,6 @@ import { EMPTY_VOICE_CATALOG, type VoiceCatalog } from '@/types/voice'
 import { examReducer, initialExamState } from '@/state/examReducer'
 import { getStoredTurnMode, setStoredTurnMode, getStoredVoice, setStoredVoice } from '@/lib/storage'
 import { useExamAudio } from './useExamAudio'
-
-export const DEFAULT_SOCKET_URL = 'ws://localhost:8766/ws'
 
 const MOCK_QUESTIONS: { text: string; code?: string; partialAnswer: string; finalAnswer: string }[] = [
   {
@@ -57,7 +56,7 @@ export interface UseExamSocketOptions {
 }
 
 export function useExamSocket(options: UseExamSocketOptions = {}) {
-  const { url = DEFAULT_SOCKET_URL, forceMock } = options
+  const { url = socketUrl('/ws'), forceMock } = options
   const { playAudio, getOutputVolume } = useExamAudio()
   const [state, dispatch] = useReducer(examReducer, {
     ...initialExamState,
@@ -280,6 +279,26 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
       startMockDriver()
     }
 
+    // A page pinned to one server's port (?ws=) has nothing to mock or wait for
+    // once that server is gone: it retries a few times, then says so.
+    const pinned = pinnedToServer(url)
+    let failures = 0
+    const scheduleReconnect = () => {
+      failures += 1
+      if (pinned && failures >= PINNED_ATTEMPTS) {
+        dispatch({ type: 'set_status', status: 'gone' })
+        return
+      }
+      dispatch({ type: 'set_status', status: 'reconnecting' })
+      const delay = backoffMs
+      backoffMs = Math.min(5000, backoffMs * 2)
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null
+        connectSocket()
+      }, delay)
+    }
+
     const connectSocket = () => {
       if (disposed || fellBack || finishedRef.current) return
 
@@ -291,6 +310,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           if (disposed || fellBack) return
           hasConnected = true
           backoffMs = 500
+          failures = 0
           dispatch({ type: 'set_status', status: 'connected' })
           const currentMode = getStoredTurnMode('auto')
           socket?.send(JSON.stringify({ type: 'mode', mode: currentMode }))
@@ -341,40 +361,26 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
         }
 
         socket.onerror = () => {
-          if (!disposed && !hasConnected) fallBack()
+          if (!disposed && !hasConnected && !pinned) fallBack()
         }
 
         socket.onclose = (event) => {
           if (disposed || fellBack) return
           if (wasReplaced(event)) {
             dispatch({ type: 'set_status', status: 'replaced' })
-          } else if (!hasConnected) {
+          } else if (!hasConnected && !pinned) {
             fallBack()
           } else if (finishedRef.current) {
             dispatch({ type: 'set_status', status: 'disconnected' })
           } else {
-            dispatch({ type: 'set_status', status: 'reconnecting' })
-            const delay = backoffMs
-            backoffMs = Math.min(5000, backoffMs * 2)
-            if (reconnectTimer) clearTimeout(reconnectTimer)
-            reconnectTimer = setTimeout(() => {
-              reconnectTimer = null
-              connectSocket()
-            }, delay)
+            scheduleReconnect()
           }
         }
       } catch {
-        if (!hasConnected) {
+        if (!hasConnected && !pinned) {
           fallBack()
         } else if (!finishedRef.current) {
-          dispatch({ type: 'set_status', status: 'reconnecting' })
-          const delay = backoffMs
-          backoffMs = Math.min(5000, backoffMs * 2)
-          if (reconnectTimer) clearTimeout(reconnectTimer)
-          reconnectTimer = setTimeout(() => {
-            reconnectTimer = null
-            connectSocket()
-          }, delay)
+          scheduleReconnect()
         }
       }
     }

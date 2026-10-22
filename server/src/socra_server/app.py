@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 OPEN_PAGE_TIMEOUT_S = 15.0
+PAGE_UNAVAILABLE = "exam page servers failed to start; see the socra-server log"
 
 
 def get_wav_duration(wav_bytes: bytes) -> float:
@@ -155,10 +156,13 @@ class ExamApp:
         loader: ModelLoader,
         *,
         web_dist: Path = WEB_DIST,
-        launcher: Callable[[], None] = launch_page,
+        launcher: Callable[[str], None] = launch_page,
     ) -> None:
         self.web_dist = web_dist
         self._launcher = launcher
+        # Where this process serves its page, set from the ports actually bound;
+        # None when its servers could not start, so no other Socra's page is offered.
+        self.page_url: str | None = PAGE_URL
         self._finished = False
         self.channel = channel
         self.channel.app = self  # type: ignore[attr-defined]
@@ -207,7 +211,9 @@ class ExamApp:
     # ------------------------------------------------------------------ #
 
     def _no_client(self) -> dict:
-        result = {"status": "no_client", "url": PAGE_URL}
+        if self.page_url is None:
+            return {"status": "no_client", "error": PAGE_UNAVAILABLE}
+        result = {"status": "no_client", "url": self.page_url}
         if not (self.web_dist / "index.html").is_file():
             result["hint"] = "run pnpm -C web build"
         return result
@@ -216,12 +222,14 @@ class ExamApp:
         """Open the visible page if needed and wait at most 15 seconds in total."""
         if self.channel.is_connected:
             return {"status": "connected"}
+        if self.page_url is None:
+            return self._no_client()
         try:
             async with asyncio.timeout(OPEN_PAGE_TIMEOUT_S):
                 try:
-                    await asyncio.to_thread(self._launcher)
+                    await asyncio.to_thread(self._launcher, self.page_url)
                 except Exception:
-                    logger.exception("Unable to launch exam page; open %s manually", PAGE_URL)
+                    logger.exception("Unable to launch exam page; open %s manually", self.page_url)
                 await self.channel.wait_connected()
         except TimeoutError:
             return self._no_client()

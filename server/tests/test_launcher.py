@@ -77,19 +77,6 @@ def test_shortcut_can_be_removed(tmp_path):
     assert not (tmp_path / "Socra.lnk").exists()
 
 
-async def test_busy_ports_are_retried_until_they_free_up():
-    calls: list[int] = []
-
-    async def serve():
-        calls.append(1)
-        if len(calls) < 3:
-            raise OSError(10048, "address in use")
-
-    await main_mod._serve_with_retry(serve, "test-server", delay_s=0)
-
-    assert len(calls) == 3
-
-
 class _Channel:
     def __init__(self, connected: bool) -> None:
         self.is_connected = connected

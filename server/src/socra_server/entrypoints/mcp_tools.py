@@ -45,7 +45,8 @@ def create_mcp() -> FastMCP:
         Reuse an already-connected page without launching a browser. Otherwise
         open a visible Edge/Chrome app window (default browser as fallback) and
         wait at most 15 seconds total for the page to connect. Returns status
-        connected, or no_client with the page URL and a build hint if needed.
+        connected, or no_client with the page URL and a build hint if needed
+        (or with an error and no URL if the page servers could not start).
         """
         return await get_app().open_page()
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import socket
 import struct
 import wave
 
@@ -19,6 +20,18 @@ from socra_server.domain.voices import DEFAULT_VOICE_ID, get_voice
 # ---------------------------------------------------------------------------
 # Minimal silent WAV builder
 # ---------------------------------------------------------------------------
+
+def free_ports(count: int) -> list[int]:
+    """Distinct loopback ports, free a moment ago: all are held at once so none repeats."""
+    socks = [socket.socket() for _ in range(count)]
+    try:
+        for sock in socks:
+            sock.bind(("127.0.0.1", 0))
+        return [sock.getsockname()[1] for sock in socks]
+    finally:
+        for sock in socks:
+            sock.close()
+
 
 def make_wav_bytes(num_samples: int = 160, sample_rate: int = 16000) -> bytes:
     """Return a valid silent PCM-16 WAV byte string."""
@@ -119,6 +132,12 @@ class FakeLoader:
 # ---------------------------------------------------------------------------
 # App fixture (no page connected by default)
 # ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def isolated_preferences(tmp_path_factory, monkeypatch):
+    """Keep every page server off the user's real preferences file."""
+    monkeypatch.setenv("SOCRA_PREFERENCES_FILE", str(tmp_path_factory.mktemp("prefs") / "preferences.json"))
+
 
 @pytest.fixture
 def loader():

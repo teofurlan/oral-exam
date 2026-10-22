@@ -10,6 +10,7 @@ const states: { status: ConnectionStatus; label: string; pending: boolean }[] = 
   { status: 'reconnecting', label: 'Reconnecting…', pending: true },
   { status: 'disconnected', label: 'Disconnected', pending: false },
   { status: 'replaced', label: 'Open in another window', pending: false },
+  { status: 'gone', label: 'Session ended, close this window', pending: false },
 ]
 
 describe('ConnectionIndicator', () => {
