@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { wasReplaced } from '@/lib/replacedPage'
 import type { AgentClientMessage, AgentSelection, AgentServerMessage } from '@/types/agent'
+import { EMPTY_VOICE_CATALOG, type VoiceCatalog } from '@/types/voice'
 import { agentReducer, initialAgentState } from '@/state/agentReducer'
+import { getStoredVoice, setStoredVoice } from '@/lib/storage'
 import { useExamAudio } from './useExamAudio'
 
 export const AGENT_SOCKET_URL = 'ws://localhost:8766/ws/agent'
@@ -19,6 +22,7 @@ interface UseAgentSocketOptions {
 export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions = {}) {
   const [state, dispatch] = useReducer(agentReducer, initialAgentState)
   const [listeningEpoch, setListeningEpoch] = useState(0)
+  const [voices, setVoices] = useState<VoiceCatalog>(EMPTY_VOICE_CATALOG)
   const socketRef = useRef<WebSocket | null>(null)
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { playAudio, stopAudio, getOutputVolume } = useExamAudio()
@@ -58,6 +62,15 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
     stopAudio()
   }, [send, stopAudio])
 
+  const setVoice = useCallback(
+    (id: string) => {
+      setStoredVoice(id)
+      setVoices((prev) => ({ ...prev, current: id }))
+      send({ type: 'voice', voice: id })
+    },
+    [send]
+  )
+
   useEffect(() => {
     let socket: WebSocket | null = null
     let disposed = false
@@ -76,6 +89,10 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
     }
 
     const handle = (message: AgentServerMessage) => {
+      if (message.type === 'voices') {
+        setVoices({ voices: message.voices, current: message.current })
+        return
+      }
       if (message.type === 'tts_audio') {
         const done = () => send({ type: 'playback_done' })
         if (message.format === 'wav') playAudio(message.data, done)
@@ -106,6 +123,8 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
         backoffMs = FIRST_BACKOFF_MS
         dispatch({ type: 'set_status', status: 'connected' })
         send({ type: 'agent_hello' })
+        const storedVoice = getStoredVoice()
+        send(storedVoice ? { type: 'voice', voice: storedVoice } : { type: 'voice' })
       }
       socket.onmessage = (event) => {
         if (disposed) return
@@ -122,8 +141,10 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
         }
         handle(message as AgentServerMessage)
       }
-      socket.onclose = () => {
-        if (!disposed) scheduleReconnect()
+      socket.onclose = (event) => {
+        if (disposed) return
+        if (wasReplaced(event)) dispatch({ type: 'set_status', status: 'replaced' })
+        else scheduleReconnect()
       }
     }
 
@@ -154,5 +175,7 @@ export function useAgentSocket({ url = AGENT_SOCKET_URL }: UseAgentSocketOptions
     sendAudio,
     answerPermission,
     interrupt,
+    voices,
+    setVoice,
   }
 }

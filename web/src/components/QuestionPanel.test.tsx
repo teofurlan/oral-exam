@@ -64,51 +64,20 @@ describe('QuestionPanel', () => {
     expect(screen.getByTestId('question-text')).toHaveTextContent('Connecting to examiner server...')
   })
 
-  it.each([undefined, `const value = "<script>";
-  return value`])('renders display-only code when present: %s', (code) => {
-    const { container } = render(
+  it('leaves question code to the code pane and wraps long text', () => {
+    render(
       <QuestionPanel
-        question={{ ...sampleQuestion, code }}
-        transcript={sampleTranscript}
-        protocolState="speaking"
-        onReanswer={vi.fn()}
-      />
-    )
-    const pre = container.querySelector('pre')
-    if (code === undefined) {
-      expect(pre).not.toBeInTheDocument()
-    } else {
-      expect(pre?.textContent).toBe(code)
-      expect(pre).toHaveClass('font-mono', 'overflow-x-auto')
-      expect(container.querySelector('script')).not.toBeInTheDocument()
-      expect(screen.getByTestId('question-text')).toHaveTextContent(sampleQuestion.text)
-    }
-  })
-
-  it('keeps long code in a bounded, keyboard-scrollable region without changing its contents', async () => {
-    const user = userEvent.setup()
-    const code = `const value = "${'x'.repeat(500)}<script>";\n  return value`
-    const { container } = render(
-      <QuestionPanel
-        question={{ ...sampleQuestion, code }}
+        question={{ ...sampleQuestion, code: 'print(42)' }}
         transcript={{ text: 'y'.repeat(500), final: true }}
         protocolState="listening"
         onReanswer={vi.fn()}
       />
     )
 
-    const region = screen.getByRole('region', { name: 'Question code' })
-    expect(region).toHaveClass('min-w-0', 'max-w-full', 'overflow-x-auto')
-    expect(region).toHaveAttribute('tabindex', '0')
-    expect(region.querySelector('code')?.textContent).toBe(code)
-    expect(container.querySelector('script')).not.toBeInTheDocument()
-    expect(screen.getByTestId('question-panel')).toHaveClass('min-w-0', 'shrink-0')
+    expect(screen.getByTestId('question-panel')).not.toHaveTextContent('print(42)')
+    expect(screen.getByTestId('question-panel')).toHaveClass('min-w-0')
     expect(screen.getByTestId('question-text')).toHaveClass('[overflow-wrap:anywhere]')
     expect(screen.getByTestId('transcript-text')).toHaveClass('[overflow-wrap:anywhere]')
-    await user.tab()
-    expect(region).toHaveFocus()
-    await user.tab()
-    expect(screen.getByRole('button', { name: /Re-answer/ })).toHaveFocus()
   })
 
   it('triggers re-answer with the R key, but not while typing in a field', async () => {

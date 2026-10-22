@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useExamSocket } from './useExamSocket'
-import { STORAGE_KEY_MODE } from '@/lib/storage'
+import { STORAGE_KEY_MODE, STORAGE_KEY_VOICE } from '@/lib/storage'
 
 class MockWebSocket {
   static instances: MockWebSocket[] = []
@@ -37,6 +37,10 @@ class MockWebSocket {
 
   simulateError() {
     this.onerror?.(new Event('error'))
+  }
+
+  sent(): unknown[] {
+    return this.send.mock.calls.map(([raw]) => JSON.parse(raw as string))
   }
 }
 
@@ -105,6 +109,7 @@ describe('useExamSocket', () => {
 
     expect(result.current.state.connectionStatus).toBe('connected')
     expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'mode', mode: 'auto' }))
+    expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'voice' }))
   })
 
   it('sends {"type":"reanswer"} when reanswer is triggered', () => {
@@ -349,6 +354,23 @@ describe('useExamSocket', () => {
     expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'playback_done' }))
   })
 
+  it('stays closed when a newer exam page takes over, instead of taking it back', () => {
+    const { result } = renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => ws.simulateOpen())
+
+    act(() => {
+      ws.onclose?.(new CloseEvent('close', { code: 1000, reason: 'Replaced by a new page' }))
+    })
+    expect(result.current.state.connectionStatus).toBe('replaced')
+
+    act(() => {
+      vi.advanceTimersByTime(30_000)
+    })
+    expect(MockWebSocket.instances).toHaveLength(1)
+    expect(result.current.state.connectionStatus).toBe('replaced')
+  })
+
   it('reconnects with backoff (0.5s doubling to 5s) when socket closes mid-exam', () => {
     const { result } = renderHook(() => useExamSocket({ forceMock: false }))
     const ws1 = MockWebSocket.instances[0]
@@ -424,5 +446,80 @@ describe('useExamSocket', () => {
     })
     // No new WebSocket instances should be created
     expect(MockWebSocket.instances).toHaveLength(1)
+  })
+
+  it('sends { type: "voice" } on open with nothing stored', () => {
+    renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => {
+      ws.simulateOpen()
+    })
+    expect(ws.sent()).toEqual([{ type: 'mode', mode: 'auto' }, { type: 'voice' }])
+  })
+
+  it('sends { type: "voice", voice: "dora" } on open when dora is stored', () => {
+    window.localStorage.setItem(STORAGE_KEY_VOICE, 'dora')
+    renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => {
+      ws.simulateOpen()
+    })
+    expect(ws.sent()).toEqual([{ type: 'mode', mode: 'auto' }, { type: 'voice', voice: 'dora' }])
+  })
+
+  it('updates voices when receiving a voices message', () => {
+    const { result } = renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => {
+      ws.simulateOpen()
+    })
+    expect(result.current.voices).toEqual({ voices: [], current: null })
+
+    act(() => {
+      ws.simulateMessage({
+        type: 'voices',
+        voices: [
+          { id: 'alex-dora', label: 'Alex 75% + Dora 25%' },
+          { id: 'santa', label: 'Santa' },
+        ],
+        current: 'alex-dora',
+      })
+    })
+
+    expect(result.current.voices).toEqual({
+      voices: [
+        { id: 'alex-dora', label: 'Alex 75% + Dora 25%' },
+        { id: 'santa', label: 'Santa' },
+      ],
+      current: 'alex-dora',
+    })
+  })
+
+  it('setVoice stores in localStorage, sends voice message, and updates current optimistically', () => {
+    const { result } = renderHook(() => useExamSocket({ forceMock: false }))
+    const ws = MockWebSocket.instances[0]
+    act(() => {
+      ws.simulateOpen()
+    })
+
+    act(() => {
+      result.current.setVoice('santa')
+    })
+
+    expect(window.localStorage.getItem(STORAGE_KEY_VOICE)).toBe('santa')
+    expect(ws.sent()).toContainEqual({ type: 'voice', voice: 'santa' })
+    expect(result.current.voices.current).toBe('santa')
+  })
+
+  it('setVoice only stores and updates local state in mock mode', () => {
+    const { result } = renderHook(() => useExamSocket({ forceMock: true }))
+
+    act(() => {
+      result.current.setVoice('santa')
+    })
+
+    expect(window.localStorage.getItem(STORAGE_KEY_VOICE)).toBe('santa')
+    expect(result.current.voices.current).toBe('santa')
+    expect(MockWebSocket.instances).toHaveLength(0)
   })
 })

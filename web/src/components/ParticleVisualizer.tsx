@@ -4,6 +4,7 @@ import {
   lettersFrom,
   particleCount,
   simulatedVoice,
+  type FieldShape,
   type FieldState,
   type ParticleStyle,
 } from '@/lib/particleField'
@@ -11,11 +12,17 @@ import {
 export interface ParticleVisualizerProps {
   protocolState: FieldState
   style: ParticleStyle
+  /** Sphere or sound wave; switching it moves the particles without rebuilding them. */
+  shape?: FieldShape
   colors: [string, string]
   getOutputVolume?: () => number
   getInputVolume?: () => number
   /** Text the "letters" look is made of, usually the current question. */
   letters?: string
+  /** The page ground is light: paint particles instead of adding light. */
+  lightBackground?: boolean
+  /** While idle, keep the particles gathered in their shape, small and slow. */
+  resting?: boolean
   className?: string
 }
 
@@ -26,17 +33,20 @@ export interface ParticleVisualizerProps {
 export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
   protocolState,
   style,
+  shape = 'sphere',
   colors,
   getOutputVolume,
   getInputVolume,
   letters,
+  lightBackground = false,
+  resting = false,
   className = '',
 }) => {
   const slotRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fieldRef = useRef<ParticleField | null>(null)
-  const live = useRef({ protocolState, colors, getOutputVolume, getInputVolume })
-  live.current = { protocolState, colors, getOutputVolume, getInputVolume }
+  const live = useRef({ protocolState, colors, getOutputVolume, getInputVolume, lightBackground, resting })
+  live.current = { protocolState, colors, getOutputVolume, getInputVolume, lightBackground, resting }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -52,6 +62,7 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
     const field = new ParticleField({
       count: particleCount(window.innerWidth, window.innerHeight),
       style,
+      shape,
       letters: lettersFrom(letters),
     })
     fieldRef.current = field
@@ -83,6 +94,7 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
         : 0
       const rect = slot.getBoundingClientRect()
       field.setColors(c)
+      field.setLightBackground(live.current.lightBackground)
       field.step({
         dt,
         time: now,
@@ -94,6 +106,7 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
         state,
         volume,
         reducedMotion,
+        rest: live.current.resting,
       })
       field.draw(ctx, dpr)
       raf = requestAnimationFrame(frame)
@@ -105,7 +118,7 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
       window.removeEventListener('resize', resize)
       fieldRef.current = null
     }
-    // The letters are applied by the effect below without rebuilding the field.
+    // The letters and the shape are applied by the effects below without rebuilding the field.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [style])
 
@@ -113,8 +126,12 @@ export const ParticleVisualizer: React.FC<ParticleVisualizerProps> = ({
     fieldRef.current?.setLetters(lettersFrom(letters))
   }, [letters])
 
+  useEffect(() => {
+    fieldRef.current?.setShape(shape)
+  }, [shape])
+
   return (
-    <div ref={slotRef} data-testid="particle-visualizer" data-style={style} className={className}>
+    <div ref={slotRef} data-testid="particle-visualizer" data-style={style} data-shape={shape} data-resting={resting} className={className}>
       <canvas
         ref={canvasRef}
         aria-hidden

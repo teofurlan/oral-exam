@@ -4,13 +4,6 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 import { STORAGE_KEY_MODE } from './lib/storage'
 
-// Mock Three.js Canvas to avoid WebGL context issues in jsdom
-vi.mock('@/components/ui/orb', () => ({
-  Orb: ({ agentState, className }: { agentState: string | null; className?: string }) => (
-    <div data-testid="mock-orb" data-agent-state={agentState ?? 'null'} className={className} />
-  ),
-}))
-
 class MockWebSocket {
   static instances: MockWebSocket[] = []
   static OPEN = 1
@@ -112,6 +105,16 @@ describe('App Integration', () => {
     expect(screen.getByTestId('palette-orchid')).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('switches the particles to the sound wave from settings and remembers it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'sphere')
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('shape-wave'))
+    expect(window.localStorage.getItem('socra_shape')).toBe('wave')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-shape', 'wave')
+  })
+
   it('updates state, question, and transcript from WebSocket messages', async () => {
     render(<App />)
 
@@ -135,7 +138,7 @@ describe('App Integration', () => {
 
     expect(screen.getByTestId('question-index')).toHaveTextContent('Question 3/10')
     expect(screen.getByTestId('question-text')).toHaveTextContent('What is an atomic operation?')
-    expect(screen.getByTestId('mock-orb')).toHaveAttribute('data-agent-state', 'talking')
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'speaking')
 
     // Simulate transcript
     act(() => {
@@ -168,7 +171,7 @@ describe('App Integration', () => {
     act(() => {
       ws.simulateMessage({ type: 'question', index: 1, total: 1, text: 'Read this code.', code: 'print(42)' })
     })
-    expect(screen.getByText('print(42)')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Question code' })).toHaveTextContent('print(42)')
     act(() => {
       ws.simulateMessage({ type: 'state', state: 'idle' })
       ws.simulateMessage({ type: 'finished' })
@@ -179,7 +182,44 @@ describe('App Integration', () => {
     act(() => ws.simulateMessage({ type: 'question', index: 1, total: 2, text: 'New exam.' }))
     expect(screen.queryByText('Exam finished')).not.toBeInTheDocument()
     expect(screen.getByTestId('question-text')).toHaveTextContent('New exam.')
-    expect(screen.queryByText('print(42)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Question code' })).not.toBeInTheDocument()
+  })
+
+  it('switches to the light theme from settings and remembers it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByTestId('settings-button'))
+    await user.click(screen.getByTestId('theme-light'))
+
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(window.localStorage.getItem('socra_theme')).toBe('light')
+  })
+
+  it('sends a typed answer from the prompt line', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    const ws = MockWebSocket.instances[0]
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    act(() => {
+      ws.simulateMessage({ type: 'question', index: 1, total: 2, text: 'What is a mutex?' })
+      ws.simulateMessage({ type: 'state', state: 'listening' })
+    })
+
+    await user.type(screen.getByLabelText('Type your answer'), 'A lock for one thread at a time{Enter}')
+
+    expect(ws.send).toHaveBeenCalledWith(JSON.stringify({ type: 'answer_text', text: 'A lock for one thread at a time' }))
+    expect(screen.getByLabelText('Type your answer')).toHaveValue('')
+  })
+
+  it('shows question code in a code pane beside the question', () => {
+    render(<App />)
+    const ws = MockWebSocket.instances[0]
+    act(() => ws.simulateMessage({ type: 'question', index: 1, total: 1, text: 'Read this code.', code: 'print(42)' }))
+
+    expect(screen.getByRole('region', { name: 'Question code' })).toHaveTextContent('print(42)')
+    expect(screen.getByTestId('question-panel')).not.toHaveTextContent('print(42)')
   })
 
   it('renders notice banner when notice message is received', () => {

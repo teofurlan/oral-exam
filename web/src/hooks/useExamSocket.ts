@@ -1,21 +1,41 @@
 import { useEffect, useReducer, useRef, useCallback, useState } from 'react'
+import { wasReplaced } from '@/lib/replacedPage'
 import type {
   ClientMessage,
   ServerMessage,
   TurnMode,
 } from '@/types/exam'
+import { EMPTY_VOICE_CATALOG, type VoiceCatalog } from '@/types/voice'
 import { examReducer, initialExamState } from '@/state/examReducer'
-import { getStoredTurnMode, setStoredTurnMode } from '@/lib/storage'
+import { getStoredTurnMode, setStoredTurnMode, getStoredVoice, setStoredVoice } from '@/lib/storage'
 import { useExamAudio } from './useExamAudio'
 
 export const DEFAULT_SOCKET_URL = 'ws://localhost:8766/ws'
 
-const MOCK_QUESTIONS = [
+const MOCK_QUESTIONS: { text: string; code?: string; partialAnswer: string; finalAnswer: string }[] = [
   {
     text: 'What is the fundamental difference between a process and a thread in modern operating systems?',
     partialAnswer: 'A process is an execution environment with its own memory space...',
     finalAnswer:
       'A process is an execution environment with its own dedicated virtual memory space, whereas threads are lightweight execution units within a process that share the same address space and resources.',
+  },
+  {
+    text: 'This handler retries a failed request. What happens when the server is down for a minute?',
+    code: [
+      'async function fetchWithRetry(url: string, attempt = 0): Promise<Response> {',
+      '  try {',
+      '    return await fetch(url)',
+      '  } catch (error) {',
+      '    if (attempt >= 5) throw error',
+      '    const delay = 500 * 2 ** attempt',
+      '    await new Promise((resolve) => setTimeout(resolve, delay))',
+      '    return fetchWithRetry(url, attempt + 1)',
+      '  }',
+      '}',
+    ].join('\n'),
+    partialAnswer: 'It retries with exponential backoff...',
+    finalAnswer:
+      'It retries five times with exponential backoff, waiting about fifteen seconds in total, and then throws, so a one-minute outage still fails.',
   },
   {
     text: 'How does virtual memory protect memory isolation between different user processes?',
@@ -46,6 +66,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
 
   // Re-answer can deliver listening -> listening; the state string alone is not a turn identity.
   const [listeningEpoch, setListeningEpoch] = useState(0)
+  const [voices, setVoices] = useState<VoiceCatalog>(EMPTY_VOICE_CATALOG)
   const socketRef = useRef<WebSocket | null>(null)
   const mockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMockActiveRef = useRef<boolean>(false)
@@ -85,6 +106,7 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           index: qIndex,
           total,
           text: qData.text,
+          ...(qData.code ? { code: qData.code } : {}),
         })
         dispatch({ type: 'state', state: 'speaking' })
 
@@ -145,6 +167,15 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
     [send]
   )
 
+  const setVoice = useCallback(
+    (id: string) => {
+      setStoredVoice(id)
+      setVoices((prev) => ({ ...prev, current: id }))
+      send({ type: 'voice', voice: id })
+    },
+    [send]
+  )
+
   const reanswer = useCallback(() => {
     dispatch({ type: 'reanswer' })
     send({ type: 'reanswer' })
@@ -182,6 +213,24 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
       }, 1500)
     }
   }, [send, clearMockTimers, startMockDriver])
+
+  /** A typed answer is final as typed; the server echoes it back as the transcript. */
+  const sendText = useCallback(
+    (text: string) => {
+      if (isMockActiveRef.current) {
+        clearMockTimers()
+        dispatch({ type: 'transcript', text, final: true })
+        mockTimerRef.current = setTimeout(() => {
+          if (!isMockActiveRef.current || unmountedRef.current) return
+          currentQuestionIdxRef.current += 1
+          startMockDriver()
+        }, 2000)
+        return
+      }
+      send({ type: 'answer_text', text })
+    },
+    [send, clearMockTimers, startMockDriver]
+  )
 
   const sendAudio = useCallback(
     (base64Data: string) => {
@@ -245,12 +294,21 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           dispatch({ type: 'set_status', status: 'connected' })
           const currentMode = getStoredTurnMode('auto')
           socket?.send(JSON.stringify({ type: 'mode', mode: currentMode }))
+          const storedVoice = getStoredVoice()
+          const voiceMsg: ClientMessage = storedVoice
+            ? { type: 'voice', voice: storedVoice }
+            : { type: 'voice' }
+          socket?.send(JSON.stringify(voiceMsg))
         }
 
         socket.onmessage = (event) => {
           if (disposed || fellBack) return
           try {
             const data = JSON.parse(event.data) as ServerMessage
+            if (data.type === 'voices') {
+              setVoices({ voices: data.voices, current: data.current })
+              return
+            }
             if (data.type === 'finished') {
               finishedRef.current = true
             } else if (data.type === 'question') {
@@ -286,9 +344,11 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
           if (!disposed && !hasConnected) fallBack()
         }
 
-        socket.onclose = () => {
+        socket.onclose = (event) => {
           if (disposed || fellBack) return
-          if (!hasConnected) {
+          if (wasReplaced(event)) {
+            dispatch({ type: 'set_status', status: 'replaced' })
+          } else if (!hasConnected) {
             fallBack()
           } else if (finishedRef.current) {
             dispatch({ type: 'set_status', status: 'disconnected' })
@@ -338,9 +398,12 @@ export function useExamSocket(options: UseExamSocketOptions = {}) {
     state,
     setMode,
     reanswer,
+    sendText,
     sendAudio,
     getOutputVolume,
     listeningEpoch,
     dispatch,
+    voices,
+    setVoice,
   }
 }

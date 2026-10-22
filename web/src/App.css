@@ -1,26 +1,103 @@
-/* Keep these rules inside the exam shell; the orb gallery is independent. */
-.exam-app button {
-  min-width: 44px;
-  min-height: 44px;
+/* The console shell shared by the exam and agent pages. */
+.shell {
+  /* Own stacking context: the particle canvas sits behind the panels, above the page ground. */
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-width: 0;
 }
 
-.exam-app pre:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+/* Panels: the conversation, and a code panel that opens beside it behind a 1px seam. */
+.shell-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0px minmax(0, 0fr);
+  min-height: 0;
+  transition: grid-template-columns var(--split) var(--ease-out);
+}
+.shell-panels[data-split="true"] {
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 0.8fr);
+}
+.shell-seam {
+  background: var(--seam);
+}
+.shell-panels > .code-slot {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+/* The conversation panel lets the particles show through. */
+.shell-panels > .panel:first-child {
+  background: transparent;
+}
+/* ...but not its header: like the top bar, it stays solid, so a scrolled sphere slides under it. */
+.shell-panels > .panel:first-child > .panel-head {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
 }
 
-.exam-toolbar > :last-child {
-  flex-shrink: 0;
+/* The sphere swells past its slot with perspective and voice; keep the words clear of it. */
+.viz-slot {
+  margin-block: 18px 22px;
 }
 
-/* SettingsMenu is shared: adapt its existing dialog without changing its logic. */
-.exam-toolbar [role="dialog"] {
-  max-height: calc(100vh - 5rem);
-  max-height: calc(100dvh - 5rem);
+.shell-scroll {
+  min-height: 0;
+  flex: 1;
   overflow-y: auto;
+  padding: 24px clamp(14px, 3vw, 32px) 14px;
 }
 
-.exam-toolbar input[type="range"].slim {
-  min-height: 44px;
-  background: linear-gradient(var(--fill-2), var(--fill-2)) center / 100% 4px no-repeat;
+/* Composer: floats centred above the bottom edge on wide screens, about half to two thirds
+   of the conversation; on tablets and phones it keeps one even gap to the three edges. */
+.composer-dock {
+  --edge: 12px;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 28px;
+}
+.composer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: min(calc(100% - 32px), max(55%, 520px), 780px);
+  padding: 7px;
+  border: 1px solid var(--seam-strong);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px -18px rgb(0 0 0 / 0.55);
+  transition: border-color 150ms var(--ease-out);
+}
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+@media (max-width: 1023px) {
+  .composer-dock {
+    padding: 8px var(--edge) var(--edge);
+  }
+  .composer {
+    width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .shell-panels {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 0px minmax(0, 0fr);
+    transition: grid-template-rows var(--split) var(--ease-out);
+  }
+  .shell-panels[data-split="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 1px minmax(0, 0.7fr);
+  }
+  /* Stacked under code, the conversation is short: the sphere gives way to the words. */
+  .shell-panels[data-split="true"] .viz-slot {
+    max-width: 5rem;
+    margin-block: 8px 14px;
+  }
 }
