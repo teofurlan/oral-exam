@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useAgentSocket, AGENT_SOCKET_URL } from './useAgentSocket'
+import { useAgentSocket } from './useAgentSocket'
 import { FakeAudioContext, FakeWebSocket } from '@/test/fakeSocket'
 import { STORAGE_KEY_VOICE } from '@/lib/storage'
 
@@ -33,10 +33,19 @@ describe('useAgentSocket', () => {
   it('connects to the agent route and says hello', () => {
     const { result, ws } = connected()
 
-    expect(ws.url).toBe(AGENT_SOCKET_URL)
-    expect(AGENT_SOCKET_URL).toBe('ws://localhost:8766/ws/agent')
+    expect(ws.url).toBe('ws://localhost:8766/ws/agent')
     expect(result.current.state.connectionStatus).toBe('connected')
     expect(ws.sent()).toEqual([{ type: 'agent_hello' }, { type: 'voice' }])
+  })
+
+  it('connects to the WebSocket port the server put in the page URL', () => {
+    window.history.replaceState(null, '', '/?ws=51001&mode=agent')
+    try {
+      renderHook(() => useAgentSocket())
+      expect(FakeWebSocket.latest().url).toBe('ws://localhost:51001/ws/agent')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
   })
 
   it('sends every page action in the agent protocol', () => {
@@ -170,6 +179,27 @@ describe('useAgentSocket', () => {
     act(() => FakeWebSocket.latest().open())
     expect(result.current.state.connectionStatus).toBe('connected')
     expect(FakeWebSocket.latest().sent()).toEqual([{ type: 'agent_hello' }, { type: 'voice' }])
+  })
+
+  it('on a page pinned to its server with ?ws, gives up once that server is gone', () => {
+    window.history.replaceState(null, '', '/?ws=51001&mode=agent')
+    try {
+      const { result } = renderHook(() => useAgentSocket())
+      act(() => FakeWebSocket.latest().open())
+      act(() => FakeWebSocket.latest().drop())
+
+      for (let attempt = 1; attempt < 5; attempt++) {
+        act(() => vi.advanceTimersByTime(5000))
+        act(() => FakeWebSocket.latest().drop())
+      }
+      expect(result.current.state.connectionStatus).toBe('gone')
+
+      const count = FakeWebSocket.instances.length
+      act(() => vi.advanceTimersByTime(60_000))
+      expect(FakeWebSocket.instances).toHaveLength(count)
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
   })
 
   it('stays closed when a newer page takes over, instead of taking it back', () => {

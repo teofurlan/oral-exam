@@ -87,7 +87,7 @@ async def test_static_files_and_spa_fallback_are_served_on_loopback(tmp_path):
 async def test_no_client_url_and_build_hint_for_all_tools(tmp_path, built, monkeypatch):
     if built:
         (tmp_path / "index.html").write_text("exam")
-    app = ExamApp(PageChannel(), FakeLoader(), web_dist=tmp_path, launcher=lambda: None)
+    app = ExamApp(PageChannel(), FakeLoader(), web_dist=tmp_path, launcher=lambda url: None)
     monkeypatch.setattr("socra_server.app.OPEN_PAGE_TIMEOUT_S", 0.01)
     expected = {"status": "no_client", "url": "http://localhost:8767/"}
     if not built:
@@ -115,12 +115,12 @@ async def test_open_page_times_out_with_fake_launcher(tmp_path, monkeypatch):
         "status": "no_client", "url": "http://localhost:8767/", "hint": "run pnpm -C web build",
     }
     assert perf_counter() - start < 1
-    launcher.assert_called_once_with()
+    launcher.assert_called_once_with("http://localhost:8767/")
 
 
 @pytest.mark.asyncio
 async def test_open_page_waits_for_connection(monkeypatch):
-    app = ExamApp(PageChannel(), FakeLoader(), launcher=lambda: None)
+    app = ExamApp(PageChannel(), FakeLoader(), launcher=lambda url: None)
     monkeypatch.setattr("socra_server.app.OPEN_PAGE_TIMEOUT_S", 0.2)
 
     async def connect():

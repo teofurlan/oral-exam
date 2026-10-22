@@ -10,6 +10,15 @@ Local voice exam server. One process, one asyncio loop:
 Both network listeners bind only to `127.0.0.1`. The page uses the same WebSocket
 URL in development (Vite on 5180) and when served by the Python server on 8767.
 
+Each MCP session starts its own `socra-server`. When another Socra already holds
+8766 or 8767, the process binds free ports instead, and its page URL carries the
+WebSocket port, for example `http://localhost:51000/?ws=51001`. `open_page()`
+opens that URL, so every session's page connects back to its own process.
+When that process exits, its page retries a few times and then shows
+"Session ended, close this window" instead of waiting forever. If the page
+servers cannot start at all, the MCP tools keep working and report `no_client`
+with an `error` and no URL, never another session's page.
+
 ---
 
 ## Requirements
@@ -40,9 +49,9 @@ claude mcp add --scope user socra -- uv run --project "<abs path>/server" socra-
 
 An exam session calls `open_page()` first. If no page is connected, it opens a
 visible Edge app window, then tries Chrome, then the default browser. It waits
-at most 15 seconds for a connection. All `no_client` responses point to
-`http://localhost:8767/`; if the page has not been built, they also include
-`"hint":"run pnpm -C web build"`.
+at most 15 seconds for a connection. All `no_client` responses point to this
+process's page, `http://localhost:8767/` unless those ports were busy; if the
+page has not been built, they also include `"hint":"run pnpm -C web build"`.
 
 ## Run
 
@@ -116,9 +125,8 @@ The shortcut runs `.venv\Scripts\pythonw.exe -m socra_server --agent` with no
 console window; anything the server prints goes to `server/logs/socra-agent.log`.
 Agent mode stops by itself once no agent page has been open for two minutes
 (`SOCRA_AGENT_IDLE_S`), which frees ports 8766 and 8767. An exam MCP server
-that started meanwhile keeps retrying those ports every few seconds and takes
-them over, so exam mode works again without restarting Claude Code. Exam and
-agent mode cannot run at the same time: they share the same two ports.
+that starts while agent mode holds those ports serves its page on free ports
+instead, so exam and agent mode can run at the same time.
 
 ### Environment variables
 

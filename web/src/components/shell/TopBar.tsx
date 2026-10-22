@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ConnectionIndicator } from '@/components/ConnectionIndicator'
 import type { ConnectionStatus } from '@/types/exam'
+import { modeHref } from '@/lib/page'
 
 interface TopBarProps {
   page: 'exam' | 'agent'
@@ -12,8 +13,8 @@ interface TopBarProps {
 }
 
 const TABS = [
-  { id: 'exam', href: '/', label: 'Exam' },
-  { id: 'agent', href: '/?mode=agent', label: 'Agent' },
+  { id: 'exam', label: 'Exam' },
+  { id: 'agent', label: 'Agent' },
 ] as const
 
 /** The console's top bar: wordmark, the two modes, context chips, connection and settings. */
@@ -27,7 +28,7 @@ export function TopBar({ page, connection, chips, menu }: TopBarProps) {
           return (
             <a
               key={tab.id}
-              href={tab.href}
+              href={modeHref(tab.id, window.location.search)}
               aria-current={current ? 'page' : undefined}
               className="t-small rounded-md px-2.5 py-1 no-underline hover:text-[var(--label)]"
               style={{

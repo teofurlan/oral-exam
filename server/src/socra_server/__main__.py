@@ -7,7 +7,8 @@ as an exam MCP server), it only opens the page.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
+from contextlib import AsyncExitStack
 import logging
 import os
 from pathlib import Path
@@ -55,7 +56,6 @@ logger = logging.getLogger(__name__)
 
 
 SERVER_PROBE_TIMEOUT_S = 0.5
-PORT_RETRY_S = 5.0
 # Agent mode stops after this long without an agent page, freeing the ports.
 AGENT_IDLE_S = float(os.environ.get("SOCRA_AGENT_IDLE_S", "120"))
 
@@ -98,18 +98,47 @@ async def server_running(host: str, port: int) -> bool:
     return True
 
 
-async def _serve_with_retry(
-    serve: Callable[[], Awaitable[None]], name: str, delay_s: float = PORT_RETRY_S
+async def _listen(stack: AsyncExitStack, open_server, port: int, name: str) -> int:
+    """Bind ``port``, or a free one when another Socra (an agent-mode start or
+    another MCP session) holds it, and return the port actually bound."""
+    try:
+        server = await stack.enter_async_context(open_server(port))
+    except OSError as exc:
+        logger.warning("%s cannot bind port %d (%s); using a free port", name, port, exc)
+        server = await stack.enter_async_context(open_server(0))
+    return server.sockets[0].getsockname()[1]
+
+
+async def open_listeners(
+    stack: AsyncExitStack,
+    exam: ExamApp,
+    *,
+    ws_port: int | None = None,
+    http_port: int | None = None,
 ) -> None:
-    """Keep trying to bind: another Socra (an agent-mode start or another MCP
-    session) may hold the port now and release it later."""
-    while True:
-        try:
-            await serve()
-            return
-        except OSError as exc:
-            logger.warning("%s cannot bind yet (%s); retrying in %.0f s", name, exc, delay_s)
-            await asyncio.sleep(delay_s)
+    """Start this process's WebSocket and page servers and point the exam at them,
+    so its page always connects back to this process (#26).
+
+    A failure here only costs the page: the MCP tools keep running and report
+    no_client with an error and no URL (the default one may be another
+    session's page), instead of the whole server dying before the handshake."""
+    ws_port = ws_server.WS_PORT if ws_port is None else ws_port
+    http_port = http_server.HTTP_PORT if http_port is None else http_port
+    try:
+        bound_ws = await _listen(
+            stack, lambda port: ws_server.serve_pages(port=port), ws_port, "WebSocket server"
+        )
+        bound_http = await _listen(
+            stack, lambda port: http_server.serve_page(dist=exam.web_dist, port=port), http_port, "Page server"
+        )
+    except Exception:
+        logger.exception("Exam page unavailable: could not start its servers")
+        exam.page_url = None
+        return
+    exam.page_url = http_server.page_url(
+        bound_http, None if bound_ws == ws_server.PAGE_DEFAULT_WS_PORT else bound_ws
+    )
+    logger.info("Exam page on %s", exam.page_url)
 
 
 async def _idle_watch(channel, idle_s: float, poll_s: float = 1.0) -> None:
@@ -157,7 +186,7 @@ async def _standalone(
 async def _amain(protocol_stdout) -> None:
     loop = asyncio.get_running_loop()
 
-    _, agent, loader = _build_apps(loop)
+    exam, agent, loader = _build_apps(loop)
 
     # Build the MCP server
     mcp = mcp_tools.create_mcp()
@@ -165,29 +194,20 @@ async def _amain(protocol_stdout) -> None:
     # Start model loading in background (non-blocking)
     loader.start()
 
-    # Network listeners share the MCP loop; model loading never blocks them.
-    network_tasks = [
-        asyncio.create_task(
-            _serve_with_retry(ws_server.serve_forever, "WebSocket server"), name="ws-server"
-        ),
-        asyncio.create_task(
-            _serve_with_retry(http_server.serve_forever, "Page server"), name="http-server"
-        ),
-    ]
-
-    logger.debug("socra-server started; MCP handshake available immediately")
-
-    # Run MCP over stdio (blocks until the client disconnects / process exits)
     try:
-        # Keep the wire separate from fd 1: native speech libraries may print.
-        async with stdio_server(stdout=anyio.wrap_file(protocol_stdout)) as (reader, writer):
-            await mcp._mcp_server.run(
-                reader, writer, mcp._mcp_server.create_initialization_options()
-            )
+        # Network listeners share the MCP loop; binding is immediate and model
+        # loading never blocks them.
+        async with AsyncExitStack() as listeners:
+            await open_listeners(listeners, exam)
+            logger.debug("socra-server started; MCP handshake available immediately")
+
+            # Run MCP over stdio (blocks until the client disconnects / process exits)
+            # Keep the wire separate from fd 1: native speech libraries may print.
+            async with stdio_server(stdout=anyio.wrap_file(protocol_stdout)) as (reader, writer):
+                await mcp._mcp_server.run(
+                    reader, writer, mcp._mcp_server.create_initialization_options()
+                )
     finally:
-        for task in network_tasks:
-            task.cancel()
-        await asyncio.gather(*network_tasks, return_exceptions=True)
         await agent.shutdown()
 
 

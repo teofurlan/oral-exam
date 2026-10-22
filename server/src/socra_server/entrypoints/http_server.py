@@ -14,6 +14,14 @@ logger = logging.getLogger(__name__)
 HTTP_HOST = "127.0.0.1"
 HTTP_PORT = int(os.environ.get("SOCRA_HTTP_PORT", "8767"))
 PAGE_URL = f"http://localhost:{HTTP_PORT}/"
+
+
+def page_url(http_port: int, ws_port: int | None = None) -> str:
+    """The page address; ``?ws=`` tells the page a WebSocket port other than the default."""
+    url = f"http://localhost:{http_port}/"
+    return url if ws_port is None else f"{url}?ws={ws_port}"
+
+
 AGENT_PAGE_URL = f"{PAGE_URL}?mode=agent"
 WEB_DIST = Path(__file__).resolve().parents[4] / "web" / "dist"
 
@@ -79,10 +87,3 @@ async def serve_page(*, dist: Path = WEB_DIST, port: int = HTTP_PORT):
         lambda reader, writer: _respond(reader, writer, dist), HTTP_HOST, port, limit=16384,
     ) as server:
         yield server
-
-
-async def serve_forever() -> None:
-    """Serve web/dist until cancelled alongside MCP and WebSocket tasks."""
-    async with serve_page() as server:
-        logger.debug("Exam page ready on %s", PAGE_URL)
-        await server.serve_forever()

@@ -49,7 +49,9 @@ def _setup_logger() -> logging.Logger:
 logger = _setup_logger()
 
 WS_HOST = "127.0.0.1"
-WS_PORT = int(os.environ.get("SOCRA_WS_PORT", "8766"))
+# The port the page dials when its URL has no ?ws (web/src/lib/socketUrl.ts).
+PAGE_DEFAULT_WS_PORT = 8766
+WS_PORT = int(os.environ.get("SOCRA_WS_PORT", str(PAGE_DEFAULT_WS_PORT)))
 WS_PATH = "/ws"
 AGENT_WS_PATH = "/ws/agent"
 
@@ -307,17 +309,22 @@ async def _handle(ws: ServerConnection) -> None:
         )
 
 
-async def serve_forever(host: str = WS_HOST, port: int = WS_PORT) -> None:
-    """Start the WebSocket server and run until cancelled."""
-    logger.debug("WebSocket server starting on ws://%s:%d%s", host, port, WS_PATH)
-    async with serve(
+def serve_pages(host: str = WS_HOST, port: int = WS_PORT):
+    """Bind the page WebSocket server; port=0 picks a free port."""
+    return serve(
         _dispatch,
         host,
         port,
         process_request=_check_path,
         ping_interval=20,
         ping_timeout=60,
-    ) as server:
+    )
+
+
+async def serve_forever(host: str = WS_HOST, port: int = WS_PORT) -> None:
+    """Start the WebSocket server and run until cancelled."""
+    logger.debug("WebSocket server starting on ws://%s:%d%s", host, port, WS_PATH)
+    async with serve_pages(host, port):
         logger.debug("WebSocket server ready on ws://%s:%d%s", host, port, WS_PATH)
         await asyncio.Future()  # run forever
 
