@@ -29,6 +29,7 @@ from claude_agent_sdk import (
     ToolUseBlock,
 )
 
+from socra_server.adapters.tool_summary import summarize_tool_input as _summarize
 from socra_server.domain.agent import (
     AgentError,
     AgentEvent,
@@ -45,9 +46,6 @@ logger = logging.getLogger(__name__)
 
 STATUS_TIMEOUT_S = 15.0
 DENIED_MESSAGE = "The user denied this action in Socra."
-# Input keys that best describe a tool call in one line, in order of preference.
-_SUMMARY_KEYS = ("description", "command", "file_path", "path", "pattern", "url", "query")
-_SUMMARY_MAX = 120
 
 ClientFactory = Callable[[ClaudeAgentOptions], Any]
 StatusRunner = Callable[[str], Awaitable[str]]
@@ -76,15 +74,6 @@ async def run_auth_status(cli_path: str) -> str:
         await process.wait()
         raise
     return stdout.decode("utf-8", errors="replace")
-
-
-def _summarize(tool_input: dict[str, Any]) -> str:
-    for key in _SUMMARY_KEYS:
-        value = tool_input.get(key)
-        if isinstance(value, str) and value.strip():
-            text = " ".join(value.split())
-            return text if len(text) <= _SUMMARY_MAX else text[: _SUMMARY_MAX - 1] + "…"
-    return ""
 
 
 class ClaudeCodeConversation:
