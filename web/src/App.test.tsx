@@ -51,6 +51,8 @@ describe('App Integration', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    expect(document.querySelector('.shell > .background-pattern')).toHaveAttribute('aria-hidden', 'true')
+
     // Settings live behind the gear button
     await user.click(screen.getByTestId('settings-button'))
 

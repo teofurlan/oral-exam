@@ -11,6 +11,7 @@ import { VoicePicker } from '@/components/VoicePicker'
 import { PushToTalkControl } from '@/components/PushToTalkControl'
 import { CodePane } from '@/components/CodePane'
 import { Panel } from '@/components/shell/Panel'
+import { BackgroundPattern } from '@/components/shell/BackgroundPattern'
 import { PromptLine } from '@/components/shell/PromptLine'
 import { StateLine } from '@/components/shell/StateLine'
 import { Chip, TopBar } from '@/components/shell/TopBar'
@@ -110,6 +111,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="shell">
+      <BackgroundPattern />
       <TopBar
         page="exam"
         connection={state.connectionStatus}

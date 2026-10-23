@@ -17,6 +17,12 @@ Settings offer a System/Light/Dark theme; the choice is stored in `socra_theme` 
 applied before the first paint by a script in `index.html`. Tokens live in
 `src/index.css` (dark on `:root`, light on `:root[data-theme="light"]`).
 
+A neutral dot texture sits behind the orb and conversation in both modes (#4).
+Mouse movement produces a small, softly masked drift that settles within 650ms;
+there is no background animation loop at rest. It stops when the tab is hidden,
+the pointer leaves, or the window loses focus. Reduced motion and touch-only
+devices keep the static texture. Theme changes update both layers through CSS.
+
 Long question/transcript text wraps; code preserves whitespace and scrolls inside
 its own focusable region. Settings scroll independently when the window is short.
 
