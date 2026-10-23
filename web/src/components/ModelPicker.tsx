@@ -6,6 +6,7 @@ interface ModelPickerProps {
   backends: AgentBackendInfo[]
   selection: AgentSelection | null
   onChange: (selection: AgentSelection) => void
+  placement?: 'above' | 'below'
 }
 
 interface ProviderModel {
@@ -67,9 +68,9 @@ const focusIn = (root: HTMLElement | null, selector: string) => {
 
 /**
  * Picks an agent's model in two steps: a provider column, and the models of the provider under
- * the pointer or keyboard beside it. Opens below the field, so long model lists scroll in place.
+ * the pointer or keyboard beside it. The panel can open above a bottom-docked trigger.
  */
-export function ModelPicker({ backends, selection, onChange }: ModelPickerProps) {
+export function ModelPicker({ backends, selection, onChange, placement = 'below' }: ModelPickerProps) {
   const providers = toProviders(backends)
   const current = providers.find((p) => holds(p, selection)) ?? null
   const [open, setOpen] = useState(false)
@@ -264,7 +265,7 @@ export function ModelPicker({ backends, selection, onChange }: ModelPickerProps)
           onBlur={(e) => {
             if (!rootRef.current?.contains(e.relatedTarget as Node | null) && e.relatedTarget) setOpen(false)
           }}
-          className="absolute top-[calc(100%+6px)] right-0 left-0 z-30 grid h-[min(20rem,55dvh)] grid-cols-[minmax(0,2fr)_minmax(0,3fr)] overflow-hidden rounded-lg border"
+          className={`absolute z-30 grid h-[min(20rem,55dvh)] grid-cols-[minmax(0,2fr)_minmax(0,3fr)] overflow-hidden rounded-lg border ${placement === 'above' ? 'bottom-[calc(100%+6px)] right-0 w-[min(28rem,calc(100vw-24px))]' : 'top-[calc(100%+6px)] right-0 left-0'}`}
           style={{ background: 'var(--panel)', borderColor: 'var(--seam-strong)', boxShadow: '0 16px 40px -16px rgba(0,0,0,0.45)' }}
         >
           <div
