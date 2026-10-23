@@ -162,12 +162,19 @@ describe('AgentApp', () => {
     expect(screen.getByRole('button', { name: /choose another folder/i })).toBeInTheDocument()
   })
 
-  it('rests the particles before a session and frees them for the conversation', () => {
+  it('keeps listening-ready particles scattered until the session starts', () => {
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
     const { ws } = openPage()
-    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
+
+    expect(micOptions.protocolState).toBe('listening')
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'idle')
+    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'false')
 
     startSession(ws)
-    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'false')
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'listening')
+
+    act(() => ws.receive({ type: 'state', state: 'speaking' }))
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'speaking')
   })
 
   it('keeps a pending prompt visible beside the always-available context controls', () => {
