@@ -71,6 +71,8 @@ describe('AgentApp', () => {
 
     openPage()
 
+    expect(document.querySelector('.shell > .background-pattern')).toHaveAttribute('aria-hidden', 'true')
+
     expect(screen.getByRole('button', { name: /agent and model/i })).toHaveTextContent('Opus')
     expect(screen.getByTestId('folder-path')).toHaveTextContent('C:\\work\\socra')
   })

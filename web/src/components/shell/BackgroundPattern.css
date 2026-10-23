@@ -1,0 +1,26 @@
+/* Neutral dots, not another accent: both layers inherit the current theme. */
+.background-pattern {
+  position: fixed;
+  inset: 0;
+  z-index: -20; /* Below the orb (-10), content, and opaque controls. */
+  pointer-events: none;
+  overflow: hidden;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--label) 6%, transparent) 0.7px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.background-pattern-response {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 240px;
+  opacity: 0;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--label) 10%, transparent) 0.7px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle, #000, transparent 70%);
+}
+
+@media (prefers-reduced-motion: reduce), (any-pointer: none) {
+  .background-pattern-response { display: none; }
+}
