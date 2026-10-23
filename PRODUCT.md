@@ -12,7 +12,7 @@ One developer who works with Claude Code all day, seated at a desk next to their
 
 ## Product Purpose
 
-Socra is a local, private voice layer for Claude Code. It turns a Claude Code session into a spoken conversation: the model speaks (Kokoro TTS), the user answers out loud (Whisper STT), and the page shows what the conversation needs to show. Success is a conversation that feels natural enough that the user stops reaching for the keyboard, while typing stays one gesture away.
+Socra is a local, private voice layer for Claude Code. It turns a Claude Code session into a spoken conversation: the model speaks (Piper TTS), the user answers out loud (Whisper STT), and the page shows what the conversation needs to show. Success is a conversation that feels natural enough that the user stops reaching for the keyboard, while typing stays one gesture away.
 
 ## Positioning
 
