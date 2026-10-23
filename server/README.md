@@ -104,6 +104,13 @@ as the exam MCP server), it only opens the page. The page talks to
 
 - The folder is chosen with the native OS dialog, which the server opens:
   browsers never hand a page an absolute path.
+- Starting opens the chat immediately while the selected backend initializes;
+  startup alone leaves the composer idle. One typed or transcribed audio turn
+  can be queued during startup and is sent once the session is ready; additional
+  turns are refused with a notice. If
+  startup fails, the page receives an error and an idle state, and can retry
+  without losing its visible user message. Interrupting during startup cancels
+  that pending session; late provider completions are closed and ignored.
 - Tool calls follow your Claude Code permission settings. Only calls those
   settings mark as "ask" show Allow / Deny on the page; with
   `defaultMode: bypassPermissions` nothing asks.
