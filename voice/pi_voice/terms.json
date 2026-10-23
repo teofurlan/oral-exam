@@ -74,6 +74,19 @@
     "pipecat": "pipecat",
     "ollama": "ollama",
     "c++": "C plus plus",
-    "c#": "C sharp"
+    "c#": "C sharp",
+    "hook": "hook",
+    "hooks": "hooks",
+    "refactor": "refactor",
+    "feature": "feature",
+    "features": "features",
+    "diff": "diff",
+    "bug": "bug",
+    "bugs": "bugs",
+    "loop": "loop",
+    "WebSocket": "web socket",
+    "socket": "socket",
+    "push": "push",
+    "piper": "piper"
   }
 }

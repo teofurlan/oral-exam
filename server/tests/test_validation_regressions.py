@@ -14,7 +14,7 @@ import tomllib
 import pytest
 from websockets.asyncio.client import connect
 
-from socra_server.adapters import kokoro_tts, whisper_stt
+from socra_server.adapters import piper_tts, whisper_stt
 from tests.conftest import free_ports, make_wav_bytes
 from tests.test_ws_protocol import ws_bundle, _collect
 
@@ -31,7 +31,7 @@ def test_runtime_dependencies_and_dev_group():
 def test_default_stack_path(monkeypatch):
     monkeypatch.delenv("VOICE_STACK_DIR", raising=False)
     expected = (Path(__file__).resolve().parents[2] / "voice").resolve()
-    assert kokoro_tts._voice_stack_dir() == expected
+    assert piper_tts._voice_stack_dir() == expected
     assert whisper_stt._voice_stack_dir() == expected
 
 
@@ -139,7 +139,7 @@ async def release_on_say(self, text):
     release_models.set()
     return await original_say(self, text)
 ExamApp.say = release_on_say
-from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.piper_tts import PiperTTS
 from socra_server.adapters.whisper_stt import WhisperSTT
 
 def noisy_load(self):
@@ -157,7 +157,7 @@ def noisy_load(self):
         assert kernel.WriteFile(ctypes.c_void_p(kernel.GetStdHandle(-11)), data, len(data), ctypes.byref(written), None)
     print("MODEL_LOADING", file=__import__("sys").stderr, flush=True)
     assert release_models.wait(30), "Models were not released by the MCP client"
-KokoroTTS.load = noisy_load
+PiperTTS.load = noisy_load
 WhisperSTT.load = noisy_load
 from socra_server.__main__ import main
 main()
