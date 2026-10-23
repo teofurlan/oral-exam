@@ -80,6 +80,7 @@ export const AgentApp: React.FC = () => {
   const inputProtocolState: ProtocolState = state.protocolState === 'idle' || state.protocolState === 'listening'
     ? inputReady ? 'listening' : 'idle'
     : state.protocolState
+  const visualizerProtocolState: ProtocolState = state.session ? inputProtocolState : 'idle'
 
   // Restore the last folder once; later picks and starts come from the server.
   useEffect(() => {
@@ -287,7 +288,7 @@ export const AgentApp: React.FC = () => {
           <div className="shell-scroll flex flex-col items-center gap-5">
             <div className="viz-slot w-full shrink-0 max-w-64">
               <OrbVisualizer
-                protocolState={inputProtocolState}
+                protocolState={visualizerProtocolState}
                 getOutputVolume={socket.getOutputVolume}
                 getInputVolume={getInputVolume}
                 paletteId={paletteId}
@@ -295,7 +296,6 @@ export const AgentApp: React.FC = () => {
                 shape={shape}
                 questionText={lettersText}
                 theme={theme}
-                resting={!session}
               />
             </div>
 
