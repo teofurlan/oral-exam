@@ -224,3 +224,34 @@ async def test_snapshot_lets_a_reconnected_page_catch_up():
     assert snapshot[2]["status"] == "paused"
     runner.command("stop")
     await asyncio.wait_for(task, 2)
+
+
+@pytest.mark.asyncio
+async def test_losing_the_page_still_ends_the_walkthrough_cleanly_for_a_returning_page():
+    page = Page()
+    page.hold = True
+    runner = make_runner(page)
+    task = asyncio.create_task(runner.run(make_walkthrough(2)))
+    await settle()
+    page.connected = False
+    runner.abort()
+    await asyncio.wait_for(task, 2)
+    assert page.messages[-1] == {"type": "walkthrough_status", "status": "ended", "reason": "disconnected"}
+    assert page.states[-1] == "idle"
+
+
+@pytest.mark.asyncio
+async def test_a_synthesis_failure_ends_the_walkthrough_and_reports_it():
+    page = Page()
+    runner = make_runner(page)
+
+    def broken(text: str) -> bytes:
+        raise RuntimeError("voice model missing")
+
+    runner._synthesize = broken
+    result = await runner.run(make_walkthrough(2))
+
+    assert result["status"] == "error" and result["step"] == 1 and "voice model missing" in result["message"]
+    assert page.messages[-1] == {"type": "walkthrough_status", "status": "ended", "reason": "error"}
+    assert page.states[-1] == "idle"
+    assert not runner.active

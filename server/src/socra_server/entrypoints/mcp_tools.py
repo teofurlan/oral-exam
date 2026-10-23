@@ -91,7 +91,7 @@ def create_mcp() -> FastMCP:
         the user may pause, repeat, go back, skip or stop meanwhile.
         Returns completed (steps), stopped (step, total: the user ended it),
         invalid (errors: one per bad step with step, field and message; nothing
-        was shown, fix the steps and call again), busy, page_disconnected, or
+        was shown, fix the steps and call again), busy, page_disconnected, error (message), or
         no_client with a URL.
         """
         return await get_app().explain(code, language, steps)

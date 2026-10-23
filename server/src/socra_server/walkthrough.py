@@ -124,22 +124,31 @@ class WalkthroughRunner:
                 if event == "pause":
                     event = await self._wait_while_paused()
                 if event == _GONE:
+                    await self._end("disconnected")
                     return {"status": "page_disconnected", "step": self._cursor.index + 1, "total": total}
                 outcome = self._cursor.advance() if event == "done" else self._cursor.apply(event)  # type: ignore[arg-type]
                 if outcome == "play":
                     continue
                 reason = "completed" if outcome == "finished" else "stopped"
                 at = self._cursor.index + 1
-                await self._send({"type": "walkthrough_status", "status": "ended", "reason": reason})
-                await self._set_state("idle")
+                await self._end(reason)
                 if outcome == "finished":
                     return {"status": "completed", "steps": total}
                 return {"status": "stopped", "step": at, "total": total}
+        except Exception as exc:
+            logger.exception("Walkthrough failed at step %d", self._cursor.index + 1)
+            at = self._cursor.index + 1
+            await self._end("error")
+            return {"status": "error", "step": at, "total": total, "message": str(exc)}
         finally:
             self._active = False
             self._paused = False
             self._walkthrough = None
             self._cursor = None
+
+    async def _end(self, reason: str) -> None:
+        await self._send({"type": "walkthrough_status", "status": "ended", "reason": reason})
+        await self._set_state("idle")
 
     async def _play_current(self) -> str:
         """Speak the current step. Returns "done" or the command that cut it short."""
