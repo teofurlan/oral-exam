@@ -7,8 +7,10 @@ Local voice exam server. One process, one asyncio loop:
 - Built exam page on `http://localhost:8767/` (port 8767), with static assets and
   an `index.html` fallback for page routes.
 
-Both network listeners bind only to `127.0.0.1`. The page uses the same WebSocket
-URL in development (Vite on 5180) and when served by the Python server on 8767.
+Both network listeners bind only to `127.0.0.1`. The page connects to
+`ws://localhost:8766` unless its URL carries another port (see below), so it
+works the same under the Vite dev server (`pnpm -C web dev`) and when served by
+the Python server on 8767.
 
 Each MCP session starts its own `socra-server`. When another Socra already holds
 8766 or 8767, the process binds free ports instead, and its page URL carries the
@@ -34,9 +36,10 @@ stays per origin, since browsers give each origin its own device ids.
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) installed
-- The voice stack checked out at `voice/` in this
-  repo (or set `VOICE_STACK_DIR` to the absolute path), with its Kokoro model
-  files under `models/` and Whisper model cache under `models/whisper/`.
+- The voice stack at `voice/` in this repo (or set `VOICE_STACK_DIR` to its
+  absolute path), with the Kokoro model files under `voice/models/`. Run
+  `powershell -ExecutionPolicy Bypass -File voice\setup.ps1` once to download
+  them. The Whisper model is downloaded on first use into `voice/models/whisper/`.
 - Run `uv sync --project server` to install server and speech dependencies.
 
 ---
@@ -144,6 +147,8 @@ instead, so exam and agent mode can run at the same time.
 | `VOICE_STACK_DIR` | `voice/` (relative to repo root) | Absolute path to the voice stack directory |
 | `SOCRA_WHISPER_MODEL` | `large-v3-turbo` | Faster-whisper model (`base`, `small`, `large-v3-turbo`, etc.) |
 | `SOCRA_WHISPER_DEVICE` | `auto` | Execution device: `auto` (CUDA float16 if available, else CPU int8), `cuda`, or `cpu` |
+| `SOCRA_PREFERENCES_FILE` | `%LOCALAPPDATA%/Socra/preferences.json` | Page preferences shared by every server process |
+| `SOCRA_AGENT_IDLE_S` | `120` | Agent mode exits after this many seconds without an agent page |
 
 ### Whisper Model Benchmark (RTX 4060 8 GB)
 
@@ -196,38 +201,16 @@ Whisper cache or download missing model files.
 
 ## `.mcp.json` snippet for Claude Code
 
-Add this to your project's `.mcp.json` (or `~/.claude/mcp.json`), replacing
-`<abs-path>` with the absolute path to this repo's root:
+To enable Socra for one project only, add this to that project's `.mcp.json`
+instead of the user-scope `claude mcp add` above, replacing `<abs-path>` with
+the absolute path to this repo's root:
 
 ```json
 {
   "mcpServers": {
     "socra": {
       "command": "uv",
-      "args": [
-        "run",
-        "--project",
-        "<abs-path>/server",
-        "socra-server"
-      ]
-    }
-  }
-}
-```
-
-Example (Windows):
-
-```json
-{
-  "mcpServers": {
-    "socra": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--project",
-        "<absolute path to>/socra/server",
-        "socra-server"
-      ]
+      "args": ["run", "--project", "<abs-path>/server", "socra-server"]
     }
   }
 }
@@ -239,18 +222,29 @@ Example (Windows):
 
 ```
 socra_server/
-├── domain/
-│   └── session.py          # Pure ExamSession state — no I/O
+├── domain/                   # Pure types and rules, no I/O
+│   ├── session.py            # ExamSession state
+│   ├── agent.py              # Agent mode types (backends, models, events)
+│   ├── speakable.py          # Markdown reply -> text worth speaking
+│   └── voices.py             # Voice catalogue
 ├── adapters/
-│   ├── kokoro_tts.py       # Wraps pi_voice.speech.Synthesizer (lazy load)
-│   └── whisper_stt.py      # Wraps dictation.WhisperTranscriber (lazy load)
+│   ├── kokoro_tts.py         # Wraps pi_voice.speech.Synthesizer (lazy load)
+│   ├── whisper_stt.py        # Wraps dictation.transcriber.WhisperTranscriber (lazy load)
+│   ├── claude_code_agent.py  # AgentBackend over the Claude Agent SDK
+│   ├── pi_agent.py           # AgentBackend over `pi --mode rpc`
+│   ├── tool_summary.py       # One-line tool call summaries for both agents
+│   ├── browser.py            # Opens the page in an Edge/Chrome app window
+│   ├── folder_dialog.py      # Native folder picker for agent mode
+│   └── preferences_file.py   # Shared preferences.json store
 ├── entrypoints/
-│   ├── mcp_tools.py        # open_page, say, ask, get_answer, finish
-│   ├── http_server.py      # Built page on 127.0.0.1:8767
-│   └── ws_server.py        # WebSocket server on 127.0.0.1:8766/ws
-├── app.py                  # ExamApp: ties session + ports + PageChannel
-├── ports.py                # SpeechSynthesizer / SpeechRecognizer protocols
-└── __main__.py             # One asyncio loop for MCP, WebSocket and HTTP
+│   ├── mcp_tools.py          # open_page, say, ask, get_answer, finish
+│   ├── http_server.py        # Built page and /api/preferences on 127.0.0.1:8767
+│   └── ws_server.py          # WebSocket routes /ws (exam) and /ws/agent
+├── app.py                    # ExamApp: ties session + ports + PageChannel
+├── agent_app.py              # AgentApp: drives an agent by voice
+├── agent_registry.py         # Which agent backends exist and what a selection means
+├── ports.py                  # Speech, agent and channel protocols
+└── __main__.py               # One asyncio loop for MCP, WebSocket and HTTP
 ```
 
 ### MCP exam flow
@@ -279,6 +273,7 @@ Speech tools `say()` and `ask()` wait for browser playback (`playback_done`) wit
 | `tts_audio` | `format: "wav"`, `data: <base64>` |
 | `transcript` | `text`, `final: true` |
 | `notice` | `text`: temporary notice (e.g. non-answer rejection) |
+| `voices` | `voices`: `[{id, label}]`, `current`: selected voice id |
 | `finished` | No fields; sent after `state: idle` |
 
 **Page → server**
@@ -286,6 +281,12 @@ Speech tools `say()` and `ask()` wait for browser playback (`playback_done`) wit
 | Message | Fields |
 |---|---|
 | `answer_audio` | `format: "wav"`, `data: <base64>` |
+| `answer_text` | `text`: a typed answer, sent as the final answer |
 | `playback_done` | Sent when `tts_audio` playback completes or fails |
 | `reanswer` | _(none)_ |
 | `mode` | `mode`: `"auto"` \| `"push-to-talk"` |
+| `voice` | optional `voice`: voice id to select; the server answers with `voices` |
+
+The agent route `/ws/agent` accepts `agent_hello`, `pick_folder`,
+`start_agent`, `turn_text`, `turn_audio`, `permission_response`, `interrupt`,
+`playback_done` and `voice`; see `entrypoints/ws_server.py` for its fields.
