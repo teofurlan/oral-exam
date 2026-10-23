@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **A local, private voice layer for Claude Code.** Socra turns a Claude Code
-session into a spoken conversation: the model talks (Kokoro TTS), you answer
+session into a spoken conversation: the model talks (Piper TTS), you answer
 out loud (faster-whisper STT), and a small web page shows only what the
 conversation needs, such as code, permission requests, or the reply. Typing is
 always one gesture away.
@@ -32,7 +32,7 @@ listening, thinking, or speaking.
 
 ```
 Claude Code ──MCP (stdio)──▶ socra-server ──WebSocket :8766──▶ page (:8767)
-                              │   Kokoro TTS  ◀── text          │ mic + speakers
+                              │   Piper TTS   ◀── text          │ mic + speakers
                               │   Whisper STT ◀── answer audio ─┘
 ```
 
@@ -59,20 +59,18 @@ time), a second server binds free ports and its page URL carries them.
 git clone https://github.com/teofurlan/socra.git
 cd socra
 
-# 1. Download the Kokoro voice model files into voice/models/
-powershell -ExecutionPolicy Bypass -File voice\setup.ps1
-
-# 2. Install the server and build the page
+# 1. Install the server and build the page
 uv sync --project server
 pnpm -C web install
 pnpm -C web build
 
-# 3. Register Socra as an MCP server for your user (use the absolute path)
+# 2. Register Socra as an MCP server for your user (use the absolute path)
 claude mcp add --scope user socra -- uv run --project "C:\path\to\socra\server" socra-server
 ```
 
-The Whisper model (`large-v3-turbo` by default) downloads on first use, so the
-first transcription can take a while.
+The Piper voice (about 115 MB) and the Whisper model (`large-v3-turbo` by
+default) download on first use, so the first spoken turn can take a while.
+Socra currently ships one voice, Daniela (Spanish, Argentina).
 
 ### Take an exam
 
@@ -100,7 +98,8 @@ powershell -ExecutionPolicy Bypass -File server\install-shortcut.ps1
 
 | Variable | Default | Description |
 |---|---|---|
-| `VOICE_STACK_DIR` | `voice/` | Path to the speech stack and its models |
+| `VOICE_STACK_DIR` | `voice/` | Path to the speech stack (glossary and Whisper cache) |
+| `SOCRA_TTS_LENGTH_SCALE` | voice default | Piper speech pace: above 1 is slower |
 | `SOCRA_WHISPER_MODEL` | `large-v3-turbo` | faster-whisper model (`base`, `small`, ...) |
 | `SOCRA_WHISPER_DEVICE` | `auto` | `auto`, `cuda`, or `cpu` |
 | `SOCRA_PREFERENCES_FILE` | `%LOCALAPPDATA%/Socra/preferences.json` | Shared page preferences |

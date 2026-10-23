@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, within } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AgentApp from './AgentApp'
 import { FakeAudioContext, FakeWebSocket } from '@/test/fakeSocket'
@@ -74,7 +74,50 @@ describe('AgentApp', () => {
     expect(document.querySelector('.shell > .background-pattern')).toHaveAttribute('aria-hidden', 'true')
 
     expect(screen.getByRole('button', { name: /agent and model/i })).toHaveTextContent('Opus')
-    expect(screen.getByTestId('folder-path')).toHaveTextContent('C:\\work\\socra')
+    expect(screen.getByRole('button', { name: /choose another folder/i })).toHaveTextContent(/^socra$/)
+  })
+
+  it('opens directly into the conversation with folder and model controls in the composer dock', () => {
+    openPage()
+
+    expect(screen.getByRole('region', { name: /conversation/i })).toBeInTheDocument()
+    expect(screen.getByTestId('timeline-empty')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Choose folder' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /agent and model/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /start agent/i })).toBeNull()
+  })
+
+  it('starts the selected agent before sending the first turn and keeps it visible while startup is pending', async () => {
+    const user = userEvent.setup()
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
+    const { ws } = openPage()
+
+    await user.type(screen.getByLabelText('Message the agent'), 'list the files{Enter}')
+
+    expect(ws.sent().slice(-2)).toEqual([
+      { type: 'start_agent', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' },
+      { type: 'turn_text', text: 'list the files' },
+    ])
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent('list the files')
+
+    act(() => {
+      ws.receive({ type: 'agent_started', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' })
+      ws.receive({ type: 'agent_error', message: 'The agent could not start.' })
+      ws.receive({ ...backends, session: null })
+    })
+    expect(screen.getByRole('list', { name: 'Conversation' }).querySelectorAll('[data-kind="user"]')).toHaveLength(1)
+    expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent('The agent could not start.')
+  })
+
+  it('keeps the typed message when agent choices are missing and explains what to choose', async () => {
+    const user = userEvent.setup()
+    const { ws } = openPage()
+
+    await user.type(screen.getByLabelText('Message the agent'), 'keep this prompt{Enter}')
+
+    expect(screen.getByLabelText('Message the agent')).toHaveValue('keep this prompt')
+    expect(screen.getAllByRole('status').some((item) => /choose a folder/i.test(item.textContent ?? ''))).toBe(true)
+    expect(ws.sent()).not.toContainEqual(expect.objectContaining({ type: 'turn_text' }))
   })
 
   it('remembers a new model choice and the picked folder', async () => {
@@ -91,18 +134,21 @@ describe('AgentApp', () => {
     expect(ws.sent()).toContainEqual({ type: 'pick_folder' })
   })
 
-  it('starts the selected agent in the selected folder', async () => {
+  it('starts the selected agent in the selected folder when the first prompt is sent', async () => {
     const user = userEvent.setup()
     window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
     const { ws } = openPage()
 
-    await user.click(screen.getByRole('button', { name: /start agent/i }))
+    await user.type(screen.getByLabelText('Message the agent'), 'inspect the project{Enter}')
 
-    expect(ws.sent()).toContainEqual({ type: 'start_agent', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' })
+    expect(ws.sent().slice(-2)).toEqual([
+      { type: 'start_agent', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' },
+      { type: 'turn_text', text: 'inspect the project' },
+    ])
+    expect(screen.getByLabelText('Message the agent')).toHaveValue('')
   })
 
-  it('switches to the conversation once the agent runs, and back to setup on demand', async () => {
-    const user = userEvent.setup()
+  it('shows the session in the existing conversation without a setup barrier', () => {
     const { ws } = openPage()
 
     startSession(ws)
@@ -112,35 +158,112 @@ describe('AgentApp', () => {
     expect(session).toHaveTextContent('socra')
     expect(screen.queryByRole('button', { name: /start agent/i })).toBeNull()
     expect(screen.getByTestId('state-label')).toHaveTextContent(/your turn/i)
-
-    await user.click(within(session).getByRole('button', { name: /change/i }))
-    expect(screen.getByRole('button', { name: /start agent/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /agent and model/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /choose another folder/i })).toBeInTheDocument()
   })
 
-  it('rests the particles in their shape on the setup screen, and frees them for the conversation', async () => {
-    const user = userEvent.setup()
+  it('keeps listening-ready particles scattered until the session starts', () => {
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
     const { ws } = openPage()
-    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
 
-    startSession(ws)
+    expect(micOptions.protocolState).toBe('listening')
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'idle')
     expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'false')
 
-    await user.click(screen.getByRole('button', { name: /change agent or folder/i }))
-    expect(screen.getByTestId('particle-visualizer')).toHaveAttribute('data-resting', 'true')
+    startSession(ws)
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'listening')
+
+    act(() => ws.receive({ type: 'state', state: 'speaking' }))
+    expect(screen.getByTestId('orb-visualizer')).toHaveAttribute('data-protocol-state', 'speaking')
   })
 
-  it('keeps a pending prompt visible while changing the setup, and can go back', async () => {
-    const user = userEvent.setup()
+  it('keeps a pending prompt visible beside the always-available context controls', () => {
     const { ws } = openPage()
     startSession(ws)
     act(() => ws.receive({ type: 'permission_request', id: 'r1', tool: 'Bash', title: 'Run git status', detail: '' }))
 
-    await user.click(screen.getByRole('button', { name: /change agent or folder/i }))
     expect(screen.getByRole('button', { name: 'Allow' })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /back to the conversation/i }))
     expect(screen.getByTestId('session-bar')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /agent and model/i })).toBeInTheDocument()
     expect(ws.sent()).not.toContainEqual(expect.objectContaining({ type: 'start_agent' }))
+  })
+
+  it('starts before the first recorded voice turn when context is ready', () => {
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
+    const { ws } = openPage()
+
+    expect(micOptions.protocolState).toBe('listening')
+    act(() => micOptions.onFinalize?.('UklGRg=='))
+
+    expect(ws.sent().slice(-2)).toEqual([
+      { type: 'start_agent', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' },
+      { type: 'turn_audio', format: 'wav', data: 'UklGRg==' },
+    ])
+  })
+
+  it('does not listen or submit voice before a required folder is chosen', () => {
+    const { ws } = openPage()
+
+    expect(micOptions.protocolState).toBe('idle')
+    act(() => micOptions.onFinalize?.('UklGRg=='))
+
+    expect(ws.sent()).not.toContainEqual(expect.objectContaining({ type: 'start_agent' }))
+    expect(ws.sent()).not.toContainEqual(expect.objectContaining({ type: 'turn_audio' }))
+  })
+
+  it('continues listening during an accepted startup that is still idle', () => {
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
+    const { ws } = openPage()
+    act(() => ws.receive({ type: 'agent_started', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' }))
+
+    expect(micOptions.protocolState).toBe('listening')
+    act(() => micOptions.onFinalize?.('UklGRg=='))
+
+    expect(ws.sent()).toContainEqual({ type: 'turn_audio', format: 'wav', data: 'UklGRg==' })
+    expect(ws.sent()).not.toContainEqual(expect.objectContaining({ type: 'start_agent' }))
+  })
+
+  it('does not interrupt a pending session when the folder picker is cancelled', async () => {
+    const user = userEvent.setup()
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
+    const { ws } = openPage()
+    await user.type(screen.getByLabelText('Message the agent'), 'keep working{Enter}')
+    act(() => ws.receive({ type: 'agent_started', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' }))
+
+    await user.click(screen.getByRole('button', { name: /choose another folder/i }))
+    expect(ws.sent()).not.toContainEqual({ type: 'interrupt' })
+    act(() => ws.receive({ type: 'agent_folder', path: null }))
+    await user.type(screen.getByLabelText('Message the agent'), 'continue{Enter}')
+
+    expect(ws.sent()).not.toContainEqual({ type: 'interrupt' })
+    expect(ws.sent().filter((message) =>
+      typeof message === 'object' && message !== null && 'type' in message && message.type === 'start_agent',
+    )).toHaveLength(1)
+    expect(ws.sent()).toContainEqual({ type: 'turn_text', text: 'continue' })
+  })
+
+  it('interrupts the old session only after a different folder is chosen', async () => {
+    const user = userEvent.setup()
+    window.localStorage.setItem(STORAGE_KEY_AGENT_FOLDER, 'C:\\work\\socra')
+    const { ws } = openPage()
+    await user.type(screen.getByLabelText('Message the agent'), 'first turn{Enter}')
+    act(() => ws.receive({ type: 'agent_started', backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work\\socra' }))
+    await user.click(screen.getByRole('button', { name: /choose another folder/i }))
+    expect(ws.sent()).not.toContainEqual({ type: 'interrupt' })
+
+    act(() => ws.receive({ type: 'agent_folder', path: 'D:\\code\\app' }))
+    act(() => ws.receive({ ...backends, session: null }))
+    await user.type(screen.getByLabelText('Message the agent'), 'new folder turn{Enter}')
+
+    const folderRequest = ws.sent().findIndex((message) =>
+      typeof message === 'object' && message !== null && 'type' in message && message.type === 'pick_folder',
+    )
+    expect(ws.sent().slice(folderRequest)).toEqual([
+      { type: 'pick_folder' },
+      { type: 'interrupt' },
+      { type: 'start_agent', backend: 'claude-code', model: 'sonnet', cwd: 'D:\\code\\app' },
+      { type: 'turn_text', text: 'new folder turn' },
+    ])
   })
 
   it('uses the visualizer chosen in settings, shared with the exam page', async () => {

@@ -16,7 +16,7 @@ if str(server_dir / "src") not in sys.path:
 if str(voice_dir) not in sys.path:
     sys.path.insert(0, str(voice_dir))
 
-from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.piper_tts import PiperTTS
 from socra_server.adapters.whisper_stt import WhisperSTT, _ensure_cuda_dlls
 from socra_server.app import get_wav_duration
 from dictation.transcriber import WhisperTranscriber, DEFAULT_DOWNLOAD_ROOT
@@ -35,13 +35,13 @@ def main():
     print("SOCRA WHISPER MODEL BENCHMARK", flush=True)
     print("=" * 70, flush=True)
 
-    # 1. Synthesize the two answers using Kokoro TTS
-    print("\n[1/2] Synthesizing benchmark answers with Kokoro TTS...", flush=True)
-    tts = KokoroTTS()
+    # 1. Synthesize the two answers using Piper TTS
+    print("\n[1/2] Synthesizing benchmark answers with Piper TTS...", flush=True)
+    tts = PiperTTS()
     tts_start = time.perf_counter()
     tts.load()
     tts_load_time = time.perf_counter() - tts_start
-    print(f"Kokoro loaded in {tts_load_time:.2f} s", flush=True)
+    print(f"Piper loaded in {tts_load_time:.2f} s", flush=True)
 
     wavs = []
     for i, ans in enumerate(ANSWERS, 1):

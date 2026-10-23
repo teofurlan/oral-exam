@@ -36,10 +36,11 @@ stays per origin, since browsers give each origin its own device ids.
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) installed
-- The voice stack at `voice/` in this repo (or set `VOICE_STACK_DIR` to its
-  absolute path), with the Kokoro model files under `voice/models/`. Run
-  `powershell -ExecutionPolicy Bypass -File voice\setup.ps1` once to download
-  them. The Whisper model is downloaded on first use into `voice/models/whisper/`.
+- The voice stack checked out at `voice/` in this
+  repo (or set `VOICE_STACK_DIR` to the absolute path), for the English-terms
+  glossary (`pi_voice/terms.json`) and the Whisper model cache under `models/whisper/`.
+- The Piper voice (`es_AR-daniela-high`, about 115 MB) downloads from Hugging Face
+  (`rhasspy/piper-voices`) on first use and is cached.
 - Run `uv sync --project server` to install server and speech dependencies.
 
 ---
@@ -78,7 +79,7 @@ Or from inside `server/`:
 uv run socra-server
 ```
 
-The MCP handshake is instant; the Kokoro and Whisper models load lazily in a
+The MCP handshake is instant; the Piper and Whisper models load lazily in a
 background thread so the first `say`/`ask` call may take a few
 seconds (or longer on a cold model cache). Whisper retries inference on CPU
 if CUDA initializes but its runtime libraries are unavailable. Transcription
@@ -105,6 +106,13 @@ as the exam MCP server), it only opens the page. The page talks to
 
 - The folder is chosen with the native OS dialog, which the server opens:
   browsers never hand a page an absolute path.
+- Starting opens the chat immediately while the selected backend initializes;
+  startup alone leaves the composer idle. One typed or transcribed audio turn
+  can be queued during startup and is sent once the session is ready; additional
+  turns are refused with a notice. If
+  startup fails, the page receives an error and an idle state, and can retry
+  without losing its visible user message. Interrupting during startup cancels
+  that pending session; late provider completions are closed and ignored.
 - Tool calls follow your Claude Code permission settings. Only calls those
   settings mark as "ask" show Allow / Deny on the page; with
   `defaultMode: bypassPermissions` nothing asks.
@@ -145,6 +153,7 @@ instead, so exam and agent mode can run at the same time.
 | Variable | Default | Description |
 |---|---|---|
 | `VOICE_STACK_DIR` | `voice/` (relative to repo root) | Absolute path to the voice stack directory |
+| `SOCRA_TTS_LENGTH_SCALE` | voice default (`1.2` for Daniela) | Piper speech pace: above 1 is slower, below 1 faster |
 | `SOCRA_WHISPER_MODEL` | `large-v3-turbo` | Faster-whisper model (`base`, `small`, `large-v3-turbo`, etc.) |
 | `SOCRA_WHISPER_DEVICE` | `auto` | Execution device: `auto` (CUDA float16 if available, else CPU int8), `cuda`, or `cpu` |
 | `SOCRA_PREFERENCES_FILE` | `%LOCALAPPDATA%/Socra/preferences.json` | Page preferences shared by every server process |
@@ -188,7 +197,7 @@ uv run --project server python server/tests/smoke_roundtrip.py
 
 The strict smoke starts its own server, reuses a headless WebSocket client
 without opening a browser or microphone, checks display-only question code,
-and polls a real Kokoro-generated answer through Whisper and MCP. It prints
+and polls a real Piper-generated answer through Whisper and MCP. It prints
 its transcript and timings and fails on protocol contamination or missing tools.
 
 This standalone script is excluded from default pytest collection. It loads the
@@ -228,7 +237,7 @@ socra_server/
 │   ├── speakable.py          # Markdown reply -> text worth speaking
 │   └── voices.py             # Voice catalogue
 ├── adapters/
-│   ├── kokoro_tts.py         # Wraps pi_voice.speech.Synthesizer (lazy load)
+│   ├── piper_tts.py          # Piper voice, English glossary terms as phonemes (lazy load)
 │   ├── whisper_stt.py        # Wraps dictation.transcriber.WhisperTranscriber (lazy load)
 │   ├── claude_code_agent.py  # AgentBackend over the Claude Agent SDK
 │   ├── pi_agent.py           # AgentBackend over `pi --mode rpc`

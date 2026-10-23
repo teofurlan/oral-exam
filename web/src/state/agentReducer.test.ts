@@ -31,6 +31,15 @@ describe('agentReducer', () => {
     expect(initialAgentState.permissions).toEqual([])
   })
 
+  it('keeps the queued first user turn when the accepted startup arrives', () => {
+    const withTurn = agentReducer(initialAgentState, { type: 'user_text', text: 'list the files' })
+
+    const startedState = agentReducer(withTurn, started)
+
+    expect(startedState.timeline).toEqual(withTurn.timeline)
+    expect(startedState.session).toEqual({ backend: 'claude-code', model: 'sonnet', cwd: 'C:\\work' })
+  })
+
   it('stores the backends and the server default', () => {
     const state = run(backends)
 

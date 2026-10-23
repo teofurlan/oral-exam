@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from socra_server.domain.session import ExamSession
-from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.piper_tts import PiperTTS
 from socra_server.adapters.whisper_stt import WhisperSTT, is_valid_answer
 from socra_server.adapters.browser import launch_page
 from socra_server.entrypoints.http_server import PAGE_URL, WEB_DIST
@@ -98,13 +98,13 @@ class PageChannel:
 # ---------------------------------------------------------------------------
 
 class ModelLoader:
-    """Loads Kokoro + Whisper models in a background thread.
+    """Loads Piper + Whisper models in a background thread.
 
     MCP tools call ``await ready()`` to block until loading is done.
     """
 
     def __init__(self) -> None:
-        self.tts = KokoroTTS()
+        self.tts = PiperTTS()
         self.stt = WhisperSTT()
         self._event = asyncio.Event()
         self._loaded = False
@@ -118,7 +118,7 @@ class ModelLoader:
 
     def _load(self) -> None:
         try:
-            logger.debug("Loading Kokoro TTS…")
+            logger.debug("Loading Piper TTS…")
             self.tts.load()
             self.stt.set_base_terms(self.tts.glossary_terms)
             logger.debug("Loading Whisper STT…")

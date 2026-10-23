@@ -8,33 +8,20 @@ from dataclasses import dataclass
 class Voice:
     id: str
     label: str
-    blend: tuple[tuple[str, float], ...]
+    model: str  # Piper model path in the Hugging Face repo, without extension
+    length_scale: float  # Piper pace: above 1 is slower
 
 
 VOICES: tuple[Voice, ...] = (
     Voice(
-        id="alex-dora",
-        label="Alex 75% + Dora 25%",
-        blend=(("em_alex", 0.75), ("ef_dora", 0.25)),
-    ),
-    Voice(
-        id="alex",
-        label="Alex",
-        blend=(("em_alex", 1.0),),
-    ),
-    Voice(
-        id="santa",
-        label="Santa",
-        blend=(("em_santa", 1.0),),
-    ),
-    Voice(
-        id="dora",
-        label="Dora",
-        blend=(("ef_dora", 1.0),),
+        id="daniela",
+        label="Daniela (Argentina)",
+        model="es/es_AR/daniela/high/es_AR-daniela-high",
+        length_scale=1.2,
     ),
 )
 
-DEFAULT_VOICE_ID = "alex-dora"
+DEFAULT_VOICE_ID = "daniela"
 
 _VOICES_BY_ID: dict[str, Voice] = {v.id: v for v in VOICES}
 

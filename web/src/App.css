@@ -59,6 +59,44 @@
   justify-content: center;
   padding: 8px 0 28px;
 }
+.composer-stack {
+  position: relative;
+  display: flex;
+  width: min(calc(100% - 32px), max(55%, 520px), 780px);
+  flex-direction: column;
+  gap: 8px;
+}
+.composer-stack > .composer {
+  width: 100%;
+}
+.agent-context-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.agent-folder-control,
+.agent-model-control {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 8px;
+}
+.agent-model-control {
+  justify-content: flex-end;
+}
+.agent-folder-control {
+  min-height: 36px;
+}
+.agent-folder-button {
+  min-width: 32px;
+  min-height: 32px;
+  max-width: 100%;
+  padding-inline: 8px;
+}
 .composer {
   display: flex;
   flex-wrap: wrap;
@@ -87,6 +125,9 @@
   .composer {
     width: 100%;
   }
+  .composer-stack {
+    width: 100%;
+  }
 }
 
 @media (max-width: 767px) {
@@ -103,5 +144,15 @@
   .shell-panels[data-split="true"] .viz-slot {
     max-width: 5rem;
     margin-block: 8px 14px;
+  }
+}
+
+@media (max-width: 479px) {
+  .agent-context-row {
+    gap: 6px;
+  }
+  .agent-folder-control,
+  .agent-model-control {
+    gap: 5px;
   }
 }

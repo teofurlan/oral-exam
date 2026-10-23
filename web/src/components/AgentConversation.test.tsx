@@ -39,6 +39,42 @@ describe('AgentTimeline', () => {
     expect(items[1].textContent).not.toContain('`')
   })
 
+  it('renders the supported Markdown subset in replies and user messages', () => {
+    const entries: TimelineEntry[] = [
+      { id: 1, kind: 'user', text: '**My request** with *context*.' },
+      {
+        id: 2,
+        kind: 'reply',
+        text: '## Summary\n\n**Bold** and *italic* with [docs](https://example.com) and `code`.\n\n- first\n- second\n\n> quoted',
+      },
+    ]
+    render(<AgentTimeline entries={entries} protocolState="speaking" />)
+
+    const items = screen.getAllByRole('listitem')
+    expect(items[0].querySelector('strong')).toHaveTextContent('My request')
+    expect(items[0].querySelector('em')).toHaveTextContent('context')
+    expect(items[1].querySelector('h2')).toHaveTextContent('Summary')
+    expect(items[1].querySelector('strong')).toHaveTextContent('Bold')
+    expect(items[1].querySelector('em')).toHaveTextContent('italic')
+    expect(items[1].querySelector('code')).toHaveTextContent('code')
+    expect(items[1].querySelectorAll('li')).toHaveLength(2)
+    expect(items[1].querySelector('blockquote')).toHaveTextContent('quoted')
+    const link = items[1].querySelector('a')
+    expect(link).toHaveAttribute('href', 'https://example.com')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('keeps raw HTML and unsafe links as plain text', () => {
+    const reply = '<img src=x onerror=alert(1)> [bad](javascript:alert(1))'
+    render(<AgentTimeline entries={[{ id: 1, kind: 'reply', text: reply }]} protocolState="speaking" />)
+
+    const item = screen.getByRole('listitem')
+    expect(item.querySelector('img')).not.toBeInTheDocument()
+    expect(item.querySelector('a')).not.toBeInTheDocument()
+    expect(item).toHaveTextContent(reply)
+  })
+
   it('points to the code panel where the code was, between the paragraphs around it', () => {
     const reply = 'Cap the delay instead:\n\n```ts\nconst a = 1\nconst b = 2\n```\n\nWant me to apply it?'
     render(<AgentTimeline entries={[{ id: 1, kind: 'reply', text: reply }]} protocolState="speaking" />)

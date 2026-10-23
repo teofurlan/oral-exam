@@ -1,4 +1,4 @@
-"""Manual microphone-free MCP/WebSocket smoke using real Kokoro and Whisper.
+"""Manual microphone-free MCP/WebSocket smoke using real Piper and Whisper.
 
 Not collected by pytest (the filename deliberately doesn't start with test_).
 Run from the repository root after building the page:
@@ -29,7 +29,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from websockets.asyncio.client import connect
 
-from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.piper_tts import PiperTTS
 
 ROOT = Path(__file__).resolve().parents[2]
 QUESTION = "Explica la diferencia entre un proceso y un hilo."
@@ -142,10 +142,10 @@ async def exercise(session: ClientSession, ws_port: int) -> None:
         asked_at = perf_counter()
         print(f"ask / real question TTS (including model readiness): {asked_at - before_ask:.3f}s", flush=True)
 
-        # A separate, real Kokoro adapter generates the answer; no fake audio,
+        # A separate, real Piper adapter generates the answer; no fake audio,
         # microphone, cleaner, or precomputed transcript enters the round trip.
         def synthesize_answer() -> bytes:
-            tts = KokoroTTS()
+            tts = PiperTTS()
             tts.load()
             return tts.synthesize(ANSWER)
 
@@ -172,7 +172,7 @@ async def exercise(session: ClientSession, ws_port: int) -> None:
         assert transcript == {"type": "transcript", "text": result["text"], "final": True}, transcript
         assert json.loads(await asyncio.wait_for(ws.recv(), 5)) == {"type": "state", "state": "thinking"}
         print(f"Transcript: {result['text']}", flush=True)
-        print(f"Answer Kokoro load + synthesis: {synthesized_at - asked_at:.3f}s", flush=True)
+        print(f"Answer Piper load + synthesis: {synthesized_at - asked_at:.3f}s", flush=True)
         print(f"Answer WAV: {len(answer_wav)} bytes, {duration:.3f}s", flush=True)
         print(f"Whisper + MCP polling: {answered_at - synthesized_at:.3f}s ({polls} polls)", flush=True)
         print(f"Total: {answered_at - started:.3f}s", flush=True)
@@ -205,7 +205,7 @@ async def main() -> None:
                 async with asyncio.timeout(180):
                     await exercise(session, ws_port)
         assert not errors.messages, f"Subprocess stdout contained non-JSON-RPC output: {errors.messages}"
-        print("PASS: real MCP / WebSocket / Kokoro / Whisper round trip", flush=True)
+        print("PASS: real MCP / WebSocket / Piper / Whisper round trip", flush=True)
     finally:
         transport_logger.removeHandler(errors)
 
