@@ -208,6 +208,191 @@ async def test_start_opens_the_selected_model_in_the_folder(tmp_path):
     assert channel.sent[-1] == {"type": "state", "state": "listening"}
 
 
+async def test_start_announces_before_open_and_delivers_queued_text_once(tmp_path):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    backend = FakeBackend()
+    app, channel, _, _ = _app(backend)
+
+    async def slow_open(model, cwd, decide):
+        entered.set()
+        await release.wait()
+        return await FakeBackend.open(backend, model, cwd, decide)
+
+    backend.open = slow_open
+    await asyncio.wait_for(app.handle_start("fake", "small", str(tmp_path)), timeout=0.1)
+    assert channel.of_type("agent_started")
+    assert channel.of_type("state")[-1]["state"] == "idle"
+    assert entered.is_set() and not release.is_set()
+    await app.handle_turn_text("hello before ready")
+    assert channel.of_type("state")[-1]["state"] == "thinking"
+    await entered.wait()
+    assert not backend.conversations
+    release.set()
+    for _ in range(50):
+        if backend.conversations:
+            break
+        await asyncio.sleep(0)
+    await _finish_turn(app, channel)
+
+    assert backend.conversations[0].turns == ["hello before ready"]
+    assert len(channel.of_type("agent_reply")) == 1
+
+
+async def test_second_turn_while_start_and_one_turn_are_pending_is_refused(tmp_path):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    backend = FakeBackend()
+    app, channel, _, _ = _app(backend)
+
+    async def slow_open(model, cwd, decide):
+        entered.set()
+        await release.wait()
+        return await FakeBackend.open(backend, model, cwd, decide)
+
+    backend.open = slow_open
+    await app.handle_start("fake", "small", str(tmp_path))
+    await app.handle_turn_text("first")
+    await app.handle_turn_text("second")
+    assert len(channel.of_type("notice")) == 1
+    await entered.wait()
+    release.set()
+    for _ in range(50):
+        if backend.conversations:
+            break
+        await asyncio.sleep(0)
+    await _finish_turn(app, channel)
+
+    assert backend.conversations[0].turns == ["first"]
+
+
+async def test_audio_turn_can_be_transcribed_and_queued_during_startup(tmp_path):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    backend = FakeBackend()
+    app, channel, _, _ = _app(backend, heard="list files")
+
+    async def slow_open(model, cwd, decide):
+        entered.set()
+        await release.wait()
+        return await FakeBackend.open(backend, model, cwd, decide)
+
+    backend.open = slow_open
+    await app.handle_start("fake", "small", str(tmp_path))
+    await entered.wait()
+    await app.handle_turn_audio(base64.b64encode(_wav()).decode())
+    assert channel.of_type("transcript") == [{
+        "type": "transcript", "text": "list files", "final": True,
+    }]
+    release.set()
+    for _ in range(50):
+        if backend.conversations:
+            break
+        await asyncio.sleep(0)
+    await _finish_turn(app, channel)
+
+    assert backend.conversations[0].turns == ["list files"]
+
+
+async def test_interrupt_cancels_pending_start_and_stale_open_is_closed(tmp_path):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    backend = FakeBackend()
+    app, channel, _, _ = _app(backend)
+
+    async def slow_open(model, cwd, decide):
+        entered.set()
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            await release.wait()  # emulate a provider that suppresses cancellation
+        return await FakeBackend.open(backend, model, cwd, decide)
+
+    backend.open = slow_open
+    await app.handle_start("fake", "small", str(tmp_path))
+    await app.handle_turn_text("discard on interrupt")
+    await entered.wait()
+    await app.handle_interrupt()
+    release.set()
+    for _ in range(50):
+        if backend.conversations and backend.conversations[0].closed:
+            break
+        await asyncio.sleep(0)
+
+    assert backend.conversations[0].closed
+    assert not channel.of_type("agent_reply")
+
+
+async def test_interrupt_pending_start_resyncs_session_before_retry(tmp_path):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    backend = FakeBackend()
+    app, channel, _, _ = _app(backend)
+    open_count = 0
+
+    async def open_with_stale_completion(model, cwd, decide):
+        nonlocal open_count
+        open_count += 1
+        if open_count == 1:
+            entered.set()
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                await release.wait()
+        return await FakeBackend.open(backend, model, cwd, decide)
+
+    backend.open = open_with_stale_completion
+    await app.handle_start("fake", "small", str(tmp_path))
+    await entered.wait()
+    await app.handle_turn_text("discarded pending turn")
+    await app.handle_interrupt()
+
+    assert channel.of_type("agent_backends")[-1]["session"] is None
+    assert channel.of_type("state")[-1]["state"] == "idle"
+    await app.handle_start("fake", "large", str(tmp_path))
+    await app.handle_turn_text("retry turn")
+    for _ in range(50):
+        if backend.conversations:
+            break
+        await asyncio.sleep(0)
+    await _finish_turn(app, channel)
+    release.set()
+    for _ in range(50):
+        if len(backend.conversations) == 2 and backend.conversations[1].closed:
+            break
+        await asyncio.sleep(0)
+
+    assert backend.conversations[0].turns == ["retry turn"]
+    assert backend.conversations[1].closed
+
+
+async def test_failed_pending_start_resyncs_session_and_discards_server_queue(tmp_path):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    backend = FakeBackend()
+    app, channel, _, _ = _app(backend)
+
+    async def failed_open(model, cwd, decide):
+        entered.set()
+        await release.wait()
+        raise RuntimeError("CLI missing")
+
+    backend.open = failed_open
+    await app.handle_start("fake", "small", str(tmp_path))
+    await app.handle_turn_text("retained by the page")
+    await entered.wait()
+    release.set()
+    for _ in range(50):
+        if channel.of_type("agent_error"):
+            break
+        await asyncio.sleep(0)
+
+    await app.handle_hello()
+    assert "CLI missing" in channel.of_type("agent_error")[-1]["message"]
+    assert channel.of_type("agent_backends")[-1]["session"] is None
+    assert channel.of_type("state")[-1]["state"] == "idle"
+
+
 @pytest.mark.parametrize(
     ("backend_id", "model", "folder_exists"),
     [("missing", "small", True), ("fake", "missing", True), ("fake", "small", False)],

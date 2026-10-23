@@ -52,6 +52,9 @@ class AgentApp:
         # What the page needs to resync after a reconnect; None without a conversation.
         self._session: dict[str, str] | None = None
         self._pending: dict[str, asyncio.Future[bool]] = {}
+        self._start_task: asyncio.Task | None = None
+        self._start_generation = 0
+        self._queued_turn: str | None = None
         self._playback_done = asyncio.Event()
         self.turn_task: asyncio.Task | None = None
         self.acknowledged_clips = 0
@@ -95,26 +98,36 @@ class AgentApp:
             await self._error(str(exc))
             return
         await self._cancel_turn()
+        await self._cancel_start()
         await self._close_conversation()
-        try:
-            self._conversation = await backend.open(model, folder, self._decide_permission)
-        except Exception as exc:
-            logger.error("Could not start %s: %s", backend_id, exc)
-            await self._error(f"Could not start {backend.label}: {exc}")
-            return
         self._session = {"backend": backend_id, "model": model, "cwd": str(folder)}
         await self.channel.send({"type": "agent_started", **self._session})
-        await self._state("listening")
+        await self._state("idle")
+        self._start_generation += 1
+        generation = self._start_generation
+        self._start_task = asyncio.create_task(
+            self._open_start(backend, backend_id, model, folder, generation),
+            name="agent-start",
+        )
+        # Let the owned task begin without waiting for backend.open to finish.
+        await asyncio.sleep(0)
 
     async def handle_turn_text(self, text: str) -> None:
         if not text.strip():
             return
         if await self._can_take_turn():
-            self._start_turn(text)
+            if self._conversation is None and self._startup_pending:
+                self._queued_turn = text
+                await self._state("thinking")
+            elif self._conversation is None:
+                await self._error("Choose a folder and start the agent first.")
+            else:
+                self._start_turn(text)
 
     async def handle_turn_audio(self, b64_data: str) -> None:
         if not await self._can_take_turn():
             return
+        starting = self._conversation is None
         try:
             wav_bytes = base64.b64decode(b64_data, validate=True)
         except (binascii.Error, ValueError):
@@ -135,10 +148,19 @@ class AgentApp:
             await self.channel.send({"type": "notice", "text": "Didn't catch that. Please say it again."})
             await self._state("listening")
             return
-        if not await self._can_take_turn():
+        if self._turn_running or self._queued_turn is not None:
+            await self.channel.send({
+                "type": "notice", "text": "Wait for the current reply or interrupt it.",
+            })
             return
         await self.channel.send({"type": "transcript", "text": text, "final": True})
-        self._start_turn(text)
+        if self._conversation is None and starting and self._startup_pending:
+            self._queued_turn = text
+            await self._state("thinking")
+        elif self._conversation is None:
+            await self._error("The agent is not ready. Please start it again.")
+        elif self._conversation is not None:
+            self._start_turn(text)
 
     async def handle_permission_response(self, request_id: str, allow: Any) -> None:
         future = self._pending.get(request_id)
@@ -146,6 +168,12 @@ class AgentApp:
             future.set_result(allow is True)
 
     async def handle_interrupt(self) -> None:
+        if self._start_task is not None and not self._start_task.done():
+            await self._cancel_start()
+            await self._close_conversation()
+            await self.handle_hello()
+            await self._state("idle")
+            return
         if self._conversation is not None and self._turn_running:
             await self._conversation.interrupt()
 
@@ -161,6 +189,8 @@ class AgentApp:
 
     async def shutdown(self) -> None:
         await self.handle_disconnect()
+        await self._cancel_start()
+        await self._cancel_turn()
         await self._close_conversation()
 
     # ------------------------------------------------------------------ #
@@ -171,16 +201,56 @@ class AgentApp:
     def _turn_running(self) -> bool:
         return self.turn_task is not None and not self.turn_task.done()
 
+    @property
+    def _startup_pending(self) -> bool:
+        return self._start_task is not None and not self._start_task.done()
+
     async def _can_take_turn(self) -> bool:
-        if self._conversation is None:
+        starting = self._startup_pending
+        if self._conversation is None and not starting:
             await self._error("Choose a folder and start the agent first.")
             return False
-        if self._turn_running:
+        if self._turn_running or self._queued_turn is not None:
             await self.channel.send({
                 "type": "notice", "text": "Wait for the current reply or interrupt it.",
             })
             return False
         return True
+
+    async def _open_start(self, backend, backend_id: str, model: str, folder: Path, generation: int) -> None:
+        try:
+            conversation = await backend.open(model, folder, self._decide_permission)
+        except asyncio.CancelledError:
+            return
+        except Exception as exc:
+            if generation != self._start_generation:
+                return
+            logger.error("Could not start %s: %s", backend_id, exc)
+            self._session = None
+            self._queued_turn = None
+            await self._error(f"Could not start {backend.label}: {exc}")
+            await self.handle_hello()
+            await self._state("idle")
+            return
+        if generation != self._start_generation:
+            try:
+                await conversation.close()
+            except Exception as exc:
+                logger.warning("Closing a stale agent conversation failed: %s", exc)
+            return
+        self._conversation = conversation
+        queued_turn, self._queued_turn = self._queued_turn, None
+        if queued_turn is not None:
+            self._start_turn(queued_turn)
+        else:
+            await self._state("listening")
+
+    async def _cancel_start(self) -> None:
+        self._start_generation += 1
+        self._queued_turn = None
+        task, self._start_task = self._start_task, None
+        if task is not None and not task.done():
+            task.cancel()
 
     def _start_turn(self, text: str) -> None:
         self.turn_task = asyncio.create_task(self._run_turn(text), name="agent-turn")
