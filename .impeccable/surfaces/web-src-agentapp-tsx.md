@@ -2,7 +2,7 @@
 version: 1
 slug: "web-src-agentapp-tsx"
 primary_target: "web/src/AgentApp.tsx"
-related_targets: ["web/src/App.tsx"]
+related_targets: ["web/src/App.tsx","web/src/App.css"]
 ---
 
 # Surface brief: Socra web app (exam `/` and agent `?mode=agent`)
@@ -24,5 +24,23 @@ FIRST VIEWPORT: a 44px top bar (wordmark, Exam/Agent tabs, context chips, connec
 FORM: dark-first developer console (catalog challenger, rated competitive), chosen by the user after seeing the mocks; seed key 0714a6c4.
 
 SIGNATURE INTERACTION: the split. Code arriving animates the panel grid's column template over 520 ms with an exponential ease-out along one axis only; the canvas follows the slot every frame, so the particles travel with the panel. Closing the code panel reverses it. Reduced motion swaps instantly.
+
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+## Agent chat-first extension (issues #24 and #25)
+
+Scope: only the agent page; Operate. This is a precisely specified extension of the existing conversation surface, not a new identity or a new concept round. User confirmation: chat from entry, folder bottom-left, provider/model bottom-right; retain the provider menu with nested model options.
+
+### Direction contract
+
+THESIS: remove the setup barrier without replacing the console; context controls support the conversation instead of gating it.
+
+OWN-WORLD: inherit the graphite/light console, existing accent/state tokens, Geist UI and mono paths, quiet outlined controls and existing particle field. No new colors, cards, chat bubbles, fonts or decorative imagery.
+
+STORY: open into an empty conversation, verify or change folder and model near the prompt, send the first turn immediately; see that turn retained while the agent starts or reports a clear failure.
+
+FIRST VIEWPORT: retain the fixed top bar and conversation/code panels. The conversation timeline is visible immediately. Keep the prompt dock at the bottom; its context row places one folder button labeled with the current folder basename at the left and provider/model trigger at the right. No separate visible path or breadcrumb; the full path is available only as the button tooltip. On phone widths keep the folder name visible (truncate long names) and maintain both controls in the dock without horizontal overflow. Provider/model choices open upward or in a portal above the dock, preserving nested keyboard/hover behavior.
+
+FORM: direct user-specified extension of the existing Operate surface; no new concept seed. Inherit the approved console seed 0714a6c4 rather than rolling a new composition. Signature interaction: the first send appears in the conversation while the backend starts, without a setup screen or lost text.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
