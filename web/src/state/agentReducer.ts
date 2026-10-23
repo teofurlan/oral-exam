@@ -51,7 +51,8 @@ export function agentReducer(state: AgentState, action: AgentAction): AgentState
         ...state,
         session: { backend: action.backend, model: action.model, cwd: action.cwd },
         folder: action.cwd,
-        timeline: [],
+        // Keep the optimistic first turn; the server accepts startup before it drains that turn.
+        timeline: state.timeline.at(-1)?.kind === 'user' ? state.timeline.slice(-1) : [],
         permissions: [],
       }
     case 'state':
