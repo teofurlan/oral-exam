@@ -7,7 +7,7 @@ from time import perf_counter
 import io
 import wave
 
-from socra_server.adapters.kokoro_tts import KokoroTTS
+from socra_server.adapters.piper_tts import PiperTTS
 from socra_server.adapters.whisper_stt import WhisperSTT
 
 TEXT = "Un proceso tiene su propia memoria; un thread comparte la memoria del proceso."
@@ -15,7 +15,7 @@ TEXT = "Un proceso tiene su propia memoria; un thread comparte la memoria del pr
 
 def main() -> None:
     start = perf_counter()
-    tts = KokoroTTS()
+    tts = PiperTTS()
     tts.load()
     tts_loaded = perf_counter()
     stt = WhisperSTT(tts.glossary_terms)
