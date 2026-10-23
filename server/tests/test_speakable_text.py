@@ -24,6 +24,12 @@ def test_headings_bullets_and_emphasis_markers_are_dropped():
     assert speakable_text(reply) == "Summary First point second point third"
 
 
+def test_composed_block_markers_are_all_dropped():
+    reply = "> - **Quoted bullet**\n> 1. quoted step"
+
+    assert speakable_text(reply) == "Quoted bullet quoted step"
+
+
 def test_reply_with_only_code_has_nothing_to_speak():
     assert speakable_text("```\nls -la\n```") == ""
 
