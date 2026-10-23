@@ -1,5 +1,5 @@
 .codegraph/
-odd/*.log
+odd/
 server/logs/
 node_modules/
 .venv/
