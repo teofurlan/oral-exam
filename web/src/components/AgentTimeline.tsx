@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { codeSegments } from '@/lib/codeBlocks'
 import type { ProtocolState } from '@/types/exam'
 import type { TimelineEntry } from '@/types/agent'
+import { MarkdownText } from './MarkdownText'
 
 interface AgentTimelineProps {
   entries: TimelineEntry[]
@@ -17,19 +18,6 @@ const WHO: Record<TimelineEntry['kind'], { label: string; color: string }> = {
   error: { label: 'error', color: 'var(--danger)' },
 }
 
-/** `inline code` in a reply, shown in mono without the backticks. */
-function withInlineCode(text: string) {
-  return text.split(/(`[^`\n]+`)/g).map((part, i) =>
-    part.length > 2 && part.startsWith('`') && part.endsWith('`') ? (
-      <code key={i} className="t-mono rounded-[3px] px-[0.35ch]" style={{ background: 'var(--raise)', color: 'var(--label)' }}>
-        {part.slice(1, -1)}
-      </code>
-    ) : (
-      part
-    ),
-  )
-}
-
 /** Code goes to the code pane; the log keeps a pointer to it where the block was. */
 function CodePointer({ lang, lines }: { lang: string; lines: number }) {
   return (
@@ -39,10 +27,24 @@ function CodePointer({ lang, lines }: { lang: string; lines: number }) {
   )
 }
 
+function MarkdownBody({ text, color }: { text: string; color: string }) {
+  return (
+    <div className="flex flex-col gap-2" style={{ color }}>
+      {codeSegments(text).map((segment, i) =>
+        segment.kind === 'code' ? (
+          <CodePointer key={i} lang={segment.lang} lines={segment.lines} />
+        ) : (
+          <MarkdownText key={i} text={segment.text} />
+        ),
+      )}
+    </div>
+  )
+}
+
 function Body({ entry }: { entry: TimelineEntry }) {
   switch (entry.kind) {
     case 'user':
-      return <span style={{ color: 'var(--label-2)' }}>{entry.text}</span>
+      return <MarkdownBody text={entry.text} color="var(--label-2)" />
     case 'tool':
       return (
         <span className="flex min-w-0 gap-[1ch]" style={{ color: 'var(--warn)' }}>
@@ -56,19 +58,7 @@ function Body({ entry }: { entry: TimelineEntry }) {
       )
     case 'text':
     case 'reply':
-      return (
-        <span className="flex flex-col gap-2" style={{ color: entry.kind === 'text' ? 'var(--label-2)' : 'var(--label)' }}>
-          {codeSegments(entry.text).map((segment, i) =>
-            segment.kind === 'code' ? (
-              <CodePointer key={i} lang={segment.lang} lines={segment.lines} />
-            ) : (
-              <span key={i} className="block whitespace-pre-wrap">
-                {withInlineCode(segment.text)}
-              </span>
-            ),
-          )}
-        </span>
-      )
+      return <MarkdownBody text={entry.text} color={entry.kind === 'text' ? 'var(--label-2)' : 'var(--label)'} />
     case 'error':
       return <span style={{ color: 'var(--danger)' }}>{entry.text}</span>
   }
